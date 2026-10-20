@@ -1,0 +1,25 @@
+.tanque {
+  display: block;
+  overflow: visible;
+}
+
+.tanque .liquido {
+  transition: transform 1.6s var(--ease);
+}
+
+.tanque .ola {
+  animation: ola 3.2s linear infinite;
+}
+
+.tanque .ola.b {
+  animation-duration: 5s;
+  animation-direction: reverse;
+  opacity: .45;
+}
+
+.tanque .burbuja {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: burbuja 2.6s ease-in infinite;
+}

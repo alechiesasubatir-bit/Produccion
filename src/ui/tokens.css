@@ -1,0 +1,114 @@
+/* Sistema visual ProdControl — estética "laboratorio" clara */
+:root {
+  --papel: #f5f6f2;
+  --papel-2: #eceee6;
+  --tarjeta: #ffffff;
+  --tinta: #0f172a;
+  --tinta-2: #334155;
+  --apagado: #64748b;
+  --linea: #e3e5dc;
+  --linea-2: #cfd2c6;
+  --vacio: #cbd5e1;
+
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, monospace;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+
+  color-scheme: light;
+  font-family: var(--sans);
+  color: var(--tinta);
+  background: var(--papel);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- animaciones compartidas ---------- */
+@keyframes ola {
+  to {
+    transform: translateX(-60px);
+  }
+}
+
+@keyframes burbuja {
+  0% {
+    transform: translateY(0) scale(.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: .85;
+  }
+  100% {
+    transform: translateY(-90px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes pulso {
+  50% {
+    opacity: .25;
+    transform: scale(.6);
+  }
+}
+
+/* ---------- chips de estado ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 3px 9px;
+  border-radius: 99px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.chip i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip.en-curso i {
+  animation: pulso 1.4s ease-in-out infinite;
+}
+
+.chip-fabricando { background: #dcfce7; color: #166534; }
+.chip-envasando { background: #e0f2fe; color: #075985; }
+.chip-fraccionado { background: #fef3c7; color: #92400e; }
+.chip-pausado { background: #fee2e2; color: #991b1b; }
+.chip-cola { background: #f1f5f9; color: #475569; }
+.chip-terminada { background: #ede9fe; color: #5b21b6; }
+.chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }
+
+/* ---------- movimiento reducido: sin olas, burbujas ni transiciones ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ola,
+  .burbuja,
+  .liquido,
+  .chip i {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .burbuja {
+    opacity: 0;
+  }
+}
