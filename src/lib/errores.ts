@@ -11,6 +11,7 @@ export type CodigoError =
   | 'OPERARIA_DUPLICADA'
   | 'NO_PROPIO_ROL'
   | 'PIN_INVALIDO'
+  | 'NOMBRE_DUPLICADO'
   | 'RED'
   | 'DESCONOCIDO'
 
@@ -27,6 +28,7 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   OPERARIA_DUPLICADA: () => 'Esa persona ya es operaria.',
   NO_PROPIO_ROL: () => 'No podés cambiar tu propio rol.',
   PIN_INVALIDO: () => 'El PIN son 4 dígitos.',
+  NOMBRE_DUPLICADO: () => 'Ya existe uno con ese nombre.',
   RED: () => 'Sin conexión. Revisá el WiFi.',
   DESCONOCIDO: () => 'Algo salió mal. Avisá a la encargada.',
 }
@@ -62,6 +64,7 @@ export function mensajeError(err: unknown): { codigo: CodigoError; texto: string
     if (campo(err, 'code') === '23505' && typeof codigo === 'string') {
       const c = CONSTRAINTS.find(([nombre]) => codigo.includes(nombre))
       if (c) return { codigo: c[1], texto: TEXTOS[c[1]](null) }
+      return { codigo: 'NOMBRE_DUPLICADO', texto: TEXTOS.NOMBRE_DUPLICADO(null) }
     }
     if (esCodigo(codigo) && codigo !== 'RED' && codigo !== 'DESCONOCIDO') {
       return { codigo, texto: TEXTOS[codigo](typeof detalle === 'string' && detalle ? detalle : null) }
