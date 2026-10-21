@@ -1762,3 +1762,102 @@ th[aria-sort='descending'] .th-orden::after {
     padding: 10px;
   }
 }
+
+/* ---------- Panel del tanque: entra entero en una laptop (solo pantalla; la impresión del QR no cambia) ---------- */
+
+@media screen {
+  .tanques.con-detalle {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+
+  /* arriba el tanque y sus datos; abajo, acciones y recorrido a la izquierda y el QR a la derecha */
+  .detalle-tanque {
+    top: 76px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px;
+    grid-auto-flow: row dense;
+    align-content: start;
+    column-gap: 20px;
+    row-gap: 12px;
+    max-height: calc(100vh - 92px);
+    padding: 16px 20px 18px;
+  }
+
+  .detalle-tanque > * {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .detalle-tanque > .detalle-cabecera,
+  .detalle-tanque > .detalle-tanque-grande,
+  .detalle-tanque > .aviso-panel {
+    grid-column: 1 / -1;
+  }
+
+  .detalle-tanque > .detalle-seccion:has(.qr-tanque) {
+    grid-column: 2;
+    grid-row: 3 / span 3;
+  }
+
+  .detalle-cabecera {
+    padding-bottom: 8px;
+  }
+
+  .detalle-cabecera h2 {
+    font-size: 26px;
+  }
+
+  .detalle-tanque-grande {
+    gap: 20px;
+  }
+
+  .detalle-tanque-grande .tanque {
+    width: 64px;
+    height: 128px;
+  }
+
+  .detalle-datos dt,
+  .detalle-datos dd {
+    padding: 4px 0;
+  }
+
+  .detalle-seccion h3 {
+    margin-bottom: 6px;
+  }
+
+  .detalle-acciones {
+    margin-bottom: 4px;
+  }
+
+  .recorrido {
+    max-height: 104px;
+    overflow: auto;
+    line-height: 1.6;
+  }
+
+  .qr-tanque {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .qr-tanque .qr {
+    width: 120px;
+    height: 120px;
+  }
+
+  .qr-tanque .qr-url {
+    font-size: 10px;
+  }
+}
+
+@media screen and (max-height: 640px) {
+  .recorrido {
+    max-height: 72px;
+  }
+
+  .qr-tanque .qr {
+    width: 104px;
+    height: 104px;
+  }
+}

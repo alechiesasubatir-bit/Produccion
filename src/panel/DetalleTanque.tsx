@@ -120,7 +120,7 @@ export function DetalleTanque({
         <Tanque
           estado={tanque.estado}
           color={tanque.color ?? undefined}
-          ancho={140}
+          ancho={100}
           nivel={nivelTanque({
             estado: tanque.estado,
             capacidad: tanque.capacidad_l,
