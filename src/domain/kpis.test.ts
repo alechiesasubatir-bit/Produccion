@@ -65,3 +65,11 @@ describe('tiemposVsEstandar', () => {
     expect(r[0]).toMatchObject({ real: 12, estandar: 12, desvioPct: 0 })
   })
 })
+
+describe('fabricación terminada', () => {
+  it('una fabricación lista para envasar ya cuenta sus litros (no espera al envasado)', () => {
+    const r = resumenOperaciones([filaH({ estado: 'para_envasar', litros: 800, min_efectivos: 40 })])
+    expect(r.fabricaciones).toBe(1)
+    expect(r.litrosFabricados).toBe(800)
+  })
+})

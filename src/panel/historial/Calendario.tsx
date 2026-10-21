@@ -1,4 +1,5 @@
 import { diasDelMes, porDia, type FilaHistorial, type Rango } from '../../domain/historial'
+import { terminada } from '../../domain/kpis'
 import { tituloTarea } from '../../domain/tareas'
 import { Chip } from '../../ui/Chip'
 
@@ -9,7 +10,7 @@ function resumen(filas: FilaHistorial[]) {
   const c = { fabricacion: 0, envasado: 0, fraccionado: 0, litros: 0 }
   for (const f of filas) {
     c[f.entidad] += 1
-    if (f.entidad === 'fabricacion' && f.estado === 'finalizada') c.litros += f.litros ?? 0
+    if (f.entidad === 'fabricacion' && terminada(f)) c.litros += f.litros ?? 0
   }
   return c
 }

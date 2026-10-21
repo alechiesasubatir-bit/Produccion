@@ -1,5 +1,5 @@
 -- Ejecutar: begin; + _fixtures.sql + este archivo.
-insert into _tap (l) select plan(7);
+insert into _tap (l) select plan(10);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -23,7 +23,10 @@ insert into produccion.fabricaciones (id, tanque_id, producto_id, litros, estado
   -- b5: fabricando hace 10 h
   ('00000000-0000-0000-0000-0000000000b5', '00000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-0000000000d1', 800, 'fabricando', now() - interval '10 hours', null),
   -- b6: lista para envasar sin envasados
-  ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-0000000000d1', 800, 'para_envasar', null, null);
+  ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-0000000000d1', 800, 'para_envasar', null, null),
+  -- b7: fabricada el lunes (675 L en 90 min = 7,5 L/min, no mueve el estándar); el cierre
+  -- automático del miércoles pisó "fin"
+  ('00000000-0000-0000-0000-0000000000b7', '00000000-0000-0000-0000-0000000000c5', '00000000-0000-0000-0000-0000000000d1', 675, 'finalizada', '2026-01-05 22:00-03', '2026-01-07 15:00-03');
 insert into produccion.envasados (id, fabricacion_id, presentacion_id, cantidad, estado, operaria_1) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1', 20, 'finalizado', '00000000-0000-0000-0000-0000000000e1'),
   ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000f1', 20, 'pausado', '00000000-0000-0000-0000-0000000000e2');
@@ -36,6 +39,8 @@ insert into produccion.eventos (entidad, entidad_id, accion, at) values
   ('fabricacion', '00000000-0000-0000-0000-0000000000b3', 'finalizar', '2026-01-06 09:00-03'),
   ('fabricacion', '00000000-0000-0000-0000-0000000000b4', 'iniciar',   '2026-01-07 08:00-03'),
   ('fabricacion', '00000000-0000-0000-0000-0000000000b4', 'finalizar', '2026-01-07 10:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-0000000000b7', 'iniciar',   '2026-01-05 22:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-0000000000b7', 'finalizar', '2026-01-05 23:30-03'),
   ('envasado', '00000000-0000-0000-0000-0000000000a2', 'iniciar', now() - interval '60 minutes'),
   ('envasado', '00000000-0000-0000-0000-0000000000a2', 'pausar',  now() - interval '40 minutes');
 
@@ -73,6 +78,28 @@ insert into _tap (l) select ok(
   exists (select 1 from produccion.alertas where tipo = 'falta_envasado' and entidad_id = '00000000-0000-0000-0000-0000000000b6')
   and exists (select 1 from produccion.alertas where tipo = 'pausa_larga' and entidad_id = '00000000-0000-0000-0000-0000000000a2'),
   'alertas de falta de envasado y de pausa larga');
+
+-- 8. el día y el fin de una fabricación son los de la fabricación, no los del cierre automático
+insert into _tap (l) select is(
+  (select dia || ' ' || to_char(fin at time zone 'America/Montevideo', 'HH24:MI') from produccion.v_historial
+   where id = '00000000-0000-0000-0000-0000000000b7'),
+  '2026-01-05 23:30', 'fabricación: día y fin de cuando terminó de fabricarse');
+
+-- 9-10. las alertas se resuelven solas cuando la condición deja de darse
+insert into produccion.envasados (fabricacion_id, presentacion_id, cantidad, estado) values
+  ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000f1', 10, 'cola');
+update produccion.envasados set estado = 'activo' where id = '00000000-0000-0000-0000-0000000000a2';
+select produccion.revisar_alertas();
+insert into _tap (l) select ok(
+  not exists (select 1 from produccion.alertas where tipo = 'falta_envasado' and entidad_id = '00000000-0000-0000-0000-0000000000b6')
+  and not exists (select 1 from produccion.alertas where tipo = 'pausa_larga' and entidad_id = '00000000-0000-0000-0000-0000000000a2'),
+  'cargar el envasado y retomar la pausa resuelven sus alertas');
+
+update produccion.fabricaciones set estado = 'para_envasar' where id = '00000000-0000-0000-0000-0000000000b5';
+select produccion.revisar_alertas();
+insert into _tap (l) select ok(
+  not exists (select 1 from produccion.alertas where tipo = 'exceso_9h' and entidad_id = '00000000-0000-0000-0000-0000000000b5'),
+  'terminar de fabricar resuelve la alerta de más de 9 h (aunque estuviera pospuesta)');
 
 -- 7. solo el cron (postgres) corre revisar_alertas -------------------------------
 set local role authenticated;

@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   } catch {
     return responder({ ok: false, error: 'Pedido inválido.' }, 400)
   }
-  if (!(tipo in ESQUEMAS) || typeof imagen !== 'string' || !imagen || imagen.length > MAX_IMAGEN) {
+  if (!Object.hasOwn(ESQUEMAS, tipo) || typeof imagen !== 'string' || !imagen || imagen.length > MAX_IMAGEN) {
     return responder({ ok: false, error: 'Falta el tipo o la imagen (o es demasiado grande).' }, 400)
   }
 
@@ -79,10 +79,12 @@ Deno.serve(async (req) => {
     const anthropic = new Anthropic() // ANTHROPIC_API_KEY del secreto de la función
     const r = await anthropic.beta.messages.parse({
       model: 'claude-opus-5',
-      max_tokens: 4096,
+      // Opus 5 piensa por defecto y el razonamiento cuenta contra max_tokens: margen amplio.
+      max_tokens: 16000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default', // si el modelo rechaza la imagen, el servidor reintenta con otro
-      output_config: { format: betaZodOutputFormat(ESQUEMAS[tipo]) },
+      // Extraer datos de una hoja no necesita razonamiento profundo: effort bajo, más rápido y barato.
+      output_config: { format: betaZodOutputFormat(ESQUEMAS[tipo]), effort: 'low' },
       messages: [
         {
           role: 'user',
@@ -94,6 +96,9 @@ Deno.serve(async (req) => {
       ],
     })
     if (r.stop_reason === 'refusal') return responder({ ok: false, error: 'No se pudo leer esta hoja. Cargala a mano.' })
+    if (r.stop_reason === 'max_tokens') {
+      return responder({ ok: false, error: 'La lectura quedó incompleta. Probá con una foto más nítida o cargala a mano.' })
+    }
     if (!r.parsed_output) return responder({ ok: false, error: 'La lectura no trajo datos válidos. Cargala a mano.' })
     return responder({ ok: true, datos: r.parsed_output })
   } catch (e) {
