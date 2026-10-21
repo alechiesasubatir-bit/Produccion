@@ -221,3 +221,129 @@
   outline: 2px solid #0284c7;
   outline-offset: 2px;
 }
+
+/* ---------- Modal y formularios ---------- */
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.35);
+}
+
+.modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--tarjeta);
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.18);
+}
+
+.modal-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-cabecera h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 26px;
+}
+
+.segmentos {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: var(--papel-2);
+}
+
+.segmento {
+  appearance: none;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tinta-2);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segmento[aria-pressed='true'] {
+  background: var(--tarjeta);
+  color: var(--tinta);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+}
+
+.formulario {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+.campo input,
+.campo select {
+  font: inherit;
+  padding: 9px 11px;
+  border: 1px solid var(--linea-2);
+  border-radius: 10px;
+  background: var(--tarjeta);
+  color: var(--tinta);
+}
+
+.campo input:focus-visible,
+.campo select:focus-visible,
+.segmento:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 1px;
+}
+
+.campo-error {
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.advertencia {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+}
+
+.formulario .aviso-panel,
+.modal-pie {
+  grid-column: 1 / -1;
+}
+
+.modal-pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
