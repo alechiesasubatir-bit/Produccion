@@ -12,6 +12,25 @@
     />
     <title>Control de Producción</title>
     <script>
+      // Cada deploy borra el código anterior: si el navegador quedó con un index.html viejo en caché,
+      // el script de la app da 404 y la página queda en blanco. Se recarga una vez salteando la caché.
+      window.addEventListener(
+        'error',
+        function (e) {
+          var s = e.target
+          if (!s || s.tagName !== 'SCRIPT' || s.type !== 'module') return
+          try {
+            if (sessionStorage.getItem('prodcontrol_recarga')) return
+            sessionStorage.setItem('prodcontrol_recarga', '1')
+          } catch (x) {}
+          var u = new URL(location.href)
+          u.searchParams.set('v', String(Date.now()))
+          location.replace(u.toString())
+        },
+        true,
+      )
+    </script>
+    <script>
       // Restaura la ruta guardada por 404.html (GitHub Pages) antes de montar React.
       try {
         var ruta = sessionStorage.getItem('prodcontrol_ruta')
