@@ -1,6 +1,6 @@
 // Tipos de la base (formato de `supabase gen types`).
 // El generador del MCP solo emite el esquema public, así que `produccion` se escribe a mano
-// desde supabase/migrations/ (001–007). Al cambiar una migración, actualizar acá.
+// desde supabase/migrations/ (001–009). Al cambiar una migración, actualizar acá.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -182,7 +182,7 @@ export type Database = {
       alertas: Tabla<
         {
           id: Uuid
-          tipo: 'exceso_9h' | 'desvio_estandar'
+          tipo: 'exceso_9h' | 'desvio_estandar' | 'pausa_larga' | 'falta_envasado'
           entidad: EntidadEvento | null
           entidad_id: Uuid | null
           texto: string
@@ -260,6 +260,38 @@ export type Database = {
         min_efectivos: number | null
         corriendo: boolean
         created_at: Ts
+      }>
+      v_historial: Vista<{
+        entidad: EntidadEvento
+        id: Uuid
+        estado: EstadoFabricacion | EstadoTarea
+        producto: string | null
+        color: string | null
+        tanque_codigo: string | null
+        presentacion: string | null
+        cantidad: number | null
+        litros: number | null
+        litros_equiv: number | null
+        lote: string | null
+        descripcion: string | null
+        operaria_1: Uuid | null
+        operaria_1_nombre: string | null
+        operaria_2: Uuid | null
+        operaria_2_nombre: string | null
+        inicio: Ts | null
+        fin: Ts | null
+        created_at: Ts
+        min_brutos: number | null
+        min_pausa: number | null
+        min_efectivos: number | null
+        dia: string
+      }>
+      v_tiempos_estandar: Vista<{
+        entidad: 'fabricacion' | 'envasado'
+        clave: string
+        velocidad: number
+        muestras: number
+        litros_hora_std: number | null
       }>
       v_tiempos_efectivos: Vista<{
         entidad: EntidadEvento
