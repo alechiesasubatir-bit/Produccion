@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { mensajeError } from './errores'
 import { supabase } from './supabase'
 
@@ -7,11 +7,12 @@ const POLLING_MS = 15_000
 
 // Carga `cargar()` y la repite cuando cambia alguna tabla de `canales` (esquema produccion).
 // Si el canal de Realtime no está SUBSCRIBED, cae a polling cada 15 s.
+// `conectado` es la red (de eso dependen las acciones); `enVivo` es el canal de Realtime.
 export function useRealtime<T>(
   tabla: string,
   cargar: () => Promise<T[]>,
   canales: string[],
-): { datos: T[]; conectado: boolean; error: string | null } {
+): { datos: T[]; conectado: boolean; enVivo: boolean; error: string | null; recargar: () => void } {
   const [datos, setDatos] = useState<T[]>([])
   const [error, setError] = useState<string | null>(null)
   const [canalOk, setCanalOk] = useState(false)
@@ -38,6 +39,8 @@ export function useRealtime<T>(
   }).current
 
   const claveCanales = canales.join(',')
+  // Sufijo por montaje: supabase.channel() reutiliza un canal con el mismo topic aunque se esté cerrando.
+  const sufijo = useId()
 
   useEffect(() => {
     let vigente = true
@@ -51,7 +54,7 @@ export function useRealtime<T>(
 
     recargar()
 
-    const canal = supabase.channel(`rt-${tabla}-${claveCanales}`)
+    const canal = supabase.channel(`rt-${tabla}-${claveCanales}-${sufijo}`)
     for (const t of claveCanales.split(',').filter(Boolean)) {
       canal.on('postgres_changes', { event: '*', schema: 'produccion', table: t }, recargarPronto)
     }
@@ -68,7 +71,7 @@ export function useRealtime<T>(
       clearTimeout(espera)
       void supabase.removeChannel(canal)
     }
-  }, [tabla, claveCanales, recargar])
+  }, [tabla, claveCanales, sufijo, recargar])
 
   useEffect(() => {
     if (canalOk) return
@@ -77,7 +80,10 @@ export function useRealtime<T>(
   }, [canalOk, recargar])
 
   useEffect(() => {
-    const on = () => setOnline(true)
+    const on = () => {
+      setOnline(true)
+      recargar() // ponerse al día al volver la red
+    }
     const off = () => setOnline(false)
     window.addEventListener('online', on)
     window.addEventListener('offline', off)
@@ -85,7 +91,7 @@ export function useRealtime<T>(
       window.removeEventListener('online', on)
       window.removeEventListener('offline', off)
     }
-  }, [])
+  }, [recargar])
 
-  return { datos, conectado: online && canalOk, error }
+  return { datos, conectado: online, enVivo: canalOk, error, recargar }
 }

@@ -2,11 +2,13 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useRealtime } from './useRealtime'
 
+const mock = vi.hoisted(() => ({ estadoCanal: 'SUBSCRIBED' }))
+
 vi.mock('./supabase', () => {
   const canal = {
     on: () => canal,
     subscribe: (cb: (estado: string) => void) => {
-      cb('SUBSCRIBED')
+      cb(mock.estadoCanal)
       return canal
     },
   }
@@ -34,5 +36,39 @@ describe('useRealtime', () => {
     await act(async () => lenta.resolver(['viejo']))
 
     expect(result.current.datos).toEqual(['nuevo'])
+  })
+
+  it('canal caído con red OK: enVivo=false pero conectado=true', async () => {
+    mock.estadoCanal = 'CHANNEL_ERROR'
+    const { result } = renderHook(() => useRealtime('t', () => Promise.resolve([1]), ['a']))
+    await waitFor(() => expect(result.current.datos).toEqual([1]))
+    expect(result.current.enVivo).toBe(false)
+    expect(result.current.conectado).toBe(true)
+    mock.estadoCanal = 'SUBSCRIBED'
+  })
+
+  it('offline/online cambia conectado y al volver recarga', async () => {
+    const cargar = vi.fn(() => Promise.resolve([1]))
+    const { result } = renderHook(() => useRealtime('t', cargar, []))
+    await waitFor(() => expect(cargar).toHaveBeenCalled())
+    await act(async () => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(result.current.conectado).toBe(false)
+    const antes = cargar.mock.calls.length
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+    expect(result.current.conectado).toBe(true)
+    expect(cargar.mock.calls.length).toBeGreaterThan(antes)
+  })
+
+  it('recargar() vuelve a cargar', async () => {
+    const cargar = vi.fn(() => Promise.resolve([1]))
+    const { result } = renderHook(() => useRealtime('t', cargar, []))
+    await waitFor(() => expect(cargar).toHaveBeenCalled())
+    const antes = cargar.mock.calls.length
+    await act(async () => result.current.recargar())
+    expect(cargar.mock.calls.length).toBe(antes + 1)
   })
 })
