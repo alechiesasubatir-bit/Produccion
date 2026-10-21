@@ -57,10 +57,32 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     envasado_id: null, operaria_id: null, inicio: null,
   }
   const flujo: object[] = []
+  const hoy = new Date().toISOString().slice(0, 10)
+  const historial = [
+    { entidad: 'fabricacion', id: 'H1', estado: 'finalizada', producto: 'Lavandina', color: '#0284c7', tanque_codigo: 'T-01',
+      presentacion: null, cantidad: null, litros: 1200, litros_equiv: null, lote: 'L-1', descripcion: null,
+      operaria_1: 'E1', operaria_1_nombre: 'Laura Paz', operaria_2: null, operaria_2_nombre: null,
+      inicio: `${hoy}T11:00:00Z`, fin: `${hoy}T13:00:00Z`, created_at: `${hoy}T10:00:00Z`,
+      min_brutos: 120, min_pausa: 10, min_efectivos: 110, dia: hoy },
+    { entidad: 'envasado', id: 'H2', estado: 'finalizado', producto: 'Lavandina', color: '#0284c7', tanque_codigo: 'T-01',
+      presentacion: '5L', cantidad: 200, litros: 1000, litros_equiv: 5, lote: 'L-1', descripcion: null,
+      operaria_1: 'E2', operaria_1_nombre: 'Rosa Díaz', operaria_2: null, operaria_2_nombre: null,
+      inicio: `${hoy}T14:00:00Z`, fin: `${hoy}T15:00:00Z`, created_at: `${hoy}T13:30:00Z`,
+      min_brutos: 60, min_pausa: 0, min_efectivos: 60, dia: hoy },
+  ]
+  const alertas = [
+    { id: 'AL1', tipo: 'exceso_9h', entidad: 'fabricacion', entidad_id: 'F9', texto: 'Fabricación de Cloro en T-02 lleva más de 9 horas.',
+      creada: new Date().toISOString(), leida: false, pospuesta_hasta: null as string | null },
+  ]
 
   await page.addInitScript((s) => localStorage.setItem('prodcontrol_auth', s), JSON.stringify(sesionFalsa()))
   await page.routeWebSocket(/realtime/, (ws) => ws.close())
   await page.route('**/auth/v1/**', (r: Route) => r.fulfill({ json: sesionFalsa().user }))
+
+  // Edge Function de escaneo: devuelve una hoja de fabricación leída.
+  await page.route('**/functions/v1/escanear-hoja', (r: Route) =>
+    r.fulfill({ json: { ok: true, datos: { producto: 'LAVANDINA', cantidad: '1,500.000', lote: 'L-900', fecha: '21/10/2026' } } }),
+  )
 
   await page.route('**/rest/v1/**', async (r: Route) => {
     const url = new URL(r.request().url())
@@ -73,6 +95,13 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     if (ruta === 'presentaciones' && metodo === 'GET') return r.fulfill({ json: presentaciones })
     if (ruta === 'tanques' && metodo === 'GET') return r.fulfill({ json: [{ id: 't1', codigo: 'T-01', capacidad_l: 2000, orden: 1, activo: true }] })
     if (ruta === 'eventos') return r.fulfill({ json: [] })
+    if (ruta === 'v_historial') return r.fulfill({ json: historial })
+    if (ruta === 'v_tiempos_estandar') return r.fulfill({ json: [] })
+    if (ruta === 'alertas' && metodo === 'GET') return r.fulfill({ json: alertas })
+    if (ruta === 'alertas' && metodo === 'PATCH') {
+      Object.assign(alertas[0], r.request().postDataJSON())
+      return r.fulfill({ status: 204, body: '' })
+    }
     if (ruta === 'envasados' && metodo === 'GET') return r.fulfill({ json: [] })
     if (ruta === 'fabricaciones' && metodo === 'POST') {
       const d = r.request().postDataJSON()
