@@ -1,0 +1,214 @@
+/* Tablet de planta (1180×820). Acciones primarias ≥ 64 px, teclas del PIN ≥ 72 px. */
+
+.planta {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--papel);
+}
+
+.planta-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--linea);
+  background: var(--tarjeta);
+  user-select: none;
+}
+
+.planta-barra .marca-nombre {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.planta-reloj {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--tinta-2);
+}
+
+.planta-barra-der {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.planta-cuerpo {
+  flex: 1;
+  padding: 28px;
+}
+
+.titulo-planta {
+  margin: 0 0 24px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 40px;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- ¿Quién trabaja? ---------- */
+
+.quien-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.quien-boton {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 168px;
+  padding: 20px 12px;
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font: inherit;
+  cursor: pointer;
+}
+
+.quien-boton:active {
+  background: var(--papel-2);
+}
+
+.quien-boton:focus-visible,
+.pin-tecla:focus-visible,
+.accion:focus-visible {
+  outline: 3px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.quien-avatar {
+  position: relative;
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  color: #fff;
+  font-weight: 600;
+  font-size: 24px;
+}
+
+.punto {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--tarjeta);
+  border-radius: 50%;
+}
+
+.punto-trabajando {
+  background: #16a34a;
+}
+
+.punto-pausada {
+  background: #f97316;
+}
+
+.quien-nombre {
+  font-size: 17px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ---------- PIN ---------- */
+
+.pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pin .titulo-planta {
+  margin-bottom: 8px;
+}
+
+.pin-hola,
+.pin-ayuda {
+  margin: 0;
+  color: var(--tinta-2);
+  font-size: 17px;
+}
+
+.pin-puntos {
+  display: flex;
+  gap: 18px;
+  margin: 24px 0 8px;
+}
+
+.pin-punto {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--tinta);
+  border-radius: 50%;
+}
+
+.pin-punto.lleno {
+  background: var(--tinta);
+}
+
+.pin-puntos.sacudir {
+  animation: sacudir 0.4s var(--ease);
+}
+
+@keyframes sacudir {
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+
+.pin-error {
+  min-height: 24px;
+  margin: 0 0 12px;
+  color: #991b1b;
+  font-weight: 500;
+}
+
+.pin-teclas {
+  display: grid;
+  grid-template-columns: repeat(3, 96px);
+  gap: 14px;
+}
+
+.pin-tecla {
+  appearance: none;
+  height: 80px;
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font-family: var(--mono);
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.pin-tecla:active:not(:disabled) {
+  background: var(--papel-2);
+}
+
+.pin-tecla:disabled {
+  opacity: 0.5;
+}
+
+.pin-tecla-sec {
+  font-family: var(--sans);
+  font-size: 16px;
+  color: var(--tinta-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-puntos.sacudir {
+    animation: none;
+  }
+}
