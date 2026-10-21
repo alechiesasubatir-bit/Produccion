@@ -13,7 +13,7 @@ function estadoMiniTanque(t: Tarea): EstadoTanque {
   return 'cola_env'
 }
 
-function Cronometro({ tarea, cargadoEn }: { tarea: Tarea; cargadoEn: number }) {
+export function Cronometro({ tarea, cargadoEn }: { tarea: Tarea; cargadoEn: number }) {
   const [ahora, setAhora] = useState(() => Date.now())
   useEffect(() => {
     if (!tarea.corriendo) return
