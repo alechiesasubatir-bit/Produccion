@@ -38,6 +38,8 @@ describe('SesionProvider', () => {
       </SesionProvider>,
     )
     await waitFor(() => expect(screen.getByText('rol=null error=true')).toBeInTheDocument(), { timeout: 3000 })
+    // dejar que corra el efecto que registra el listener de 'online' antes de disparar el evento
+    await act(async () => {})
     await act(async () => {
       window.dispatchEvent(new Event('online'))
     })

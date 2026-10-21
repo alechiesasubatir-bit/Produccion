@@ -347,3 +347,170 @@
   gap: 10px;
   margin-top: 6px;
 }
+
+/* ---------- Tanques ---------- */
+
+.tanques.con-detalle {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 24px;
+  align-items: start;
+}
+
+.pared-boton {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pared-boton:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
+.pared-celda.elegida {
+  border-color: var(--tinta);
+  box-shadow: 0 0 0 1px var(--tinta);
+}
+
+.detalle-tanque {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  background: var(--tarjeta);
+}
+
+.detalle-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detalle-cabecera h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 24px;
+}
+
+.detalle-tanque-grande {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.detalle-datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.detalle-datos dt {
+  color: var(--apagado);
+}
+
+.detalle-datos dd {
+  margin: 0;
+}
+
+.detalle-seccion h3 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--apagado);
+}
+
+.detalle-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.detalle-etiqueta {
+  min-width: 84px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.recorrido {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.qr-tanque {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+}
+
+.qr {
+  width: 168px;
+  height: 168px;
+}
+
+.qr svg {
+  width: 100%;
+  height: 100%;
+}
+
+.qr-tanque figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qr-url {
+  font-size: 11px;
+  color: var(--apagado);
+  word-break: break-all;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .qr-tanque,
+  .qr-tanque * {
+    visibility: visible;
+  }
+  .qr-tanque {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .qr {
+    width: 8cm;
+    height: 8cm;
+  }
+  .no-imprimir {
+    display: none;
+  }
+}
