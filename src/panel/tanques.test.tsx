@@ -92,4 +92,16 @@ describe('Tanques', () => {
     await act(async () => {})
     expect(screen.getByRole('complementary', { name: 'Tanque T-01' })).toBeInTheDocument()
   })
+
+  it('el tanque abierto por ?tanque= se puede cerrar', async () => {
+    m.tanques = [tanque({})]
+    render(
+      <MemoryRouter initialEntries={['/panel/tanques?tanque=T-01']}>
+        <Tanques />
+      </MemoryRouter>,
+    )
+    await act(async () => {})
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' })))
+    expect(screen.queryByRole('complementary', { name: 'Tanque T-01' })).toBeNull()
+  })
 })

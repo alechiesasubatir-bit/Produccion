@@ -75,17 +75,21 @@ describe('useAvisoSonoro', () => {
   })
 
   it('no suena con las alertas que ya estaban al cargar; suena una vez con una nueva', () => {
-    const { rerender } = renderHook(({ ids }) => useAvisoSonoro(ids), { initialProps: { ids: ['a', 'b'] } })
+    // como en la app: primero lista vacía sin cargar, después llega la carga inicial
+    const { rerender } = renderHook(({ ids, listo }) => useAvisoSonoro(ids, listo), {
+      initialProps: { ids: [] as string[], listo: false },
+    })
+    rerender({ ids: ['a', 'b'], listo: true })
     expect(m.sonar).not.toHaveBeenCalled()
-    rerender({ ids: ['a', 'b', 'c'] })
+    rerender({ ids: ['a', 'b', 'c'], listo: true })
     expect(m.sonar).toHaveBeenCalledTimes(1)
-    rerender({ ids: ['a', 'b', 'c'] })
+    rerender({ ids: ['a', 'b', 'c'], listo: true })
     expect(m.sonar).toHaveBeenCalledTimes(1)
   })
 
   it('con el sonido apagado no suena', () => {
     m.activado = false
-    const { rerender } = renderHook(({ ids }) => useAvisoSonoro(ids), { initialProps: { ids: [] as string[] } })
+    const { rerender } = renderHook(({ ids }) => useAvisoSonoro(ids, true), { initialProps: { ids: [] as string[] } })
     rerender({ ids: ['x'] })
     expect(m.sonar).not.toHaveBeenCalled()
   })

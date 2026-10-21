@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ParedTanques, useTanques } from '../pages/ParedTanques'
 import { DetalleTanque } from './DetalleTanque'
@@ -9,12 +9,17 @@ export function Tanques() {
   const [params] = useSearchParams()
   const [elegido, setElegido] = useState<string | null>(null)
   // ?tanque=T-01 (desde el historial): elegirlo cuando lleguen los datos.
+  // Se aplica una sola vez: después, cerrar el panel tiene que cerrarlo.
   const codigoInicial = params.get('tanque')
+  const aplicado = useRef(false)
   useEffect(() => {
-    if (!codigoInicial || elegido) return
+    if (!codigoInicial || aplicado.current) return
     const t = tanques.datos.find((x) => x.codigo === codigoInicial)
-    if (t) setElegido(t.tanque_id)
-  }, [codigoInicial, tanques.datos, elegido])
+    if (t) {
+      aplicado.current = true
+      setElegido(t.tanque_id)
+    }
+  }, [codigoInicial, tanques.datos])
   const [nuevaEn, setNuevaEn] = useState<string | null>(null)
   // El detalle siempre muestra la fila más reciente que llegó por Realtime.
   const fila = tanques.datos.find((t) => t.tanque_id === elegido) ?? null

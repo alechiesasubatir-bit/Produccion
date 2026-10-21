@@ -25,7 +25,7 @@ export function PanelApp() {
   const enLinea = useEnLinea()
   // Una sola suscripción a alertas para todo el panel (contador, sonido y la vista).
   const alertas = useAlertas()
-  useAvisoSonoro(alertas.activas.map((a) => a.id))
+  useAvisoSonoro(alertas.activas.map((a) => a.id), alertas.cargado)
 
   return (
     <div className="app panel">

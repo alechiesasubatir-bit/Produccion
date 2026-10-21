@@ -12,9 +12,10 @@ export function useRealtime<T>(
   tabla: string,
   cargar: () => Promise<T[]>,
   canales: string[],
-): { datos: T[]; conectado: boolean; enVivo: boolean; error: string | null; recargar: () => void } {
+): { datos: T[]; cargado: boolean; conectado: boolean; enVivo: boolean; error: string | null; recargar: () => void } {
   const [datos, setDatos] = useState<T[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [cargado, setCargado] = useState(false)
   const [canalOk, setCanalOk] = useState(false)
   const [online, setOnline] = useState(() => navigator.onLine)
 
@@ -30,6 +31,7 @@ export function useRealtime<T>(
       (filas) => {
         if (!vigenteRef.current || pedido !== ultimoPedido.current) return
         setDatos(filas)
+        setCargado(true)
         setError(null)
       },
       (e: unknown) => {
@@ -95,5 +97,5 @@ export function useRealtime<T>(
     }
   }, [recargar])
 
-  return { datos, conectado: online, enVivo: canalOk, error, recargar }
+  return { datos, cargado, conectado: online, enVivo: canalOk, error, recargar }
 }

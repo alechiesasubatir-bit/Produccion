@@ -77,4 +77,30 @@ describe('aplicarEscaneo', () => {
     expect(r.campos).toEqual({ fabricacion_id: 'fab3', presentacion_id: 'pr1', cantidad: 120 })
     expect(r.avisos).toContain('La hoja trae 2 presentaciones; cargá una orden por cada una.')
   })
+
+  it('coincidencia parcial: elige la más específica y avisa', () => {
+    const r = aplicarEscaneo(
+      'fabricacion',
+      { producto: 'CLORO GEL 5%', cantidad: 100, lote: '1', fecha: '' },
+      { ...cat, productos: [{ id: 'c1', nombre: 'Cloro' }, { id: 'c2', nombre: 'Cloro gel' }] },
+    )
+    expect(r.campos.producto_id).toBe('c2')
+    expect(r.avisos).toContain('«CLORO GEL 5%» se asoció a «Cloro gel». Revisalo.')
+  })
+
+  it('dos tanques listos con el mismo producto: no elige y avisa', () => {
+    const r = aplicarEscaneo(
+      'envasado',
+      { granel: 'Lavandina', fecha: '', presentaciones: [] },
+      {
+        ...cat,
+        tanquesEnvasar: [
+          { fabricacion_id: 'f1', producto: 'Lavandina', codigo: 'T-01' },
+          { fabricacion_id: 'f2', producto: 'Lavandina', codigo: 'T-02' },
+        ],
+      },
+    )
+    expect(r.campos.fabricacion_id).toBeUndefined()
+    expect(r.avisos).toContain('Hay 2 tanques listos con «Lavandina» (T-01, T-02); elegí cuál.')
+  })
 })

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
@@ -17,8 +17,15 @@ function estadoMini(f: FilaFlujo): EstadoTanque {
   return 'cola_env'
 }
 
-function AvanceEstimado({ efectivos, estimado }: { efectivos: number; estimado: number }) {
-  const pct = Math.round((efectivos / estimado) * 100)
+// Como el cronómetro: minutos efectivos al cargar + lo transcurrido desde la carga.
+function AvanceEstimado({ efectivos, cargadoEn, estimado }: { efectivos: number; cargadoEn: number; estimado: number }) {
+  const [ahora, setAhora] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
+  const transcurridos = efectivos + Math.max(0, ahora - cargadoEn) / 60_000
+  const pct = Math.round((transcurridos / estimado) * 100)
   return (
     <div
       className={`avance${pct > 100 ? ' pasado' : ''}`}
@@ -91,7 +98,7 @@ export function TarjetaFlujo({
         <Cronometro tarea={fila} cargadoEn={cargadoEn} />
       </div>
       {fila.corriendo && proyeccionMin ? (
-        <AvanceEstimado efectivos={fila.min_efectivos ?? 0} estimado={proyeccionMin} />
+        <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
       ) : null}
       {acciones.length > 0 && (
         <div className="tf-acciones">

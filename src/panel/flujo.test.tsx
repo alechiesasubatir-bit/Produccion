@@ -119,4 +119,14 @@ describe('Flujo', () => {
     await act(async () => {})
     expect(screen.getByRole('progressbar', { name: /Avance estimado/ })).toHaveAttribute('aria-valuenow', '50')
   })
+
+  it('la barra de avance avanza con el tiempo, sin recargar datos', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    m.filas = [fila({ estado: 'fabricando', corriendo: true, litros: 800, min_efectivos: 40, operaria_1: 'E1' })]
+    render(<Flujo />)
+    await act(async () => {})
+    act(() => vi.advanceTimersByTime(20 * 60_000))
+    expect(screen.getByRole('progressbar', { name: /Avance estimado/ })).toHaveAttribute('aria-valuenow', '75')
+    vi.useRealTimers()
+  })
 })
