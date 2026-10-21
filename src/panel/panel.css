@@ -904,3 +904,78 @@ th[aria-sort='descending'] .th-orden::after {
 .avance.pasado i {
   background: #dc2626;
 }
+
+/* ---------- Alertas ---------- */
+
+.globo {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lista-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.lista-alertas h2 {
+  margin: 0 0 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--apagado);
+}
+
+.alerta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--linea);
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  background: var(--tarjeta);
+}
+
+.alerta-exceso_9h { border-left-color: #dc2626; }
+.alerta-desvio_estandar { border-left-color: #ea580c; }
+
+.alerta-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alerta-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lista-alertas.atenuada .alerta {
+  border-left-color: var(--linea-2);
+  opacity: 0.7;
+}

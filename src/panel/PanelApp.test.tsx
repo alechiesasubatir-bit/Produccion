@@ -6,6 +6,8 @@ import { PanelApp } from './PanelApp'
 vi.mock('./Flujo', () => ({ Flujo: () => <p>vista flujo</p> }))
 vi.mock('./Tanques', () => ({ Tanques: () => <p>vista tanques</p> }))
 vi.mock('./config/Configuracion', () => ({ Configuracion: () => <p>vista configuración</p> }))
+vi.mock('./alertas/useAlertas', () => ({ useAlertas: () => ({ todas: [], activas: [{ id: 'a' }, { id: 'b' }], recargar: vi.fn() }) }))
+vi.mock('./alertas/useAvisoSonoro', () => ({ useAvisoSonoro: () => {} }))
 vi.mock('../auth/useSesion', () => ({ useSesion: () => ({ usuario: { email: 'enc@x.uy' } }), salir: vi.fn() }))
 
 function montar(ruta: string) {
@@ -39,5 +41,10 @@ describe('PanelApp', () => {
       window.dispatchEvent(new Event('offline'))
     })
     expect(screen.getByText(/Sin conexión/)).toBeInTheDocument()
+  })
+
+  it('la pestaña Alertas muestra cuántas hay activas', () => {
+    montar('/panel')
+    expect(screen.getByRole('link', { name: /Alertas/ })).toHaveTextContent('2')
   })
 })
