@@ -3,7 +3,7 @@ import { Login } from './auth/Login'
 import { Cargando, RequireRol, SinAcceso, SinVerificar } from './auth/RequireRol'
 import { SesionProvider, useSesion } from './auth/useSesion'
 import { PanelInicio } from './pages/PanelInicio'
-import { PlantaInicio } from './pages/PlantaInicio'
+import { PlantaApp } from './planta/PlantaApp'
 import './ui/app.css'
 
 function Inicio() {
@@ -34,7 +34,7 @@ function App() {
             path="/planta"
             element={
               <RequireRol rol="planta">
-                <PlantaInicio />
+                <PlantaApp />
               </RequireRol>
             }
           />

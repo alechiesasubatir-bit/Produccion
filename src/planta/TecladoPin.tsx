@@ -6,12 +6,15 @@ const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 export function TecladoPin({
   nombre,
   error,
+  intento = 0,
   ocupado,
   onCompleto,
   onVolver,
 }: {
   nombre: string
   error: string | null
+  /** Contador de fallos: el mismo texto de error dos veces seguidas vuelve a sacudir. */
+  intento?: number
   ocupado: boolean
   onCompleto: (pin: string) => void
   onVolver: () => void
@@ -26,7 +29,7 @@ export function TecladoPin({
     setSacudir(true)
     const id = setTimeout(() => setSacudir(false), 450)
     return () => clearTimeout(id)
-  }, [error])
+  }, [error, intento])
 
   const agregar = (d: string) => {
     if (ocupado || digitos.length >= LARGO) return

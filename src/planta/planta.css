@@ -394,3 +394,18 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* ---------- Menú del dispositivo (logo mantenido 2 s) ---------- */
+
+.menu-dispositivo {
+  position: fixed;
+  top: 64px;
+  left: 28px;
+  z-index: 20;
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: var(--tarjeta);
+}
