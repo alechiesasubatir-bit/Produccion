@@ -11,6 +11,16 @@
       rel="stylesheet"
     />
     <title>ProdControl</title>
+    <script>
+      // Restaura la ruta guardada por 404.html (GitHub Pages) antes de montar React.
+      try {
+        var ruta = sessionStorage.getItem('prodcontrol_ruta')
+        if (ruta) {
+          sessionStorage.removeItem('prodcontrol_ruta')
+          history.replaceState(null, '', ruta)
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

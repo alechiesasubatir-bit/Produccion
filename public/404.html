@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ProdControl</title>
+    <script>
+      // GitHub Pages sirve este archivo para cualquier ruta desconocida (/Produccion/planta?tanque=T-01).
+      // Guardamos la ruta pedida y volvemos a la raíz de la SPA; index.html la restaura.
+      try {
+        sessionStorage.setItem('prodcontrol_ruta', location.pathname + location.search + location.hash)
+      } catch (e) {}
+      location.replace('/Produccion/')
+    </script>
+  </head>
+  <body></body>
+</html>
