@@ -2,7 +2,7 @@
 -- Ids fijos:
 --   funcionarios  E1 …e1 (Laura Paz) · E2 …e2 (Rosa Díaz) · E3 …e3 (baja)
 --   usuarios      U_PANEL …a1 · U_TABLET …a2 · U_OTRO …a3
---   tanque T-01 …c1 · producto Lavandina …d1 · presentación 5L …f1
+--   tanque T-TEST …c1 · producto Lavandina-test …d1 · presentación 5L-test …f1
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-0000000000a1', 'test-panel@prodcontrol.test',  'authenticated', 'authenticated'),
@@ -23,11 +23,11 @@ insert into produccion.operarias (empleado_id, categoria, color_avatar, pin_hash
   ('00000000-0000-0000-0000-0000000000e3', 'B', '#65a30d', extensions.crypt('1234', extensions.gen_salt('bf')));
 
 insert into produccion.tanques (id, codigo, capacidad_l, orden) values
-  ('00000000-0000-0000-0000-0000000000c1', 'T-01', 2000, 1);
+  ('00000000-0000-0000-0000-0000000000c1', 'T-TEST', 2000, 1);
 insert into produccion.productos (id, nombre, color, tipo) values
-  ('00000000-0000-0000-0000-0000000000d1', 'Lavandina', '#0284c7', 'liquido');
+  ('00000000-0000-0000-0000-0000000000d1', 'Lavandina-test', '#0284c7', 'liquido');
 insert into produccion.presentaciones (id, nombre, litros_equiv) values
-  ('00000000-0000-0000-0000-0000000000f1', '5L', 5);
+  ('00000000-0000-0000-0000-0000000000f1', '5L-test', 5);
 
 -- Salida TAP: execute_sql solo devuelve el último resultado, así que cada aserción
 -- se inserta en _tap y el test termina con `select l from _tap order by n`.

@@ -17,7 +17,7 @@ insert into _tap (l) select throws_ok(
   '42501', null, 'tablet no puede insertar fabricaciones directo');
 
 insert into _tap (l) select results_eq(
-  $$select count(*)::int from produccion.tanques$$, $$values (1)$$,
+  $$select count(*)::int from produccion.tanques where codigo = 'T-TEST'$$, $$values (1)$$,
   'tablet lee tanques');
 
 insert into _tap (l) select throws_ok(
@@ -25,7 +25,7 @@ insert into _tap (l) select throws_ok(
   '42501', null, 'tablet no puede leer pin_hash');
 
 insert into _tap (l) select results_eq(
-  $$select count(*)::int from produccion.v_operarias$$, $$values (2)$$,
+  $$select count(*)::int from produccion.v_operarias where empleado_id::text like '00000000-0000-0000-0000-0000000000e_'$$, $$values (2)$$,
   'v_operarias excluye a la operaria dada de baja en core');
 
 -- Panel -------------------------------------------------------------------

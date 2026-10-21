@@ -44,6 +44,8 @@ export function accionesPosibles(entidad: Entidad, estado: string, rol: 'panel' 
   )
 
   if (rol === 'planta') disponibles.delete('cancelar')
+  // Cierre manual de una fabricación con merma: solo el panel (migración 005).
+  if (rol === 'panel' && entidad === 'fabricacion' && estado === 'para_envasar') disponibles.add('finalizar')
 
   return ORDEN_ACCIONES.filter((accion) => disponibles.has(accion))
 }

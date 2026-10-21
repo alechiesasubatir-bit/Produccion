@@ -44,3 +44,8 @@ test('fraccionado cola panel puede iniciar y cancelar', () => {
 test('fraccionado pausado panel puede reanudar y cancelar', () => {
   expect(accionesPosibles('fraccionado', 'pausado', 'panel')).toEqual(['reanudar', 'cancelar'])
 })
+
+test('fabricación para_envasar: solo el panel la cierra (merma)', () => {
+  expect(accionesPosibles('fabricacion', 'para_envasar', 'panel')).toEqual(['finalizar'])
+  expect(accionesPosibles('fabricacion', 'para_envasar', 'planta')).toEqual([])
+})

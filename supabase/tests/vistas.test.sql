@@ -6,10 +6,10 @@ do $$ declare r record; begin
   end loop;
 end $$;
 
--- Escenario (como postgres): T-01 libre · T-02 envasando · T-03 sobre-envasado
+-- Escenario (como postgres): T-TEST libre · T-TEST2 envasando · T-TEST3 sobre-envasado
 insert into produccion.tanques (id, codigo, capacidad_l, orden) values
-  ('00000000-0000-0000-0000-0000000000c2', 'T-02', 2000, 2),
-  ('00000000-0000-0000-0000-0000000000c3', 'T-03', 2000, 3);
+  ('00000000-0000-0000-0000-0000000000c2', 'T-TEST2', 2000, 2),
+  ('00000000-0000-0000-0000-0000000000c3', 'T-TEST3', 2000, 3);
 insert into produccion.fabricaciones (id, tanque_id, producto_id, litros, estado) values
   ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000d1', 100, 'para_envasar'),
   ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-0000000000d1', 10, 'para_envasar');
@@ -26,13 +26,13 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
 
 insert into _tap (l) select is(
-  (select estado from produccion.v_tanque_estado where codigo = 'T-01'), 'libre',
+  (select estado from produccion.v_tanque_estado where codigo = 'T-TEST'), 'libre',
   'tanque sin fabricaciones: libre');
 insert into _tap (l) select is(
-  (select estado from produccion.v_tanque_estado where codigo = 'T-02'), 'envasando',
+  (select estado from produccion.v_tanque_estado where codigo = 'T-TEST2'), 'envasando',
   'para_envasar con envasado activo: envasando');
 insert into _tap (l) select is(
-  (select litros_restantes from produccion.v_tanque_estado where codigo = 'T-03'), 0::numeric,
+  (select litros_restantes from produccion.v_tanque_estado where codigo = 'T-TEST3'), 0::numeric,
   'sobre-envasado: litros_restantes = 0, nunca negativo');
 insert into _tap (l) select results_eq(
   $$select min_brutos::int, min_pausa::int, min_efectivos::int from produccion.v_tiempos_efectivos
