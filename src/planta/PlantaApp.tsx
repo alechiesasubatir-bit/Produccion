@@ -30,7 +30,7 @@ function Reloj() {
     const id = setInterval(() => setAhora(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
-  return <span className="planta-reloj">{ahora.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}</span>
+  return <span className="planta-reloj">{ahora.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
 }
 
 export function PlantaApp() {
