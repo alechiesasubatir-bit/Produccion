@@ -608,3 +608,70 @@
   display: inline-flex;
   margin-right: 6px;
 }
+
+.alta-operaria {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: var(--tarjeta);
+}
+
+.candidatas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alta-nombre {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+}
+
+.apagado {
+  color: var(--apagado);
+}
+
+.cambiar-pin {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.cambiar-pin input {
+  width: 64px;
+  padding: 4px 8px;
+  border: 1px solid var(--linea-2);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.rol-usuario {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rol-usuario select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--linea-2);
+  border-radius: 8px;
+}
+
+.ayuda {
+  margin: 0 0 14px;
+  color: var(--tinta-2);
+  font-size: 14px;
+  max-width: 70ch;
+}

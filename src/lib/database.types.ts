@@ -46,6 +46,21 @@ export type Database = {
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }
+  // Solo lo que ProdControl lee de core (expuesto en la API; select abierto a authenticated).
+  core: {
+    Tables: {
+      funcionarios: {
+        Row: { id: Uuid; nombre: string; foto_url: string | null; sector: string; estado: string }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+    }
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
+  }
   produccion: {
     Tables: {
       productos: Tabla<
