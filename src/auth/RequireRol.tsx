@@ -25,8 +25,22 @@ export function SinAcceso() {
   )
 }
 
+export function SinVerificar() {
+  return (
+    <div className="pantalla-centro">
+      <div className="tarjeta-aviso" role="alert">
+        <h1>No pudimos verificar tu acceso</h1>
+        <p>Parece un problema de conexión. Reintentamos solos en unos segundos.</p>
+        <button type="button" className="boton" onClick={() => location.reload()}>
+          Reintentar ahora
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function RequireRol({ rol, children }: { rol: Rol; children: ReactNode }) {
-  const { cargando, usuario, rol: actual } = useSesion()
+  const { cargando, usuario, rol: actual, errorPerfil } = useSesion()
   const loc = useLocation()
 
   if (cargando) return <Cargando />
@@ -34,6 +48,7 @@ export function RequireRol({ rol, children }: { rol: Rol; children: ReactNode })
     const next = encodeURIComponent(loc.pathname + loc.search)
     return <Navigate to={`/login?next=${next}`} replace />
   }
+  if (errorPerfil) return <SinVerificar />
   if (actual !== rol) return <SinAcceso />
   return <>{children}</>
 }

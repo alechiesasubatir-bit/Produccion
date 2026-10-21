@@ -4,14 +4,18 @@ import { supabase } from '../lib/supabase'
 import { rolDePerfil, type Rol } from './rol'
 
 export type { Rol }
-export type Sesion = { cargando: boolean; usuario: User | null; rol: Rol | null }
+// errorPerfil: no se pudo leer el perfil (red/servidor). No es lo mismo que "sin rol".
+export type Sesion = { cargando: boolean; usuario: User | null; rol: Rol | null; errorPerfil: boolean }
 
-const Ctx = createContext<Sesion>({ cargando: true, usuario: null, rol: null })
+const REINTENTO_MS = 10_000
+
+const Ctx = createContext<Sesion>({ cargando: true, usuario: null, rol: null, errorPerfil: false })
 
 export function SesionProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<User | null>(null)
   const [authListo, setAuthListo] = useState(false)
-  const [perfil, setPerfil] = useState<{ id: string; rol: Rol | null } | null>(null)
+  const [perfil, setPerfil] = useState<{ id: string; rol: Rol | null; error: boolean } | null>(null)
+  const [intento, setIntento] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -36,19 +40,38 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       .select('rol, rol_produccion, activo')
       .eq('id', uid)
       .maybeSingle()
-      .then(({ data }) => {
-        if (vigente) setPerfil({ id: uid, rol: rolDePerfil(data) })
-      })
+      .then(
+        ({ data, error }) => {
+          if (vigente) setPerfil({ id: uid, rol: error ? null : rolDePerfil(data), error: !!error })
+        },
+        () => {
+          if (vigente) setPerfil({ id: uid, rol: null, error: true })
+        },
+      )
     return () => {
       vigente = false
     }
-  }, [uid])
+  }, [uid, intento])
+
+  // Si la lectura falló, reintentar al volver la red y cada 10 s.
+  const fallo = !!uid && perfil?.id === uid && perfil.error
+  useEffect(() => {
+    if (!fallo) return
+    const reintentar = () => setIntento((n) => n + 1)
+    window.addEventListener('online', reintentar)
+    const id = setInterval(reintentar, REINTENTO_MS)
+    return () => {
+      window.removeEventListener('online', reintentar)
+      clearInterval(id)
+    }
+  }, [fallo])
 
   const perfilListo = !uid || perfil?.id === uid
   const valor: Sesion = {
     cargando: !authListo || !perfilListo,
     usuario,
     rol: uid && perfil?.id === uid ? perfil.rol : null,
+    errorPerfil: fallo,
   }
   return createElement(Ctx.Provider, { value: valor }, children)
 }

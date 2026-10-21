@@ -1,15 +1,16 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Login } from './auth/Login'
-import { Cargando, RequireRol, SinAcceso } from './auth/RequireRol'
+import { Cargando, RequireRol, SinAcceso, SinVerificar } from './auth/RequireRol'
 import { SesionProvider, useSesion } from './auth/useSesion'
 import { PanelInicio } from './pages/PanelInicio'
 import { PlantaInicio } from './pages/PlantaInicio'
 import './ui/app.css'
 
 function Inicio() {
-  const { cargando, usuario, rol } = useSesion()
+  const { cargando, usuario, rol, errorPerfil } = useSesion()
   if (cargando) return <Cargando />
   if (!usuario) return <Navigate to="/login" replace />
+  if (errorPerfil) return <SinVerificar />
   if (rol === 'panel') return <Navigate to="/panel" replace />
   if (rol === 'planta') return <Navigate to="/planta" replace />
   return <SinAcceso />

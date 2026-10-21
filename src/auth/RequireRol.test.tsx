@@ -37,7 +37,7 @@ const usuario = { id: 'u1', email: 'x@y.z' } as Sesion['usuario']
 
 describe('RequireRol', () => {
   beforeEach(() => {
-    sesion = { cargando: false, usuario: null, rol: null }
+    sesion = { cargando: false, usuario: null, rol: null, errorPerfil: false }
   })
 
   it('sin usuario redirige a login con next', () => {
@@ -46,19 +46,26 @@ describe('RequireRol', () => {
   })
 
   it('usuario de planta en ruta de panel ve "Sin acceso"', () => {
-    sesion = { cargando: false, usuario, rol: 'planta' }
+    sesion = { cargando: false, usuario, rol: 'planta', errorPerfil: false }
     montar()
     expect(screen.getByText('Sin acceso')).toBeInTheDocument()
   })
 
   it('usuario de panel ve el contenido', () => {
-    sesion = { cargando: false, usuario, rol: 'panel' }
+    sesion = { cargando: false, usuario, rol: 'panel', errorPerfil: false }
     montar()
     expect(screen.getByText('contenido del panel')).toBeInTheDocument()
   })
 
+  it('si no se pudo leer el perfil no dice "Sin acceso"', () => {
+    sesion = { cargando: false, usuario, rol: null, errorPerfil: true }
+    montar()
+    expect(screen.queryByText('Sin acceso')).not.toBeInTheDocument()
+    expect(screen.getByText('No pudimos verificar tu acceso')).toBeInTheDocument()
+  })
+
   it('mientras carga muestra un status', () => {
-    sesion = { cargando: true, usuario: null, rol: null }
+    sesion = { cargando: true, usuario: null, rol: null, errorPerfil: false }
     montar()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })

@@ -19,25 +19,31 @@ export function useRealtime<T>(
 
   const cargarRef = useRef(cargar)
   cargarRef.current = cargar
+  // Varias cargas pueden estar en vuelo a la vez (inicial, eventos, polling): solo vale la última pedida.
+  const ultimoPedido = useRef(0)
+  const vigenteRef = useRef(true)
+
+  const recargar = useRef(() => {
+    const pedido = ++ultimoPedido.current
+    cargarRef.current().then(
+      (filas) => {
+        if (!vigenteRef.current || pedido !== ultimoPedido.current) return
+        setDatos(filas)
+        setError(null)
+      },
+      (e: unknown) => {
+        if (vigenteRef.current && pedido === ultimoPedido.current) setError(mensajeError(e).texto)
+      },
+    )
+  }).current
 
   const claveCanales = canales.join(',')
 
   useEffect(() => {
     let vigente = true
+    vigenteRef.current = true
     let espera: ReturnType<typeof setTimeout> | undefined
 
-    const recargar = () => {
-      cargarRef.current().then(
-        (filas) => {
-          if (!vigente) return
-          setDatos(filas)
-          setError(null)
-        },
-        (e: unknown) => {
-          if (vigente) setError(mensajeError(e).texto)
-        },
-      )
-    }
     const recargarPronto = () => {
       clearTimeout(espera)
       espera = setTimeout(recargar, DEBOUNCE_MS)
@@ -58,18 +64,17 @@ export function useRealtime<T>(
 
     return () => {
       vigente = false
+      vigenteRef.current = false
       clearTimeout(espera)
       void supabase.removeChannel(canal)
     }
-  }, [tabla, claveCanales])
+  }, [tabla, claveCanales, recargar])
 
   useEffect(() => {
     if (canalOk) return
-    const id = setInterval(() => {
-      cargarRef.current().then(setDatos, (e: unknown) => setError(mensajeError(e).texto))
-    }, POLLING_MS)
+    const id = setInterval(recargar, POLLING_MS)
     return () => clearInterval(id)
-  }, [canalOk])
+  }, [canalOk, recargar])
 
   useEffect(() => {
     const on = () => setOnline(true)
