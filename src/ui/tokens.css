@@ -1,14 +1,23 @@
-/* Sistema visual ProdControl — estética "laboratorio" clara */
+/* Sistema visual ProdControl — "mesa de laboratorio": papel milimetrado, tinta, etiquetas de
+   muestra y un solo acento de señal. El color fuerte lo pone cada producto (--producto). */
 :root {
-  --papel: #f5f6f2;
-  --papel-2: #eceee6;
-  --tarjeta: #ffffff;
-  --tinta: #0f172a;
-  --tinta-2: #334155;
-  --apagado: #64748b;
-  --linea: #e3e5dc;
-  --linea-2: #cfd2c6;
+  --papel: #f3f1ea;
+  --papel-2: #e8e4d8;
+  --tarjeta: #fffdf8;
+  --tinta: #15181e;
+  --tinta-2: #3c4250;
+  --apagado: #7b7f88;
+  --linea: #e1dccd;
+  --linea-2: #cbc3ae;
   --vacio: #cbd5e1;
+  --senal: #e2471d;
+  --foco: #0369a1;
+  --cuadricula: rgb(60 66 80 / 0.045);
+  --cuadricula-mayor: rgb(60 66 80 / 0.075);
+
+  --radio: 10px;
+  --radio-chico: 6px;
+  --sombra: 0 1px 0 var(--linea-2), 0 8px 24px -16px rgb(21 24 30 / 0.25);
 
   --serif: 'Fraunces', Georgia, serif;
   --sans: 'Geist', system-ui, sans-serif;
@@ -30,11 +39,24 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--papel);
   color: var(--tinta);
   font-family: var(--sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  /* papel milimetrado: línea fina cada 24 px, más marcada cada 120 px */
+  background-color: var(--papel);
+  background-image:
+    linear-gradient(var(--cuadricula-mayor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cuadricula-mayor) 1px, transparent 1px),
+    linear-gradient(var(--cuadricula) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cuadricula) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--senal);
+  color: #fff;
 }
 
 /* ---------- animaciones compartidas ---------- */
@@ -65,16 +87,33 @@ body {
   }
 }
 
-/* ---------- chips de estado ---------- */
+/* entrada escalonada (una sola vez, al montar) */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes trazar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- chips de estado: etiquetas de muestra ---------- */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
   line-height: 1.4;
-  padding: 3px 9px;
-  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px 2px 7px;
+  border-radius: 4px;
   white-space: nowrap;
   border: 1px solid transparent;
 }
@@ -90,15 +129,15 @@ body {
   animation: pulso 1.4s ease-in-out infinite;
 }
 
-.chip-fabricando { background: #dcfce7; color: #166534; }
-.chip-envasando { background: #e0f2fe; color: #075985; }
-.chip-fraccionado { background: #fef3c7; color: #92400e; }
-.chip-pausado { background: #fee2e2; color: #991b1b; }
-.chip-cola { background: #f1f5f9; color: #475569; }
-.chip-terminada { background: #ede9fe; color: #5b21b6; }
+.chip-fabricando { background: #e3f6e8; color: #14532d; border-color: #bfe5ca; }
+.chip-envasando { background: #e2f1fa; color: #0c4a6e; border-color: #bcdcef; }
+.chip-fraccionado { background: #fbf0d6; color: #7c3d0c; border-color: #efd9a3; }
+.chip-pausado { background: #fde6e1; color: #8f1d0f; border-color: #f5c3b8; }
+.chip-cola { background: #efede6; color: #4a4f5b; border-color: #ddd8ca; }
+.chip-terminada { background: #ece8f7; color: #4c2a8a; border-color: #d4cbef; }
 .chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }
 
-/* ---------- movimiento reducido: sin olas, burbujas ni transiciones ---------- */
+/* ---------- movimiento reducido: sin olas, burbujas, entradas ni transiciones ---------- */
 @media (prefers-reduced-motion: reduce) {
   .ola,
   .burbuja,
@@ -110,5 +149,13 @@ body {
 
   .burbuja {
     opacity: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

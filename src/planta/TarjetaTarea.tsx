@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
 import { etiquetaAccion, formatoCronometro, segundosTranscurridos, tituloTarea, type Tarea } from '../domain/tareas'
@@ -45,7 +45,11 @@ export function TarjetaTarea({
   const estado = estadoMiniTanque(tarea)
 
   return (
-    <article className="tarjeta-tarea" aria-label={tituloTarea(tarea)}>
+    <article
+      className="tarjeta-tarea"
+      aria-label={tituloTarea(tarea)}
+      style={{ '--producto': tarea.color ?? undefined } as CSSProperties}
+    >
       {tarea.tanque_codigo && (
         <Tanque
           estado={estado}

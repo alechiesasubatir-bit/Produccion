@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
@@ -81,7 +81,10 @@ export function TarjetaFlujo({
   }
 
   return (
-    <motion.article layout layoutId={`${fila.entidad}-${fila.id}`} className="tarjeta-flujo" aria-label={tituloTarea(fila)}>
+    <motion.article layout layoutId={`${fila.entidad}-${fila.id}`} className="tarjeta-flujo"
+      aria-label={tituloTarea(fila)}
+      style={{ '--producto': fila.color ?? undefined } as CSSProperties}
+    >
       <div className="tf-cabecera">
         {fila.tanque_codigo && <Tanque estado={estado} color={fila.color ?? undefined} nivel={nivel} ancho={28} />}
         <div className="tf-titulo">

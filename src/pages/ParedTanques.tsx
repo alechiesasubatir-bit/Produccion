@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Database } from '../lib/database.types'
 import { db, fetchAll } from '../lib/supabase'
 import { useRealtime } from '../lib/useRealtime'
@@ -59,7 +60,11 @@ export function ParedTanques({
       ) : (
         <ul className="pared">
           {tanques.map((t) => (
-            <li key={t.tanque_id} className={`pared-celda${seleccionado === t.tanque_id ? ' elegida' : ''}`}>
+            <li
+              key={t.tanque_id}
+              className={`pared-celda${seleccionado === t.tanque_id ? ' elegida' : ''}`}
+              style={{ '--producto': t.color ?? undefined } as CSSProperties}
+            >
               {onElegir ? (
                 <button type="button" className="pared-boton" aria-label={`Tanque ${t.codigo}`} onClick={() => onElegir(t)}>
                   <Celda t={t} />
