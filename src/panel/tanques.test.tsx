@@ -66,4 +66,18 @@ describe('Tanques', () => {
     expect(within(aside).getByText('10:15 · inició · Laura Paz')).toBeInTheDocument()
     expect(within(aside).getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
   })
+
+  it('un "¿Seguro?" pendiente no pasa a otro tanque', async () => {
+    m.tanques = [
+      tanque({ estado: 'fabricando', fabricacion_id: 'fab1', producto: 'Lavandina', litros: 1200 }),
+      tanque({ tanque_id: 't2', codigo: 'T-02', orden: 2, estado: 'fabricando', fabricacion_id: 'fab2', producto: 'Cloro', litros: 800 }),
+    ]
+    render(<Tanques />)
+    const t1 = await elegir('T-01')
+    fireEvent.click(within(t1).getByRole('button', { name: 'Cancelar' }))
+    expect(within(t1).getByRole('button', { name: '¿Seguro?' })).toBeInTheDocument()
+    const t2 = await elegir('T-02')
+    expect(within(t2).queryByRole('button', { name: '¿Seguro?' })).toBeNull()
+    expect(within(t2).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+  })
 })

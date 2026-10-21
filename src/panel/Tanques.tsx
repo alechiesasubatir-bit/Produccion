@@ -31,6 +31,7 @@ export function Tanques() {
       </div>
       {fila && (
         <DetalleTanque
+          key={fila.tanque_id}
           tanque={fila}
           onCerrar={() => setElegido(null)}
           onNuevaOrden={(id) => setNuevaEn(id)}

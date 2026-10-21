@@ -24,10 +24,11 @@ export const listarOperarias = () =>
 export async function altaOperaria(
   o: { empleado_id: string; categoria: string; color_avatar: string },
   pin: string,
-): Promise<{ error: unknown }> {
+): Promise<{ error: unknown; creada: boolean }> {
   const alta = await db.from('operarias').insert({ ...o, activo: true })
-  if (alta.error) return { error: alta.error }
-  return cambiarPin(o.empleado_id, pin)
+  if (alta.error) return { error: alta.error, creada: false }
+  const r = await cambiarPin(o.empleado_id, pin)
+  return { error: r.error, creada: true }
 }
 
 export async function cambiarPin(empleadoId: string, pin: string): Promise<{ error: unknown }> {

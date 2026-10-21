@@ -30,6 +30,9 @@ test('encargada: nueva orden → flujo → tanque con QR → configuración', as
   await expect(detalle.locator('.qr svg')).toBeVisible()
   await expect(detalle.getByText(/planta\?tanque=T-01$/)).toBeVisible()
   await page.screenshot({ path: 'test-results/panel-tanques-1440.png', fullPage: true })
+  await page.emulateMedia({ media: 'print' })
+  await page.screenshot({ path: 'test-results/qr-impresion.png' })
+  await page.emulateMedia({ media: 'screen' })
 
   await page.getByRole('link', { name: 'Configuración' }).click()
   await expect(page.getByRole('row', { name: /Lavandina/ })).toBeVisible()

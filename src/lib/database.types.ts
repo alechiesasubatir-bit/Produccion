@@ -21,6 +21,9 @@ type Tabla<Row, Opcionales extends keyof Row, Requeridas extends keyof Row = Exc
 
 type Vista<Row> = { Row: Row; Relationships: [] }
 
+// Relaciones (FK) que el cliente usa en embeds de PostgREST, p. ej. envasados → presentaciones.
+type ConRelaciones<T, R> = Omit<T, 'Relationships'> & { Relationships: R }
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.5' }
   public: {
@@ -104,7 +107,8 @@ export type Database = {
         },
         'id' | 'lote' | 'estado' | 'operaria_id' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
       >
-      envasados: Tabla<
+      envasados: ConRelaciones<
+        Tabla<
         {
           id: Uuid
           fabricacion_id: Uuid
@@ -120,6 +124,16 @@ export type Database = {
           created_at: Ts
         },
         'id' | 'etiquetado' | 'operaria_1' | 'operaria_2' | 'estado' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
+        >,
+        [
+          {
+            foreignKeyName: 'envasados_presentacion_id_fkey'
+            columns: ['presentacion_id']
+            isOneToOne: false
+            referencedRelation: 'presentaciones'
+            referencedColumns: ['id']
+          },
+        ]
       >
       fraccionados: Tabla<
         {

@@ -102,13 +102,16 @@ export function NuevaOrden({
   const tanqueFab = tanques.find((t) => t.tanque_id === fab.tanque_id)
   const tanqueEnv = aEnvasar.find((t) => t.fabricacion_id === env.fabricacion_id)
   const presentacion = datos?.presentaciones.find((p) => p.id === env.presentacion_id)
+  // Lo que queda en el tanque menos lo ya pedido en envasados abiertos.
+  const sinAsignar = (fabricacionId: string | null, restantes: number | null) =>
+    restantes === null || !fabricacionId ? null : Math.max(0, restantes - (datos?.asignados[fabricacionId] ?? 0))
 
   const erroresFab = validarFabricacion(fab, {
     capacidad: tanqueFab?.capacidad_l ?? null,
     tanqueLibre: tanqueFab?.estado === 'libre',
   })
   const { errores: erroresEnv, advertencia } = validarEnvasado(env, {
-    litrosRestantes: tanqueEnv?.litros_restantes ?? null,
+    litrosRestantes: tanqueEnv ? sinAsignar(tanqueEnv.fabricacion_id, tanqueEnv.litros_restantes) : null,
     litrosEquiv: presentacion?.litros_equiv ?? null,
   })
   const erroresFrac = validarFraccionado(frac)
@@ -259,7 +262,7 @@ export function NuevaOrden({
                   <option value="">— Elegí un tanque —</option>
                   {aEnvasar.map((t) => (
                     <option key={t.fabricacion_id} value={t.fabricacion_id ?? ''}>
-                      {t.codigo} · {t.producto} · quedan {t.litros_restantes ?? '?'} L
+                      {t.codigo} · {t.producto} · quedan {sinAsignar(t.fabricacion_id, t.litros_restantes) ?? '?'} L sin asignar
                     </option>
                   ))}
                 </select>

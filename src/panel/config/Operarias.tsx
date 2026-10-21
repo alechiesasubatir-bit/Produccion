@@ -98,6 +98,13 @@ export function Operarias() {
     setErrores(e)
     if (Object.keys(e).length) return
     const r = await altaOperaria({ empleado_id: elegida.id, categoria: categoria.trim(), color_avatar: color }, pin)
+    if (r.error && r.creada) {
+      // La fila se creó pero el PIN no: cerrar el alta para que no reintente (daría "ya es operaria").
+      setAviso('Se dio de alta, pero falta el PIN: usá «Cambiar PIN».')
+      cancelarAlta()
+      cargar()
+      return
+    }
     if (r.error) {
       setAviso(mensajeError(r.error).texto)
       cargar()

@@ -14,6 +14,7 @@ const datos: DatosOrden = {
   productos: [{ id: 'p1', nombre: 'Lavandina', color: '#0284c7' }],
   presentaciones: [{ id: 'pr1', nombre: '5L', litros_equiv: 5 }],
   operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
+  asignados: { fab3: 200 },
 }
 
 vi.mock('./datosOrden', () => ({
@@ -80,12 +81,13 @@ describe('NuevaOrden · fabricación', () => {
 })
 
 describe('NuevaOrden · envasado', () => {
-  it('avisa si usa más de lo que queda pero deja crear', async () => {
+  it('avisa si usa más de lo que queda sin asignar (descuenta envasados en cola) pero deja crear', async () => {
     await abrir({ tipoInicial: 'envasado' })
+    expect(within(campo('Tanque a envasar')).getByRole('option', { name: /T-03/ })).toHaveTextContent('quedan 100 L sin asignar')
     cambiar('Tanque a envasar', 'fab3')
     cambiar('Presentación', 'pr1')
-    cambiar('Cantidad', '100')
-    expect(screen.getByRole('status')).toHaveTextContent('Quedan 300 L en el tanque y esta orden usa 500 L.')
+    cambiar('Cantidad', '40')
+    expect(screen.getByRole('status')).toHaveTextContent('Quedan 100 L sin asignar en el tanque y esta orden usa 200 L.')
     expect(screen.getByRole('button', { name: 'Crear orden' })).toBeEnabled()
   })
 })

@@ -16,6 +16,8 @@ export type DatosOrden = {
   productos: { id: string; nombre: string; color: string }[]
   presentaciones: { id: string; nombre: string; litros_equiv: number }[]
   operarias: { empleado_id: string; nombre: string }[]
+  /** Litros ya comprometidos por envasados en cola/activos/pausados, por fabricación. */
+  asignados: Record<string, number>
 }
 
 async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
@@ -26,7 +28,7 @@ async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown
 
 // Catálogos activos para armar una orden (pocas filas: no hace falta paginar).
 export async function cargarDatosOrden(): Promise<DatosOrden> {
-  const [tanques, productos, presentaciones, operarias] = await Promise.all([
+  const [tanques, productos, presentaciones, operarias, abiertos] = await Promise.all([
     filas<TanqueOrden>(
       db.from('v_tanque_estado').select('tanque_id, codigo, capacidad_l, estado, fabricacion_id, producto, litros_restantes').order('orden'),
     ),
@@ -35,8 +37,15 @@ export async function cargarDatosOrden(): Promise<DatosOrden> {
       db.from('presentaciones').select('id, nombre, litros_equiv').eq('activo', true).order('nombre'),
     ),
     filas<DatosOrden['operarias'][number]>(db.from('v_operarias').select('empleado_id, nombre').order('nombre')),
+    filas<{ fabricacion_id: string; cantidad: number; presentaciones: { litros_equiv: number } | null }>(
+      db.from('envasados').select('fabricacion_id, cantidad, presentaciones(litros_equiv)').in('estado', ['cola', 'activo', 'pausado']),
+    ),
   ])
-  return { tanques, productos, presentaciones, operarias }
+  const asignados: Record<string, number> = {}
+  for (const e of abiertos) {
+    asignados[e.fabricacion_id] = (asignados[e.fabricacion_id] ?? 0) + e.cantidad * (e.presentaciones?.litros_equiv ?? 0)
+  }
+  return { tanques, productos, presentaciones, operarias, asignados }
 }
 
 const TABLA = { fabricacion: 'fabricaciones', envasado: 'envasados', fraccionado: 'fraccionados' } as const

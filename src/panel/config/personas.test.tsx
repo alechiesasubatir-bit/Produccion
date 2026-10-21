@@ -86,6 +86,17 @@ describe('Operarias', () => {
   })
 })
 
+describe('Operarias · alta a medias', () => {
+  it('si se creó pero falló el PIN, cierra el alta y avisa que falta el PIN', async () => {
+    m.altaOperaria.mockResolvedValue({ error: { message: 'TypeError: Failed to fetch' }, creada: true })
+    await elegirRosa()
+    cambiar('PIN inicial', '1234')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Dar de alta' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('Se dio de alta, pero falta el PIN: usá «Cambiar PIN».')
+    expect(screen.queryByRole('button', { name: 'Dar de alta' })).toBeNull()
+  })
+})
+
 describe('Usuarios', () => {
   it('asigna rol de planta', async () => {
     m.setRol.mockResolvedValue({ error: null })

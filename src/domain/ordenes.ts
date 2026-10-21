@@ -59,7 +59,7 @@ export function validarEnvasado(
   if (entero(d.cantidad) && ctx.litrosRestantes !== null && ctx.litrosEquiv !== null) {
     const usa = d.cantidad * ctx.litrosEquiv
     if (usa > ctx.litrosRestantes) {
-      advertencia = `Quedan ${litros(ctx.litrosRestantes)} L en el tanque y esta orden usa ${litros(usa)} L.`
+      advertencia = `Quedan ${litros(ctx.litrosRestantes)} L sin asignar en el tanque y esta orden usa ${litros(usa)} L.`
     }
   }
   return { errores: e, advertencia }

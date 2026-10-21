@@ -25,7 +25,7 @@ const env = { fabricacion_id: 'f1', presentacion_id: 'pr1', cantidad: 100, etiqu
 describe('validarEnvasado', () => {
   it('avisa si usa más litros de los que quedan, sin bloquear', () => {
     const r = validarEnvasado(env, { litrosRestantes: 300, litrosEquiv: 5 })
-    expect(r.advertencia).toBe('Quedan 300 L en el tanque y esta orden usa 500 L.')
+    expect(r.advertencia).toBe('Quedan 300 L sin asignar en el tanque y esta orden usa 500 L.')
     expect(r.errores).toEqual({})
   })
   it('cantidad entera mayor a 0', () => {
