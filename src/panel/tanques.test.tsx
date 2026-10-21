@@ -26,7 +26,10 @@ const m = vi.hoisted(() => ({ tanques: [] as unknown[] }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../lib/acciones', () => ({ accionPanel: vi.fn() }))
-vi.mock('./NuevaOrden', () => ({ NuevaOrden: () => null }))
+vi.mock('./NuevaOrden', () => ({
+  NuevaOrden: (p: { abierta: boolean; tipoInicial?: string; fabricacionInicial?: string }) =>
+    p.abierta ? <p>{`nueva orden ${p.tipoInicial ?? 'fabricacion'} ${p.fabricacionInicial ?? ''}`.trim()}</p> : null,
+}))
 vi.mock('./datosTanque', () => ({
   cargarRecorrido: () =>
     Promise.resolve([{ at: '2026-10-21T13:15:00Z', accion: 'iniciar', quien: 'Laura Paz', entidad: 'fabricacion' }]),
@@ -110,5 +113,15 @@ describe('Tanques', () => {
     await act(async () => {})
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Cerrar panel' })))
     expect(screen.queryByRole('complementary', { name: 'Tanque T-01' })).toBeNull()
+  })
+
+  it('tanque listo para envasar: Cargar envasado abre el envasado de ese tanque; el cierre es Cerrar con merma', async () => {
+    m.tanques = [tanque({ estado: 'para_envasar', fabricacion_id: 'fab9', producto: 'Lavandina', litros: 1000, litros_restantes: 1000 })]
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
+    const aside = await elegir('T-01')
+    expect(within(aside).queryByRole('button', { name: 'Finalizar' })).not.toBeInTheDocument()
+    expect(within(aside).getByRole('button', { name: 'Cerrar con merma' })).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(aside).getByRole('button', { name: 'Cargar envasado' })))
+    expect(screen.getByText('nueva orden envasado fab9')).toBeInTheDocument()
   })
 })

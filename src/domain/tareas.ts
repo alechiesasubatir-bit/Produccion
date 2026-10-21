@@ -87,3 +87,16 @@ export function tituloTarea(t: Pick<Tarea, 'entidad' | 'producto' | 'litros' | '
   if (t.entidad === 'envasado') return `${t.producto ?? 'Envasado'} · ${t.cantidad ?? '?'} × ${t.presentacion ?? '?'}`
   return t.descripcion ?? t.producto ?? 'Fraccionado'
 }
+
+// En el panel, "finalizar" una fabricación que espera envasado no la termina: cierra el tanque y da
+// por perdido lo que quede sin envasar. Se nombra y se confirma por lo que hace.
+const esCierreConMerma = (entidad: Tarea['entidad'], estado: string, accion: Accion) =>
+  entidad === 'fabricacion' && estado === 'para_envasar' && accion === 'finalizar'
+
+export function etiquetaPanel(entidad: Tarea['entidad'], estado: string, accion: Accion): string {
+  return esCierreConMerma(entidad, estado, accion) ? 'Cerrar con merma' : etiquetaAccion(accion, false)
+}
+
+export function confirmacionPanel(entidad: Tarea['entidad'], estado: string, accion: Accion): string {
+  return esCierreConMerma(entidad, estado, accion) ? '¿Cerrar sin envasar?' : '¿Seguro?'
+}

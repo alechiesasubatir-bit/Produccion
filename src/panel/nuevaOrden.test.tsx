@@ -102,3 +102,11 @@ describe('NuevaOrden · envasado', () => {
     expect(screen.getByRole('button', { name: 'Crear orden' })).toBeEnabled()
   })
 })
+
+describe('NuevaOrden · abierta desde un tanque listo', () => {
+  it('Cargar envasado la abre en Envasado con ese tanque ya elegido', async () => {
+    await abrir({ tipoInicial: 'envasado', fabricacionInicial: 'fab3' })
+    expect(screen.getByRole('button', { name: 'Envasado' })).toHaveAttribute('aria-pressed', 'true')
+    expect(campo('Tanque a envasar')).toHaveValue('fab3')
+  })
+})

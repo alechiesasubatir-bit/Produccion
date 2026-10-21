@@ -33,6 +33,12 @@ export function Flujo() {
 
   const [aviso, setAviso] = useState<string | null>(null)
   const [nuevaAbierta, setNuevaAbierta] = useState(false)
+  // "Cargar envasado" de una fabricación lista: Nueva orden → Envasado con ese tanque.
+  const [envasarFab, setEnvasarFab] = useState<string | null>(null)
+  const cerrarNueva = () => {
+    setNuevaAbierta(false)
+    setEnvasarFab(null)
+  }
 
   const accionar = async (f: FilaFlujo, a: Accion) => {
     const r = await accionPanel({ entidad: f.entidad, id: f.id, accion: a })
@@ -71,6 +77,7 @@ export function Flujo() {
                     cargadoEn={cargadoEn}
                     proyeccionMin={proyeccion(f)}
                     onAccion={(a) => void accionar(f, a)}
+                    onCargarEnvasado={() => setEnvasarFab(f.id)}
                   />
                 ))}
               </div>
@@ -79,10 +86,12 @@ export function Flujo() {
         </div>
       </LayoutGroup>
       <NuevaOrden
-        abierta={nuevaAbierta}
-        onCerrar={() => setNuevaAbierta(false)}
+        abierta={nuevaAbierta || envasarFab !== null}
+        tipoInicial={envasarFab ? 'envasado' : 'fabricacion'}
+        fabricacionInicial={envasarFab ?? undefined}
+        onCerrar={cerrarNueva}
         onCreada={() => {
-          setNuevaAbierta(false)
+          cerrarNueva()
           flujo.recargar()
         }}
       />

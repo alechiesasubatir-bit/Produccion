@@ -20,7 +20,10 @@ vi.mock('../lib/useRealtime', () => ({
     recargar: m.recargar,
   }),
 }))
-vi.mock('./NuevaOrden', () => ({ NuevaOrden: () => null }))
+vi.mock('./NuevaOrden', () => ({
+  NuevaOrden: (p: { abierta: boolean; tipoInicial?: string; fabricacionInicial?: string }) =>
+    p.abierta ? <p>{`nueva orden ${p.tipoInicial ?? 'fabricacion'} ${p.fabricacionInicial ?? ''}`.trim()}</p> : null,
+}))
 vi.mock('./historial/datosHistorial', () => ({
   cargarEstandares: () =>
     Promise.resolve([{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 10, muestras: 3, litros_hora_std: null }]),
@@ -128,5 +131,19 @@ describe('Flujo', () => {
     act(() => vi.advanceTimersByTime(20 * 60_000))
     expect(screen.getByRole('progressbar', { name: /Avance estimado/ })).toHaveAttribute('aria-valuenow', '75')
     vi.useRealTimers()
+  })
+
+  it('una fabricación en Para envasar ofrece Cargar envasado y Cerrar con merma (no "Finalizar")', async () => {
+    m.accionPanel.mockResolvedValue({ ok: true, fabricacionCerrada: true })
+    m.filas = [fila({ id: 'p1', estado: 'para_envasar' })]
+    render(<Flujo />)
+    const col = columna('Para envasar')
+    expect(within(col).queryByRole('button', { name: 'Finalizar' })).not.toBeInTheDocument()
+    await act(async () => fireEvent.click(within(col).getByRole('button', { name: 'Cargar envasado' })))
+    expect(screen.getByText('nueva orden envasado p1')).toBeInTheDocument()
+    fireEvent.click(within(col).getByRole('button', { name: 'Cerrar con merma' }))
+    expect(m.accionPanel).not.toHaveBeenCalled()
+    await act(async () => fireEvent.click(within(col).getByRole('button', { name: '¿Cerrar sin envasar?' })))
+    expect(m.accionPanel).toHaveBeenCalledWith({ entidad: 'fabricacion', id: 'p1', accion: 'finalizar' })
   })
 })

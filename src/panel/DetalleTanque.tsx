@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { accionesPosibles, type Accion, type Entidad } from '../domain/acciones'
 import { nivelTanque } from '../domain/tanque'
-import { etiquetaAccion } from '../domain/tareas'
+import { confirmacionPanel, etiquetaPanel } from '../domain/tareas'
 import { accionPanel } from '../lib/acciones'
 import { mensajeError } from '../lib/errores'
 import type { EstadoTanqueFila } from '../pages/ParedTanques'
@@ -38,16 +38,19 @@ function Acciones({
   estado,
   titulo,
   onHecho,
+  onCargarEnvasado,
 }: {
   entidad: Entidad
   id: string
   estado: string
   titulo: string
   onHecho: (error: string | null) => void
+  onCargarEnvasado?: () => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(entidad, estado, 'panel')
-  if (acciones.length === 0) return null
+  const lista = entidad === 'fabricacion' && estado === 'para_envasar' && !!onCargarEnvasado
+  if (acciones.length === 0 && !lista) return null
 
   const tocar = async (a: Accion) => {
     if (CONFIRMAR.includes(a) && confirmando !== a) {
@@ -62,9 +65,19 @@ function Acciones({
   return (
     <div className="detalle-acciones">
       <span className="detalle-etiqueta">{titulo}</span>
+      {lista && (
+        <button type="button" className="boton-mini principal" onClick={onCargarEnvasado}>
+          Cargar envasado
+        </button>
+      )}
       {acciones.map((a) => (
-        <button key={a} type="button" className={`boton-mini${confirmando === a ? ' confirmar' : ''}`} onClick={() => void tocar(a)}>
-          {confirmando === a ? '¿Seguro?' : etiquetaAccion(a, false)}
+        <button
+          key={a}
+          type="button"
+          className={`boton-mini${confirmando === a ? ' confirmar' : ''}${lista && a === 'finalizar' ? ' discreto' : ''}`}
+          onClick={() => void tocar(a)}
+        >
+          {confirmando === a ? confirmacionPanel(entidad, estado, a) : etiquetaPanel(entidad, estado, a)}
         </button>
       ))}
     </div>
@@ -74,11 +87,13 @@ function Acciones({
 export function DetalleTanque({
   tanque,
   onNuevaOrden,
+  onCargarEnvasado,
   onCerrar,
   onCambio,
 }: {
   tanque: EstadoTanqueFila
   onNuevaOrden: (tanqueId: string) => void
+  onCargarEnvasado: (fabricacionId: string) => void
   onCerrar: () => void
   onCambio: () => void
 }) {
@@ -169,7 +184,14 @@ export function DetalleTanque({
         <section className="detalle-seccion">
           <h3>Acciones</h3>
           {estados.fabricacion && tanque.fabricacion_id && (
-            <Acciones entidad="fabricacion" id={tanque.fabricacion_id} estado={estados.fabricacion} titulo="Fabricación" onHecho={hecho} />
+            <Acciones
+              entidad="fabricacion"
+              id={tanque.fabricacion_id}
+              estado={estados.fabricacion}
+              titulo="Fabricación"
+              onHecho={hecho}
+              onCargarEnvasado={() => onCargarEnvasado(tanque.fabricacion_id!)}
+            />
           )}
           {estados.envasado && tanque.envasado_id && (
             <Acciones entidad="envasado" id={tanque.envasado_id} estado={estados.envasado} titulo="Envasado" onHecho={hecho} />

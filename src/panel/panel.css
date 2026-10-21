@@ -1861,3 +1861,23 @@ th[aria-sort='descending'] .th-orden::after {
     height: 104px;
   }
 }
+
+/* ---------- Fabricación lista: "Cargar envasado" manda; "Cerrar con merma" queda discreto ---------- */
+
+.boton-mini.principal {
+  border-color: var(--tinta);
+  background: var(--tinta);
+  color: #fff;
+}
+
+.boton-mini.principal:hover:not(:disabled) {
+  border-color: #000;
+  background: #000;
+  box-shadow: inset 0 -2px 0 var(--senal);
+}
+
+.boton-mini.discreto:not(.confirmar) {
+  border-style: dashed;
+  background: transparent;
+  color: var(--apagado);
+}

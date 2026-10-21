@@ -60,12 +60,15 @@ export function NuevaOrden({
   abierta,
   tipoInicial = 'fabricacion',
   tanqueInicial,
+  fabricacionInicial,
   onCerrar,
   onCreada,
 }: {
   abierta: boolean
   tipoInicial?: TipoOrden
   tanqueInicial?: string
+  /** Envasado: la fabricación (tanque listo) que viene elegida. */
+  fabricacionInicial?: string
   onCerrar: () => void
   onCreada: () => void
 }) {
@@ -85,14 +88,14 @@ export function NuevaOrden({
     if (!abierta) return
     setTipo(tipoInicial)
     setFab(vacioFab(tanqueInicial))
-    setEnv(vacioEnv())
+    setEnv({ ...vacioEnv(), fabricacion_id: fabricacionInicial ?? '' })
     setFrac(vacioFrac())
     setTocados(new Set())
     setError(null)
     setEscaneando(false)
     setAvisosEscaneo([])
     cargarDatosOrden().then(setDatos, (e: unknown) => setError(mensajeError(e).texto))
-  }, [abierta, tipoInicial, tanqueInicial])
+  }, [abierta, tipoInicial, tanqueInicial, fabricacionInicial])
 
   useEffect(() => {
     if (!abierta) return

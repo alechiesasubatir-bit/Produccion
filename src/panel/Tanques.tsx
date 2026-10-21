@@ -21,6 +21,12 @@ export function Tanques() {
     }
   }, [codigoInicial, tanques.datos])
   const [nuevaEn, setNuevaEn] = useState<string | null>(null)
+  // "Cargar envasado" desde el panel del tanque: Nueva orden → Envasado con esa fabricación.
+  const [envasarFab, setEnvasarFab] = useState<string | null>(null)
+  const cerrarNueva = () => {
+    setNuevaEn(null)
+    setEnvasarFab(null)
+  }
   // El detalle siempre muestra la fila más reciente que llegó por Realtime.
   const fila = tanques.datos.find((t) => t.tanque_id === elegido) ?? null
 
@@ -49,16 +55,18 @@ export function Tanques() {
           tanque={fila}
           onCerrar={() => setElegido(null)}
           onNuevaOrden={(id) => setNuevaEn(id)}
+          onCargarEnvasado={(fabId) => setEnvasarFab(fabId)}
           onCambio={() => tanques.recargar()}
         />
       )}
       <NuevaOrden
-        abierta={nuevaEn !== null}
-        tipoInicial="fabricacion"
+        abierta={nuevaEn !== null || envasarFab !== null}
+        tipoInicial={envasarFab ? 'envasado' : 'fabricacion'}
         tanqueInicial={nuevaEn ?? undefined}
-        onCerrar={() => setNuevaEn(null)}
+        fabricacionInicial={envasarFab ?? undefined}
+        onCerrar={cerrarNueva}
         onCreada={() => {
-          setNuevaEn(null)
+          cerrarNueva()
           tanques.recargar()
         }}
       />

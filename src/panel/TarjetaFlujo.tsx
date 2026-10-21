@@ -3,7 +3,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
-import { etiquetaAccion, tituloTarea } from '../domain/tareas'
+import { confirmacionPanel, etiquetaPanel, tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
@@ -48,6 +48,7 @@ export function TarjetaFlujo({
   proyeccionMin = null,
   soloLectura = false,
   onAccion,
+  onCargarEnvasado,
 }: {
   fila: FilaFlujo
   nombres: Map<string, string>
@@ -58,6 +59,8 @@ export function TarjetaFlujo({
   /** Sin botones (Monitor de la TV). */
   soloLectura?: boolean
   onAccion: (a: Accion) => void
+  /** Fabricación lista: abre Nueva orden → Envasado con este tanque. */
+  onCargarEnvasado?: () => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(fila.entidad, fila.estado, 'panel')
@@ -65,6 +68,7 @@ export function TarjetaFlujo({
     .filter((id): id is string => !!id)
     .map((id) => nombres.get(id) ?? 'Operaria')
   const estado = estadoMini(fila)
+  const lista = fila.entidad === 'fabricacion' && fila.estado === 'para_envasar' && !!onCargarEnvasado
   // Nivel aproximado: lo que queda de la fabricación sobre lo fabricado.
   const nivel = nivelTanque({
     estado,
@@ -106,17 +110,22 @@ export function TarjetaFlujo({
       {fila.corriendo && proyeccionMin ? (
         <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
       ) : null}
-      {!soloLectura && acciones.length > 0 && (
+      {!soloLectura && (acciones.length > 0 || lista) && (
         <div className="tf-acciones">
+          {lista && (
+            <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={onCargarEnvasado}>
+              Cargar envasado
+            </button>
+          )}
           {acciones.map((a) => (
             <button
               key={a}
               type="button"
-              className={`boton-mini${confirmando === a ? ' confirmar' : ''}`}
+              className={`boton-mini${confirmando === a ? ' confirmar' : ''}${lista && a === 'finalizar' ? ' discreto' : ''}`}
               disabled={!habilitado}
               onClick={() => tocar(a)}
             >
-              {confirmando === a ? '¿Seguro?' : etiquetaAccion(a, false)}
+              {confirmando === a ? confirmacionPanel(fila.entidad, fila.estado, a) : etiquetaPanel(fila.entidad, fila.estado, a)}
             </button>
           ))}
         </div>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   clasificarTareas,
+  confirmacionPanel,
   estadoOperaria,
+  etiquetaPanel,
   etiquetaAccion,
   formatoCronometro,
   pasadoAccion,
@@ -97,5 +99,18 @@ describe('textos', () => {
     expect(tituloTarea(tarea({ entidad: 'envasado', producto: 'Lavandina', cantidad: 120, presentacion: '5L' }))).toBe(
       'Lavandina · 120 × 5L',
     )
+  })
+})
+
+describe('acciones del panel', () => {
+  it('finalizar una fabricación que espera envasado es cerrar con merma, y lo confirma con su consecuencia', () => {
+    expect(etiquetaPanel('fabricacion', 'para_envasar', 'finalizar')).toBe('Cerrar con merma')
+    expect(confirmacionPanel('fabricacion', 'para_envasar', 'finalizar')).toBe('¿Cerrar sin envasar?')
+  })
+
+  it('el resto de las acciones conserva su nombre y su "¿Seguro?"', () => {
+    expect(etiquetaPanel('fabricacion', 'fabricando', 'finalizar')).toBe('Finalizar')
+    expect(etiquetaPanel('envasado', 'activo', 'finalizar')).toBe('Finalizar')
+    expect(confirmacionPanel('fabricacion', 'cola', 'cancelar')).toBe('¿Seguro?')
   })
 })
