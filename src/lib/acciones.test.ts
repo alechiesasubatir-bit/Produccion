@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ejecutarAccion, verificarPin } from './acciones'
+import { accionPanel, ejecutarAccion, verificarPin } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -72,5 +72,13 @@ describe('verificarPin', () => {
   it('PIN correcto', async () => {
     rpc.mockResolvedValue({ data: { ok: true }, error: null })
     expect(await verificarPin('E1', '1234')).toEqual({ ok: true })
+  })
+})
+
+describe('accionPanel', () => {
+  it('acciona sin operaria ni PIN', async () => {
+    rpc.mockResolvedValue({ data: { ok: true, fabricacion_cerrada: true }, error: null })
+    expect(await accionPanel({ entidad: 'envasado', id: 'v1', accion: 'cancelar' })).toEqual({ ok: true, fabricacionCerrada: true })
+    expect(rpc).toHaveBeenLastCalledWith('accion', { p_entidad: 'envasado', p_id: 'v1', p_accion: 'cancelar' })
   })
 })

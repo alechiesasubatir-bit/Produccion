@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Login } from './auth/Login'
 import { Cargando, RequireRol, SinAcceso, SinVerificar } from './auth/RequireRol'
 import { SesionProvider, useSesion } from './auth/useSesion'
-import { PanelInicio } from './pages/PanelInicio'
+import { PanelApp } from './panel/PanelApp'
 import { PlantaApp } from './planta/PlantaApp'
 import './ui/app.css'
 
@@ -23,10 +23,10 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
-            path="/panel"
+            path="/panel/*"
             element={
               <RequireRol rol="panel">
-                <PanelInicio />
+                <PanelApp />
               </RequireRol>
             }
           />

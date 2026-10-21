@@ -42,3 +42,14 @@ export async function ejecutarAccion(p: {
   if (r && 'codigo' in r) return r
   return { ok: true, fabricacionCerrada: !!(r as Respuesta)?.fabricacion_cerrada }
 }
+
+// Acción de la encargada: el panel acciona sin operaria ni PIN (accion() lo permite a es_panel()).
+export async function accionPanel(p: {
+  entidad: Entidad
+  id: string
+  accion: Accion
+}): Promise<Resultado<{ fabricacionCerrada: boolean }>> {
+  const r = await llamar('accion', { p_entidad: p.entidad, p_id: p.id, p_accion: p.accion })
+  if (r && 'codigo' in r) return r
+  return { ok: true, fabricacionCerrada: !!(r as Respuesta)?.fabricacion_cerrada }
+}

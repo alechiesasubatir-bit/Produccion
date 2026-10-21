@@ -31,6 +31,32 @@ describe('mensajeError', () => {
     })
   })
 
+  it('tanque con orden abierta (constraint única)', () => {
+    expect(
+      mensajeError({
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "fabricaciones_tanque_abierta_uk"',
+      }),
+    ).toEqual({ codigo: 'TANQUE_OCUPADO', texto: 'Ese tanque ya tiene una orden abierta.' })
+  })
+
+  it('operaria duplicada', () => {
+    expect(
+      mensajeError({ code: '23505', message: 'duplicate key value violates unique constraint "operarias_pkey"' }).texto,
+    ).toBe('Esa persona ya es operaria.')
+  })
+
+  it('no se puede cambiar el propio rol', () => {
+    expect(mensajeError({ code: '42501', message: 'NO_PROPIO_ROL', details: 'No podés cambiar tu propio rol.' })).toEqual({
+      codigo: 'NO_PROPIO_ROL',
+      texto: 'No podés cambiar tu propio rol.',
+    })
+  })
+
+  it('PIN inválido', () => {
+    expect(mensajeError({ code: '22023', message: 'PIN_INVALIDO' }).texto).toBe('El PIN son 4 dígitos.')
+  })
+
   it('sin red', () => {
     expect(mensajeError(new TypeError('Failed to fetch'))).toEqual({
       codigo: 'RED',

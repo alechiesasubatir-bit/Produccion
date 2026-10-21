@@ -1,0 +1,37 @@
+/* Panel de la encargada (1440×900). */
+
+.pestanas {
+  display: flex;
+  gap: 4px;
+  margin-left: 20px;
+}
+
+.pestana {
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: var(--tinta-2);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.pestana:hover {
+  background: var(--papel-2);
+}
+
+.pestana[aria-current='page'] {
+  background: var(--tinta);
+  color: #fff;
+}
+
+.pestana:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.titulo-panel {
+  margin: 0 0 20px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 32px;
+}
