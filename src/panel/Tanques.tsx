@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ParedTanques, useTanques } from '../pages/ParedTanques'
 import { DetalleTanque } from './DetalleTanque'
 import { NuevaOrden } from './NuevaOrden'
 
 export function Tanques() {
   const tanques = useTanques()
+  const [params] = useSearchParams()
   const [elegido, setElegido] = useState<string | null>(null)
+  // ?tanque=T-01 (desde el historial): elegirlo cuando lleguen los datos.
+  const codigoInicial = params.get('tanque')
+  useEffect(() => {
+    if (!codigoInicial || elegido) return
+    const t = tanques.datos.find((x) => x.codigo === codigoInicial)
+    if (t) setElegido(t.tanque_id)
+  }, [codigoInicial, tanques.datos, elegido])
   const [nuevaEn, setNuevaEn] = useState<string | null>(null)
   // El detalle siempre muestra la fila más reciente que llegó por Realtime.
   const fila = tanques.datos.find((t) => t.tanque_id === elegido) ?? null

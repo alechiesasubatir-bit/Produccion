@@ -61,3 +61,38 @@ export function diasDelMes(anio: number, mes: number): string[] {
   for (const d = new Date(desde); d <= hasta; d.setUTCDate(d.getUTCDate() + 1)) dias.push(iso(d))
   return dias
 }
+
+const fecha = (s: string) => new Date(`${s}T00:00:00Z`)
+const sumarDias = (s: string, n: number) => {
+  const d = fecha(s)
+  d.setUTCDate(d.getUTCDate() + n)
+  return iso(d)
+}
+const lunesDe = (s: string) => sumarDias(s, -((fecha(s).getUTCDay() + 6) % 7))
+const mesDe = (anio: number, mes0: number): Rango => ({
+  desde: iso(new Date(Date.UTC(anio, mes0, 1))),
+  hasta: iso(new Date(Date.UTC(anio, mes0 + 1, 0))),
+})
+
+/** Fecha de hoy en Montevideo (YYYY-MM-DD). */
+export function hoyMontevideo(ahora = new Date()): string {
+  return ahora.toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' })
+}
+
+export type Atajo = 'hoy' | 'semana' | 'mes' | 'mesAnterior'
+
+export function rangoDe(atajo: Atajo, hoy: string): Rango {
+  const d = fecha(hoy)
+  if (atajo === 'hoy') return { desde: hoy, hasta: hoy }
+  if (atajo === 'semana') return { desde: lunesDe(hoy), hasta: sumarDias(lunesDe(hoy), 6) }
+  if (atajo === 'mes') return mesDe(d.getUTCFullYear(), d.getUTCMonth())
+  return mesDe(d.getUTCFullYear(), d.getUTCMonth() - 1)
+}
+
+/** Mes o semana completos que contienen `desde`, corridos `n` períodos. */
+export function moverRango(r: Rango, periodo: 'mes' | 'semana', n: number): Rango {
+  const d = fecha(r.desde)
+  if (periodo === 'mes') return mesDe(d.getUTCFullYear(), d.getUTCMonth() + n)
+  const lunes = sumarDias(lunesDe(r.desde), 7 * n)
+  return { desde: lunes, hasta: sumarDias(lunes, 6) }
+}

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { EstadoTanqueFila } from '../pages/ParedTanques'
 import { Tanques } from './Tanques'
@@ -43,7 +44,7 @@ async function elegir(codigo: string) {
 describe('Tanques', () => {
   it('al elegir un tanque abre el panel lateral con su QR', async () => {
     m.tanques = [tanque({})]
-    render(<Tanques />)
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
     const aside = await elegir('T-01')
     expect(within(aside).getByRole('heading', { name: 'T-01' })).toBeInTheDocument()
     expect(aside.querySelector('.qr svg')).not.toBeNull()
@@ -52,7 +53,7 @@ describe('Tanques', () => {
 
   it('tanque libre: ofrece nueva orden', async () => {
     m.tanques = [tanque({})]
-    render(<Tanques />)
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
     const aside = await elegir('T-01')
     expect(within(aside).getByRole('button', { name: 'Nueva orden en este tanque' })).toBeInTheDocument()
   })
@@ -61,7 +62,7 @@ describe('Tanques', () => {
     m.tanques = [
       tanque({ estado: 'fabricando', fabricacion_id: 'fab1', producto: 'Lavandina', color: '#0284c7', litros: 1200 }),
     ]
-    render(<Tanques />)
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
     const aside = await elegir('T-01')
     expect(within(aside).getByText('10:15 · inició · Laura Paz')).toBeInTheDocument()
     expect(within(aside).getByRole('button', { name: 'Pausar' })).toBeInTheDocument()
@@ -72,12 +73,23 @@ describe('Tanques', () => {
       tanque({ estado: 'fabricando', fabricacion_id: 'fab1', producto: 'Lavandina', litros: 1200 }),
       tanque({ tanque_id: 't2', codigo: 'T-02', orden: 2, estado: 'fabricando', fabricacion_id: 'fab2', producto: 'Cloro', litros: 800 }),
     ]
-    render(<Tanques />)
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
     const t1 = await elegir('T-01')
     fireEvent.click(within(t1).getByRole('button', { name: 'Cancelar' }))
     expect(within(t1).getByRole('button', { name: '¿Seguro?' })).toBeInTheDocument()
     const t2 = await elegir('T-02')
     expect(within(t2).queryByRole('button', { name: '¿Seguro?' })).toBeNull()
     expect(within(t2).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+  })
+
+  it('abre el tanque que viene en ?tanque= (desde el historial)', async () => {
+    m.tanques = [tanque({})]
+    render(
+      <MemoryRouter initialEntries={['/panel/tanques?tanque=T-01']}>
+        <Tanques />
+      </MemoryRouter>,
+    )
+    await act(async () => {})
+    expect(screen.getByRole('complementary', { name: 'Tanque T-01' })).toBeInTheDocument()
   })
 })

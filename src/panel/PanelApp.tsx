@@ -3,12 +3,14 @@ import { salir, useSesion } from '../auth/useSesion'
 import { useEnLinea } from '../lib/useEnLinea'
 import { Configuracion } from './config/Configuracion'
 import { Flujo } from './Flujo'
+import { Historial } from './historial/Historial'
 import { Tanques } from './Tanques'
 import './panel.css'
 
 const PESTANAS = [
   { a: '/panel', texto: 'Flujo', end: true },
   { a: '/panel/tanques', texto: 'Tanques', end: false },
+  { a: '/panel/historial', texto: 'Historial', end: false },
   { a: '/panel/config', texto: 'Configuración', end: false },
 ]
 
@@ -45,6 +47,7 @@ export function PanelApp() {
         <Routes>
           <Route index element={<Flujo />} />
           <Route path="tanques" element={<Tanques />} />
+          <Route path="historial" element={<Historial />} />
           <Route path="config" element={<Configuracion />} />
         </Routes>
       </main>

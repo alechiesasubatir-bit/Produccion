@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { filaH } from '../test/fabricas'
-import { diasDelMes, filtrarHistorial, ordenarHistorial, porDia } from './historial'
+import { diasDelMes, filtrarHistorial, moverRango, ordenarHistorial, porDia, rangoDe } from './historial'
 
 describe('porDia', () => {
   it('cada tarea cae en un solo día (el de la vista)', () => {
@@ -43,5 +43,18 @@ describe('diasDelMes', () => {
     expect(d.length % 7).toBe(0)
     expect(d).toContain('2026-10-31')
     expect(d.at(-1)).toBe('2026-11-01')
+  })
+})
+
+describe('rangoDe', () => {
+  it('atajos de fechas a partir de hoy', () => {
+    expect(rangoDe('hoy', '2026-10-15')).toEqual({ desde: '2026-10-15', hasta: '2026-10-15' })
+    expect(rangoDe('semana', '2026-10-15')).toEqual({ desde: '2026-10-12', hasta: '2026-10-18' })
+    expect(rangoDe('mes', '2026-10-15')).toEqual({ desde: '2026-10-01', hasta: '2026-10-31' })
+    expect(rangoDe('mesAnterior', '2026-01-15')).toEqual({ desde: '2025-12-01', hasta: '2025-12-31' })
+  })
+  it('mover un mes o una semana', () => {
+    expect(moverRango({ desde: '2026-10-01', hasta: '2026-10-31' }, 'mes', 1)).toEqual({ desde: '2026-11-01', hasta: '2026-11-30' })
+    expect(moverRango({ desde: '2026-10-12', hasta: '2026-10-18' }, 'semana', -1)).toEqual({ desde: '2026-10-05', hasta: '2026-10-11' })
   })
 })
