@@ -42,6 +42,13 @@ async function elegir(codigo: string) {
 }
 
 describe('Tanques', () => {
+  it('cada tanque de la pared muestra su capacidad', () => {
+    m.tanques = [tanque({}), tanque({ tanque_id: 't2', codigo: 'T-17', capacidad_l: 200 })]
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
+    expect(within(screen.getByRole('button', { name: /Tanque T-01/ })).getByText('2.000 L')).toBeInTheDocument()
+    expect(within(screen.getByRole('button', { name: /Tanque T-17/ })).getByText('200 L')).toBeInTheDocument()
+  })
+
   it('al elegir un tanque abre el panel lateral con su QR', async () => {
     m.tanques = [tanque({})]
     render(<MemoryRouter><Tanques /></MemoryRouter>)

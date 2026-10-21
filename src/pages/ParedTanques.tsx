@@ -26,6 +26,7 @@ function Celda({ t }: { t: EstadoTanqueFila }) {
         etiqueta={`Tanque ${t.codigo}: ${t.producto ?? 'libre'}`}
       />
       <span className="pared-codigo">{t.codigo}</span>
+      <span className="pared-capacidad">{Number(t.capacidad_l).toLocaleString('es-UY')} L</span>
       <span className="pared-producto">{t.producto ?? '—'}</span>
       <Chip estado={t.estado} />
     </>
