@@ -42,6 +42,16 @@ describe('ejecutarAccion', () => {
     expect(await ejecutarAccion(base)).toMatchObject({ ok: false, codigo: 'RED' })
   })
 
+  it('falla de red como la devuelve postgrest-js (resuelve con error, no rechaza)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TypeError: Failed to fetch', code: '' } })
+    expect(await ejecutarAccion(base)).toMatchObject({ ok: false, codigo: 'RED' })
+  })
+
+  it('falla de red en Safari', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TypeError: Load failed', code: '' } })
+    expect(await ejecutarAccion(base)).toMatchObject({ ok: false, codigo: 'RED' })
+  })
+
   it('error de PostgREST', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'NO_AUTORIZADO' } })
     expect(await ejecutarAccion(base)).toMatchObject({ ok: false, codigo: 'NO_AUTORIZADO' })

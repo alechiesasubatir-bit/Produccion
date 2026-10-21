@@ -52,8 +52,16 @@ export function PlantaApp() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [confirmacion, setConfirmacion] = useState<{ color: string; texto: string } | null>(null)
   const enviando = useRef(false)
+  // Cada vez que cambia la persona se incrementa: una respuesta que llega tarde de una sesión
+  // anterior (verificación o acción) se descarta en vez de pisar la sesión actual.
+  const sesion = useRef(0)
 
   const volverAlInicio = () => {
+    sesion.current += 1
+    enviando.current = false
+    setVerificando(false)
+    operarias.recargar()
+    tareas.recargar()
     setPantalla('quien')
     setOperaria(null)
     setPin(null)
@@ -63,6 +71,8 @@ export function PlantaApp() {
   }
 
   const activa = pantalla === 'pin' || pantalla === 'tareas'
+  const errorCarga =
+    pantalla === 'quien' ? (operarias.error ?? tareas.error) : pantalla === 'tareas' ? tareas.error : null
   const restante = useInactividad(activa, INACTIVIDAD_MS, volverAlInicio)
 
   const fallarPin = (texto: string) => {
@@ -71,6 +81,7 @@ export function PlantaApp() {
   }
 
   const elegir = (o: OperariaFila) => {
+    sesion.current += 1
     setOperaria(o)
     setPin(null)
     setPinError(null)
@@ -79,8 +90,10 @@ export function PlantaApp() {
 
   const ingresarPin = async (p: string) => {
     if (!operaria) return
+    const mia = sesion.current
     setVerificando(true)
     const r = await verificarPin(operaria.empleado_id, p)
+    if (mia !== sesion.current) return
     setVerificando(false)
     if (!r.ok) return fallarPin(r.texto)
     setPin(p)
@@ -90,8 +103,10 @@ export function PlantaApp() {
 
   const accionar = async (t: Tarea, a: Accion) => {
     if (!operaria || !pin || enviando.current) return
+    const mia = sesion.current
     enviando.current = true
     const r = await ejecutarAccion({ entidad: t.entidad, id: t.id, accion: a, empleadoId: operaria.empleado_id, pin })
+    if (mia !== sesion.current) return
     enviando.current = false
     if (r.ok) {
       setAviso(null)
@@ -152,6 +167,11 @@ export function PlantaApp() {
         </div>
       )}
       <main className="planta-cuerpo">
+        {errorCarga && (
+          <p className="aviso-planta" role="alert">
+            {errorCarga}
+          </p>
+        )}
         {!operarias.conectado && pantalla !== 'tareas' && (
           <div className="banda-offline banda-planta" role="status">
             Sin conexión — no se pueden registrar acciones.

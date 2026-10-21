@@ -31,15 +31,20 @@ function campo(err: object, nombre: string): unknown {
   return (err as Record<string, unknown>)[nombre]
 }
 
+// Fallas de red: fetch de Chrome/Firefox/Safari, y el {message:'TypeError: …'} con que postgrest-js
+// resuelve (no rechaza) cuando no hay conexión.
+const RED = /^(TypeError|FetchError)|Failed to fetch|Load failed|NetworkError|network/i
+
 // Acepta errores de PostgREST ({message, details}), respuestas {ok:false, codigo, detalle}
 // de produccion.accion() y fallas de red de fetch.
 export function mensajeError(err: unknown): { codigo: CodigoError; texto: string } {
-  if (err instanceof TypeError && /fetch|network/i.test(err.message)) {
+  if (err instanceof TypeError && RED.test(err.message)) {
     return { codigo: 'RED', texto: TEXTOS.RED(null) }
   }
   if (err && typeof err === 'object') {
     const codigo = campo(err, 'codigo') ?? campo(err, 'message')
     const detalle = campo(err, 'detalle') ?? campo(err, 'details')
+    if (typeof codigo === 'string' && RED.test(codigo)) return { codigo: 'RED', texto: TEXTOS.RED(null) }
     if (esCodigo(codigo) && codigo !== 'RED' && codigo !== 'DESCONOCIDO') {
       return { codigo, texto: TEXTOS[codigo](typeof detalle === 'string' && detalle ? detalle : null) }
     }

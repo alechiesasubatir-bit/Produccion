@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   verificarPin: vi.fn(),
   ejecutarAccion: vi.fn(),
   recargar: vi.fn(),
+  error: null as string | null,
 }))
 
 vi.mock('../lib/acciones', () => ({ verificarPin: m.verificarPin, ejecutarAccion: m.ejecutarAccion }))
@@ -44,7 +45,7 @@ vi.mock('../lib/useRealtime', () => ({
     datos: tabla === 'v_operarias' ? operarias : [suya],
     conectado: true,
     enVivo: true,
-    error: null,
+    error: tabla === 'v_tareas' ? m.error : null,
     recargar: m.recargar,
   }),
 }))
@@ -127,5 +128,35 @@ describe('PlantaApp', () => {
     expect(screen.getByText('¿Quién trabaja?')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
     expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
+  })
+
+  it('una verificación que vuelve tarde no mete a nadie en la sesión de otra', async () => {
+    montar()
+    let resolver!: (v: unknown) => void
+    m.verificarPin.mockReturnValue(new Promise((r) => (resolver = r)))
+    fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
+    for (const d of '1234') fireEvent.click(screen.getByRole('button', { name: d }))
+    fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+    fireEvent.click(screen.getByRole('button', { name: /Rosa Díaz/ }))
+    await act(async () => resolver({ ok: true }))
+    expect(screen.queryByText(/^Hola, /)).toBeNull()
+    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Rosa Díaz' })).toBeInTheDocument()
+  })
+
+  it('al volver al inicio recarga operarias y tareas', async () => {
+    montar()
+    await entrarComoLaura()
+    m.recargar.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'No soy yo' }))
+    expect(m.recargar).toHaveBeenCalledTimes(2)
+  })
+
+  it('si falla la carga de tareas se muestra el error', async () => {
+    m.error = 'No tenés permiso para esta acción.'
+    montar()
+    await entrarComoLaura()
+    expect(screen.getByRole('alert')).toHaveTextContent('No tenés permiso para esta acción.')
+    m.error = null
   })
 })

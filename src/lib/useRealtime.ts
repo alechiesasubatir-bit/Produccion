@@ -73,11 +73,13 @@ export function useRealtime<T>(
     }
   }, [tabla, claveCanales, sufijo, recargar])
 
+  // Polling si el canal cayó, o siempre si no hay tablas que escuchar (p. ej. v_operarias).
+  const sinCanales = claveCanales === ''
   useEffect(() => {
-    if (canalOk) return
+    if (canalOk && !sinCanales) return
     const id = setInterval(recargar, POLLING_MS)
     return () => clearInterval(id)
-  }, [canalOk, recargar])
+  }, [canalOk, sinCanales, recargar])
 
   useEffect(() => {
     const on = () => {

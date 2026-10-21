@@ -71,4 +71,20 @@ describe('useRealtime', () => {
     await act(async () => result.current.recargar())
     expect(cargar.mock.calls.length).toBe(antes + 1)
   })
+
+  it('sin canales que escuchar, igual consulta cada 15 s', async () => {
+    vi.useFakeTimers()
+    const cargar = vi.fn(() => Promise.resolve([1]))
+    renderHook(() => useRealtime('t', cargar, []))
+    // pasar la recarga con debounce que dispara el SUBSCRIBED
+    await act(async () => {
+      vi.advanceTimersByTime(1_000)
+    })
+    const antes = cargar.mock.calls.length
+    await act(async () => {
+      vi.advanceTimersByTime(15_100)
+    })
+    expect(cargar.mock.calls.length).toBeGreaterThan(antes)
+    vi.useRealTimers()
+  })
 })

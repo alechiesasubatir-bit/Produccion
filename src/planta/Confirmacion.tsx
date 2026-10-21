@@ -2,20 +2,13 @@ import { useEffect, useRef } from 'react'
 
 const DURACION_MS = 1200
 
-function sinMovimiento(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
 // Check dibujado + estallido del color del producto; vuelve solo a "Mis tareas".
+// Con reduced motion el CSS saca las animaciones, pero el mensaje se muestra el mismo tiempo.
 export function Confirmacion({ color, texto, onFin }: { color: string; texto: string; onFin: () => void }) {
   const onFinRef = useRef(onFin)
   onFinRef.current = onFin
 
   useEffect(() => {
-    if (sinMovimiento()) {
-      onFinRef.current()
-      return
-    }
     const id = setTimeout(() => onFinRef.current(), DURACION_MS)
     return () => clearTimeout(id)
   }, [])

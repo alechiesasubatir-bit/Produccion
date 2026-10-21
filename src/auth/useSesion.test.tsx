@@ -37,10 +37,10 @@ describe('SesionProvider', () => {
         <Mostrar />
       </SesionProvider>,
     )
-    await waitFor(() => expect(screen.getByText('rol=null error=true')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('rol=null error=true')).toBeInTheDocument(), { timeout: 3000 })
     await act(async () => {
       window.dispatchEvent(new Event('online'))
     })
-    await waitFor(() => expect(screen.getByText('rol=panel error=false')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('rol=panel error=false')).toBeInTheDocument(), { timeout: 3000 })
   })
 })

@@ -108,10 +108,15 @@ describe('TarjetaTarea', () => {
 
 describe('Confirmacion', () => {
   afterEach(() => vi.unstubAllGlobals())
-  it('con reduced motion termina sin esperar', () => {
+  it('con reduced motion el mensaje se ve igual (sin animación) antes de volver', () => {
+    vi.useFakeTimers()
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('reduce'), addEventListener() {}, removeEventListener() {} }))
     const onFin = vi.fn()
     render(<Confirmacion color="#db2777" texto="Listo: finalizaste Lavandina · 1000 L" onFin={onFin} />)
+    expect(screen.getByText('Listo: finalizaste Lavandina · 1000 L')).toBeInTheDocument()
+    expect(onFin).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(1300))
     expect(onFin).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 })
