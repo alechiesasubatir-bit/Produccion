@@ -149,7 +149,7 @@ export function PlantaApp() {
           onPointerUp={soltarLogo}
           onPointerLeave={soltarLogo}
         >
-          ProdControl
+          Control de Producción
         </span>
         <div className="planta-barra-der">
           {activa && <AnilloInactividad restante={restante} totalSeg={INACTIVIDAD_MS / 1000} />}

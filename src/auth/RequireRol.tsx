@@ -16,7 +16,7 @@ export function SinAcceso() {
     <div className="pantalla-centro">
       <div className="tarjeta-aviso">
         <h1>Sin acceso</h1>
-        <p>Tu usuario no tiene permiso para esta parte de ProdControl. Pedile acceso a un administrador.</p>
+        <p>Tu usuario no tiene permiso para esta parte de Control de Producción. Pedile acceso a un administrador.</p>
         <button type="button" className="boton" onClick={() => void salir()}>
           Salir
         </button>

@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { motorDemo } from '../demo/motor'
 import { mensajeError } from './errores'
+import { modoDemo } from './modoDemo'
 import { supabase } from './supabase'
 
 const DEBOUNCE_MS = 300
@@ -49,6 +51,17 @@ export function useRealtime<T>(
     vigenteRef.current = true
     let espera: ReturnType<typeof setTimeout> | undefined
 
+    // DEMO: sin canales; recarga en cada paso del simulador (y tras cada acción).
+    if (modoDemo) {
+      recargar()
+      setCanalOk(true)
+      const baja = motorDemo().suscribir(recargar)
+      return () => {
+        vigenteRef.current = false
+        baja()
+      }
+    }
+
     const recargarPronto = () => {
       clearTimeout(espera)
       espera = setTimeout(recargar, DEBOUNCE_MS)
@@ -78,7 +91,7 @@ export function useRealtime<T>(
   // Polling si el canal cayó, o siempre si no hay tablas que escuchar (p. ej. v_operarias).
   const sinCanales = claveCanales === ''
   useEffect(() => {
-    if (canalOk && !sinCanales) return
+    if (modoDemo || (canalOk && !sinCanales)) return
     const id = setInterval(recargar, POLLING_MS)
     return () => clearInterval(id)
   }, [canalOk, sinCanales, recargar])

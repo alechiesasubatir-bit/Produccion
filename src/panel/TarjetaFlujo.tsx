@@ -46,6 +46,7 @@ export function TarjetaFlujo({
   habilitado,
   cargadoEn,
   proyeccionMin = null,
+  soloLectura = false,
   onAccion,
 }: {
   fila: FilaFlujo
@@ -54,6 +55,8 @@ export function TarjetaFlujo({
   cargadoEn: number
   /** Minutos estimados por la velocidad histórica (null si no hay historial). */
   proyeccionMin?: number | null
+  /** Sin botones (Monitor de la TV). */
+  soloLectura?: boolean
   onAccion: (a: Accion) => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
@@ -103,7 +106,7 @@ export function TarjetaFlujo({
       {fila.corriendo && proyeccionMin ? (
         <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
       ) : null}
-      {acciones.length > 0 && (
+      {!soloLectura && acciones.length > 0 && (
         <div className="tf-acciones">
           {acciones.map((a) => (
             <button

@@ -5,19 +5,12 @@ import { agruparFlujo, COLUMNAS, kpisFlujo, type FilaFlujo } from '../domain/flu
 import type { Estandar } from '../domain/kpis'
 import { proyeccionEnvasado, proyeccionFabricacion } from '../domain/proyecciones'
 import { accionPanel } from '../lib/acciones'
-import { db, fetchAll } from '../lib/supabase'
 import { useRealtime } from '../lib/useRealtime'
+import { cargarFlujo, cargarOperarias } from './datosFlujo'
 import { cargarEstandares } from './historial/datosHistorial'
 import { KpisFlujo } from './KpisFlujo'
 import { NuevaOrden } from './NuevaOrden'
 import { TarjetaFlujo } from './TarjetaFlujo'
-
-type OperariaNombre = { empleado_id: string; nombre: string }
-
-const cargarFlujo = () =>
-  fetchAll<FilaFlujo>((from, to) => db.from('v_flujo').select('*').order('created_at').range(from, to))
-const cargarOperarias = () =>
-  fetchAll<OperariaNombre>((from, to) => db.from('v_operarias').select('empleado_id, nombre').range(from, to))
 
 export function Flujo() {
   const flujo = useRealtime('v_flujo', cargarFlujo, ['fabricaciones', 'envasados', 'fraccionados'])

@@ -1393,3 +1393,321 @@ th[aria-sort='descending'] .th-orden::after {
 .tabla tbody tr:hover {
   box-shadow: inset 3px 0 0 var(--senal);
 }
+
+/* ---------- pestaña DEMO y barra de la demo ---------- */
+
+.pestana-demo {
+  gap: 6px;
+  color: var(--senal);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.pestana-demo::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--senal);
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+.barra-demo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-sello {
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, var(--senal) 0 10px, #c93a14 10px 20px);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.demo-hora {
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: var(--tinta);
+  color: #f3f1ea;
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-velocidad {
+  margin: 0;
+}
+
+.demo-velocidad .segmento {
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* ---------- Monitor (TV): ocupa toda la pantalla y escala con el ancho ---------- */
+
+.monitor {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 1.4vh;
+  padding: 1.6vh 1.4vw 1.4vh;
+  font-size: clamp(13px, 0.9vw, 24px);
+  background-color: var(--papel);
+  background-image:
+    radial-gradient(60vw 50vh at 100% 0%, rgb(226 71 29 / 0.08), transparent 70%),
+    radial-gradient(55vw 55vh at 0% 100%, rgb(14 165 233 / 0.09), transparent 70%),
+    linear-gradient(var(--cuadricula-mayor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cuadricula-mayor) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 120px 120px, 120px 120px;
+  animation: fundir 0.4s ease-out both;
+}
+
+.monitor-cabecera {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  padding-bottom: 1.2vh;
+  border-bottom: 2px solid var(--tinta);
+}
+
+.monitor-cabecera::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: linear-gradient(90deg, #8a8f99, #16a34a, #0d9488, #0284c7, #d97706, #7c3aed, var(--senal), #8a8f99);
+  background-size: 200% 100%;
+  animation: espectro 14s linear infinite;
+}
+
+.monitor-marca {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vh;
+}
+
+.monitor .marca-nombre {
+  font-size: 1.7vw;
+}
+
+.monitor .marca-nombre::before {
+  width: 0.7vw;
+  height: 1.4vw;
+}
+
+.monitor-etiqueta {
+  padding-left: calc(0.7vw + 10px);
+  font-family: var(--mono);
+  font-size: 0.75em;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--apagado);
+}
+
+.monitor .kpis {
+  margin-left: 1vw;
+}
+
+.monitor .kpi {
+  min-width: 8vw;
+  padding: 0.8vh 1.2vw 1vh;
+}
+
+.monitor .kpi-valor {
+  font-size: 2.6vw;
+}
+
+.monitor .kpi dt {
+  font-size: 0.7em;
+}
+
+.monitor-derecha {
+  display: flex;
+  align-items: center;
+  gap: 1.4vw;
+  margin-left: auto;
+}
+
+.monitor-vivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #b91c1c;
+}
+
+.monitor-vivo i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 0.25em rgb(239 68 68 / 0.2);
+  animation: latido 1.2s ease-in-out infinite;
+}
+
+.monitor-vivo.caido {
+  color: var(--apagado);
+}
+
+.monitor-vivo.caido i {
+  background: var(--apagado);
+  animation: none;
+}
+
+.monitor-hora {
+  padding: 0.4vh 0.9vw;
+  border-radius: 8px;
+  background: var(--tinta);
+  color: #f3f1ea;
+  font-family: var(--mono);
+  font-size: 2.8vw;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* los botones casi no se ven en la TV; aparecen al pasar el mouse */
+.monitor-botones {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0.25;
+  transition: opacity 0.2s var(--ease);
+}
+
+.monitor-botones:hover,
+.monitor-botones:focus-within {
+  opacity: 1;
+}
+
+.monitor-botones .boton-mini {
+  text-align: center;
+  text-decoration: none;
+}
+
+.monitor-kanban {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.9vw;
+  min-height: 0;
+}
+
+.monitor .kanban-col {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.monitor .kanban-col h2 {
+  font-size: 0.85em;
+  padding: 1vh 0.8vw 0.9vh;
+}
+
+.monitor .kanban-lista {
+  gap: 0.8vh;
+}
+
+.monitor .tarjeta-flujo {
+  gap: 0.6vh;
+  padding: 0.9vh 0.7vw 0.9vh 0.8vw;
+}
+
+.monitor .tf-nombre {
+  font-size: 1.05em;
+}
+
+.monitor .tf-meta,
+.monitor .tf-pie {
+  font-size: 0.85em;
+}
+
+.monitor .tf-pie .cronometro {
+  font-size: 1em;
+}
+
+.monitor-mas {
+  margin: 0.4vh 0 0;
+  padding: 0.6vh;
+  border: 1px dashed var(--linea-2);
+  border-radius: var(--radio-chico);
+  color: var(--tinta-2);
+  font-family: var(--mono);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.monitor-tanques {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 0.5vw;
+  margin: 0;
+  padding: 1vh 0 0;
+  border-top: 1px solid var(--linea-2);
+  list-style: none;
+}
+
+.monitor-tanque {
+  --producto: var(--linea-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 0.4vw;
+  align-items: center;
+  padding: 0.6vh 0.4vw;
+  border: 1px solid var(--linea);
+  border-top: 3px solid var(--producto);
+  border-radius: var(--radio-chico);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--producto) 12%, var(--tarjeta)), var(--tarjeta) 70%);
+  min-width: 0;
+}
+
+.monitor-tanque .tanque {
+  grid-row: 1 / 4;
+  width: 1.6vw;
+  height: 3.2vw;
+}
+
+.mt-codigo {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.mt-producto {
+  overflow: hidden;
+  color: var(--tinta-2);
+  font-size: 0.7em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mt-pct {
+  font-family: var(--mono);
+  font-size: 0.75em;
+  color: color-mix(in srgb, var(--producto) 60%, var(--tinta));
+}
+
+.monitor-tanque.estado-libre {
+  opacity: 0.55;
+}
+
+.monitor-tanque:is(.estado-fabricando, .estado-envasando) {
+  animation: respirar 3.2s ease-in-out infinite;
+}

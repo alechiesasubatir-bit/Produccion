@@ -35,8 +35,8 @@ export function Login() {
     <div className="pantalla-centro">
       <form className="tarjeta-login" onSubmit={entrar}>
         <h1>
-          ProdControl
-          <small>Subatir · Producción</small>
+          Control de Producción
+          <small>Subatir S.A.</small>
         </h1>
         <label>
           Email

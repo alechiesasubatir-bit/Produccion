@@ -22,6 +22,8 @@ function App() {
       <BrowserRouter basename="/Produccion">
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* DEMO pública: datos simulados en el navegador, sin usuario (ver src/demo). */}
+          <Route path="/demo/*" element={<PanelApp base="/demo" demo />} />
           <Route
             path="/panel/*"
             element={

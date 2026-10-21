@@ -43,7 +43,7 @@ export function Usuarios() {
           <tr>
             <th scope="col">Email</th>
             <th scope="col">Nombre</th>
-            <th scope="col">Rol en ProdControl</th>
+            <th scope="col">Rol en Control de Producción</th>
           </tr>
         </thead>
         <tbody>

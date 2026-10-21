@@ -5,7 +5,7 @@ export function Encabezado({ titulo }: { titulo: string }) {
   return (
     <header className="encabezado">
       <div className="marca">
-        <span className="marca-nombre">ProdControl</span>
+        <span className="marca-nombre">Control de Producción</span>
         <span className="marca-seccion">{titulo}</span>
       </div>
       <div className="encabezado-usuario">
