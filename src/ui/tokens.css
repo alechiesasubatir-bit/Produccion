@@ -45,12 +45,16 @@ body {
   -webkit-font-smoothing: antialiased;
   /* papel milimetrado: línea fina cada 24 px, más marcada cada 120 px */
   background-color: var(--papel);
+  /* atmósfera: dos resplandores de color sobre el papel milimetrado */
   background-image:
+    radial-gradient(60vw 50vh at 100% 0%, rgb(226 71 29 / 0.07), transparent 70%),
+    radial-gradient(55vw 55vh at 0% 100%, rgb(14 165 233 / 0.08), transparent 70%),
+    radial-gradient(40vw 40vh at 55% 55%, rgb(250 204 21 / 0.05), transparent 70%),
     linear-gradient(var(--cuadricula-mayor) 1px, transparent 1px),
     linear-gradient(90deg, var(--cuadricula-mayor) 1px, transparent 1px),
     linear-gradient(var(--cuadricula) 1px, transparent 1px),
     linear-gradient(90deg, var(--cuadricula) 1px, transparent 1px);
-  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
   background-attachment: fixed;
 }
 
@@ -136,6 +140,67 @@ body {
 .chip-cola { background: #efede6; color: #4a4f5b; border-color: #ddd8ca; }
 .chip-terminada { background: #ece8f7; color: #4c2a8a; border-color: #d4cbef; }
 .chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }
+
+/* ---------- vida: color y movimiento compartidos ---------- */
+
+/* el líquido sube al aparecer el tanque (después queda el nivel real del estilo en línea) */
+@keyframes llenar {
+  from {
+    transform: translateY(114px);
+  }
+}
+
+.tanque .liquido {
+  animation: llenar 1.4s 0.2s var(--ease) backwards;
+}
+
+/* brillo que recorre el vidrio de los tanques en uso */
+.tanque:is([data-estado='fabricando'], [data-estado='envasando']) .vidrio {
+  animation: destello 4s ease-in-out infinite;
+}
+
+@keyframes destello {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.55; }
+}
+
+/* chips en curso: un barrido de luz */
+.chip.en-curso {
+  background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.75) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: barrido 2.8s ease-in-out infinite;
+}
+
+@keyframes barrido {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@keyframes respirar {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--producto) 0%, transparent), var(--sombra);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--producto) 22%, transparent), 0 10px 30px -12px color-mix(in srgb, var(--producto) 55%, transparent);
+  }
+}
+
+@keyframes latido {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+@keyframes onda {
+  from {
+    transform: scale(0.4);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
 
 /* ---------- movimiento reducido: sin olas, burbujas, entradas ni transiciones ---------- */
 @media (prefers-reduced-motion: reduce) {

@@ -1260,3 +1260,136 @@ th[aria-sort='descending'] .th-orden::after {
   color: #0c4a6e;
   font-size: 13px;
 }
+
+/* ---------- vida: color y movimiento ---------- */
+
+/* columnas teñidas por su estado */
+.kanban-col {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--columna) 9%, var(--tarjeta)), rgb(255 253 248 / 0.5) 220px);
+}
+
+.kanban-col h2::before {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--columna) 22%, transparent);
+}
+
+/* contadores con el color de su estado y una barra que se dibuja */
+.kpi {
+  --kpi: var(--apagado);
+  position: relative;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 26px;
+  height: 3px;
+  background: var(--kpi);
+  transform-origin: left;
+  animation: trazar 0.7s 0.3s var(--ease) both;
+}
+
+.kpis .kpi:nth-child(1) { --kpi: #8a8f99; }
+.kpis .kpi:nth-child(2) { --kpi: #16a34a; }
+.kpis .kpi:nth-child(3) { --kpi: #0284c7; }
+.kpis .kpi:nth-child(4) { --kpi: var(--senal); }
+.kpis-grandes .kpi:nth-child(1) { --kpi: #0284c7; }
+.kpis-grandes .kpi:nth-child(2) { --kpi: #d97706; }
+.kpis-grandes .kpi:nth-child(3) { --kpi: #7c3aed; }
+.kpis-grandes .kpi:nth-child(4) { --kpi: #16a34a; }
+
+.kpi .kpi-valor {
+  color: color-mix(in srgb, var(--kpi) 70%, var(--tinta));
+}
+
+/* tarjetas: resplandor del producto al pasar; las que corren, respiran */
+.tarjeta-flujo:hover {
+  box-shadow: 0 1px 0 var(--linea-2), 0 14px 30px -14px color-mix(in srgb, var(--producto) 60%, transparent);
+}
+
+.tarjeta-flujo:has(.chip.en-curso) {
+  background: linear-gradient(to right, color-mix(in srgb, var(--producto) 8%, var(--tarjeta)), var(--tarjeta) 55%);
+  animation: respirar 3.2s ease-in-out infinite;
+}
+
+/* cronómetro corriendo: punto rojo de "grabando" */
+.tarjeta-flujo:has(.chip.en-curso) .cronometro::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  vertical-align: 1px;
+  animation: latido 1.2s ease-in-out infinite;
+}
+
+/* barra de avance: rayas que avanzan */
+.avance i {
+  background-image: repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.35) 0 6px, transparent 6px 12px);
+  background-size: 17px 17px;
+  animation: avanzar 0.9s linear infinite;
+}
+
+@keyframes avanzar {
+  to { background-position: 17px 0; }
+}
+
+/* globo de alertas: onda que late */
+.globo {
+  position: relative;
+}
+
+.globo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--senal);
+  animation: onda 1.8s ease-out infinite;
+}
+
+/* alertas graves: borde que late */
+.alerta-exceso_9h {
+  animation: aparecer 0.45s var(--ease) both, alarma 2s 0.5s ease-in-out infinite;
+}
+
+@keyframes alarma {
+  50% { box-shadow: -4px 0 18px -6px var(--senal), var(--sombra); }
+}
+
+/* modal: entra con un leve zoom; el fondo se funde */
+.modal-fondo {
+  animation: fundir 0.25s ease-out both;
+}
+
+.modal {
+  animation: emerger 0.4s var(--ease) both;
+}
+
+@keyframes fundir {
+  from { opacity: 0; }
+}
+
+@keyframes emerger {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+/* calendario: los días con litros se tiñen como una gota */
+.cal-dia.con-tareas {
+  background: linear-gradient(to top, rgb(14 165 233 / 0.08), var(--tarjeta) 70%);
+}
+
+/* tablas: la fila bajo el mouse se marca con la señal */
+.tabla tbody tr {
+  transition: box-shadow 0.15s var(--ease);
+}
+
+.tabla tbody tr:hover {
+  box-shadow: inset 3px 0 0 var(--senal);
+}

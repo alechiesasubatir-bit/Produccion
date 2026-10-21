@@ -348,3 +348,102 @@
   margin-top: 4px;
   padding: 11px 16px;
 }
+
+/* ---------- vida: color y movimiento ---------- */
+
+/* espectro de estados bajo el encabezado, en movimiento lento */
+.encabezado::after,
+.planta-barra::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, #8a8f99, #16a34a, #0d9488, #0284c7, #d97706, #7c3aed, var(--senal), #8a8f99);
+  background-size: 200% 100%;
+  animation: espectro 14s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes espectro {
+  to { background-position: -200% 0; }
+}
+
+/* burbuja que sube en el tubo de la marca */
+.marca-nombre {
+  position: relative;
+}
+
+.marca-nombre::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  bottom: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  animation: burbuja-marca 2.4s ease-in infinite;
+}
+
+@keyframes burbuja-marca {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 1; }
+  70% { transform: translateY(-9px); opacity: 0.9; }
+  100% { transform: translateY(-11px); opacity: 0; }
+}
+
+/* tanques ocupados: fondo teñido por el producto; en uso: respiran con su color */
+.pared-celda:not(:has(.tanque[data-estado='libre'])) {
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--producto) 13%, var(--tarjeta)), var(--tarjeta) 62%);
+}
+
+.pared-celda:has(.tanque:is([data-estado='fabricando'], [data-estado='envasando'])) {
+  animation: aparecer 0.5s var(--ease) both, respirar 3.2s 0.8s ease-in-out infinite;
+}
+
+.pared-celda:has(.tanque:is([data-estado='pausada'], [data-estado='env_pausado']))::after {
+  content: 'pausa';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--senal);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+.pared-celda:hover {
+  transform: translateY(-3px);
+}
+
+.pared-celda {
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.25s var(--ease);
+}
+
+/* botón principal: destello que cruza al pasar el mouse */
+.boton:not(.boton-sec) {
+  position: relative;
+  overflow: hidden;
+}
+
+.boton:not(.boton-sec)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+  pointer-events: none;
+}
+
+.boton:not(.boton-sec):hover::after {
+  transform: translateX(120%);
+}
