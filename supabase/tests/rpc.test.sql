@@ -37,10 +37,10 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","r
 select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'iniciar',
   '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
 insert into _tap (l) select is(
-  (select f.estado || '/' || f.operaria_id || '/' || (select count(*) from produccion.eventos e where e.entidad_id = f.id)
+  (select f.estado || '/' || f.operaria_id || '/' || (select count(*) from produccion.eventos e where e.entidad_id = f.id and e.accion = 'iniciar')
    from produccion.fabricaciones f where f.id = '00000000-0000-0000-0000-0000000000b1'),
   'fabricando/00000000-0000-0000-0000-0000000000e1/1',
-  'iniciar: fabricando, operaria asignada y 1 evento');
+  'iniciar: fabricando, operaria asignada y 1 evento iniciar');
 
 -- 2. transición inválida
 insert into _tap (l) select is(

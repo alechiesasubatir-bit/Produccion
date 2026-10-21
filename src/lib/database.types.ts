@@ -1,6 +1,6 @@
 // Tipos de la base (formato de `supabase gen types`).
 // El generador del MCP solo emite el esquema public, así que `produccion` se escribe a mano
-// desde supabase/migrations/ (001–006). Al cambiar una migración, actualizar acá.
+// desde supabase/migrations/ (001–007). Al cambiar una migración, actualizar acá.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -189,6 +189,29 @@ export type Database = {
         operaria_id: Uuid | null
         inicio: Ts | null
       }>
+      v_flujo: Vista<{
+        entidad: EntidadEvento
+        id: Uuid
+        estado: EstadoFabricacion | EstadoTarea
+        producto: string | null
+        color: string | null
+        tanque_codigo: string | null
+        presentacion: string | null
+        cantidad: number | null
+        litros: number | null
+        lote: string | null
+        descripcion: string | null
+        operaria_1: Uuid | null
+        operaria_2: Uuid | null
+        listo: boolean
+        inicio: Ts | null
+        min_efectivos: number | null
+        corriendo: boolean
+        created_at: Ts
+        fin: Ts | null
+        fabricacion_id: Uuid | null
+        litros_restantes: number | null
+      }>
       v_tareas: Vista<{
         entidad: EntidadEvento
         id: Uuid
@@ -232,6 +255,18 @@ export type Database = {
       }
       set_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: undefined }
       verificar_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: Json }
+      listar_usuarios: {
+        Args: never
+        Returns: {
+          id: Uuid
+          email: string | null
+          nombre: string | null
+          rol: string
+          rol_produccion: 'panel' | 'planta' | null
+          activo: boolean
+        }[]
+      }
+      set_rol_usuario: { Args: { p_usuario: Uuid; p_rol: 'panel' | 'planta' | null }; Returns: undefined }
       es_panel: { Args: never; Returns: boolean }
       es_planta: { Args: never; Returns: boolean }
     }
