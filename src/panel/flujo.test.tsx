@@ -21,6 +21,10 @@ vi.mock('../lib/useRealtime', () => ({
   }),
 }))
 vi.mock('./NuevaOrden', () => ({ NuevaOrden: () => null }))
+vi.mock('./historial/datosHistorial', () => ({
+  cargarEstandares: () =>
+    Promise.resolve([{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 10, muestras: 3, litros_hora_std: null }]),
+}))
 
 let n = 0
 function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
@@ -107,5 +111,12 @@ describe('Flujo', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar' })))
     expect(screen.getByRole('alert')).toHaveTextContent('Laura Paz a las 10:15')
     expect(m.recargar).toHaveBeenCalled()
+  })
+
+  it('barra de avance contra el tiempo estimado', async () => {
+    m.filas = [fila({ estado: 'fabricando', corriendo: true, litros: 800, min_efectivos: 40, operaria_1: 'E1' })]
+    render(<Flujo />)
+    await act(async () => {})
+    expect(screen.getByRole('progressbar', { name: /Avance estimado/ })).toHaveAttribute('aria-valuenow', '50')
   })
 })

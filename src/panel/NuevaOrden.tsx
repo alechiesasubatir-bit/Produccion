@@ -7,6 +7,7 @@ import {
   type NuevoEnvasado,
   type NuevoFraccionado,
 } from '../domain/ordenes'
+import { proyeccionEnvasado, proyeccionFabricacion, textoProyeccion } from '../domain/proyecciones'
 import { mensajeError } from '../lib/errores'
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarDatosOrden, crearOrden, type DatosOrden } from './datosOrden'
@@ -105,6 +106,13 @@ export function NuevaOrden({
   // Lo que queda en el tanque menos lo ya pedido en envasados abiertos.
   const sinAsignar = (fabricacionId: string | null, restantes: number | null) =>
     restantes === null || !fabricacionId ? null : Math.max(0, restantes - (datos?.asignados[fabricacionId] ?? 0))
+
+  // Tiempo estimado con la velocidad histórica (por producto o por presentación).
+  const productoFab = datos?.productos.find((p) => p.id === fab.producto_id)
+  const stdFab = datos?.estandares.find((e) => e.entidad === 'fabricacion' && e.clave === productoFab?.nombre)
+  const stdEnv = datos?.estandares.find((e) => e.entidad === 'envasado' && e.clave === presentacion?.nombre)
+  const minFab = proyeccionFabricacion(fab.litros, stdFab)
+  const minEnv = proyeccionEnvasado(env.cantidad, stdEnv)
 
   const erroresFab = validarFabricacion(fab, {
     capacidad: tanqueFab?.capacidad_l ?? null,
@@ -233,6 +241,7 @@ export function NuevaOrden({
                   }}
                 />
               </Campo>
+              {minFab !== null && stdFab && <p className="proyeccion">{textoProyeccion(minFab, stdFab.velocidad, 'L')}</p>}
               <Campo id="o-lote" etiqueta="Lote">
                 <input id="o-lote" value={fab.lote} onChange={(e) => setFab({ ...fab, lote: e.target.value })} />
               </Campo>
@@ -297,6 +306,7 @@ export function NuevaOrden({
                   }}
                 />
               </Campo>
+              {minEnv !== null && stdEnv && <p className="proyeccion">{textoProyeccion(minEnv, stdEnv.velocidad, 'u')}</p>}
               {advertencia && (
                 <p className="advertencia" role="status">
                   {advertencia}

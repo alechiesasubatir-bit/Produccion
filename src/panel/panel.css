@@ -860,3 +860,47 @@ th[aria-sort='descending'] .th-orden::after {
   gap: 4px;
   font-size: 11px;
 }
+
+/* ---------- KPIs y proyecciones ---------- */
+
+.kpis-grandes {
+  margin: 4px 0 20px;
+}
+
+.kpis-grandes .kpi-valor {
+  font-size: 40px;
+}
+
+.kpis-vista .segmentos {
+  margin-bottom: 14px;
+}
+
+.desvio-ok { color: #166534; font-weight: 600; }
+.desvio-medio { color: #92400e; font-weight: 600; }
+.desvio-alto { color: #991b1b; font-weight: 600; }
+
+.proyeccion {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+.avance {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--papel-2);
+  overflow: hidden;
+}
+
+.avance i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #16a34a;
+}
+
+.avance.pasado i {
+  background: #dc2626;
+}

@@ -1,10 +1,13 @@
 import { LayoutGroup, MotionConfig } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Accion } from '../domain/acciones'
 import { agruparFlujo, COLUMNAS, kpisFlujo, type FilaFlujo } from '../domain/flujo'
+import type { Estandar } from '../domain/kpis'
+import { proyeccionEnvasado, proyeccionFabricacion } from '../domain/proyecciones'
 import { accionPanel } from '../lib/acciones'
 import { db, fetchAll } from '../lib/supabase'
 import { useRealtime } from '../lib/useRealtime'
+import { cargarEstandares } from './historial/datosHistorial'
 import { KpisFlujo } from './KpisFlujo'
 import { NuevaOrden } from './NuevaOrden'
 import { TarjetaFlujo } from './TarjetaFlujo'
@@ -23,6 +26,17 @@ export function Flujo() {
   const grupos = useMemo(() => agruparFlujo(flujo.datos), [flujo.datos])
   const kpis = useMemo(() => kpisFlujo(flujo.datos), [flujo.datos])
   const cargadoEn = useMemo(() => Date.now(), [flujo.datos])
+
+  const [estandares, setEstandares] = useState<Estandar[]>([])
+  useEffect(() => {
+    cargarEstandares().then(setEstandares, () => setEstandares([]))
+  }, [])
+  const proyeccion = (f: FilaFlujo) =>
+    f.entidad === 'fabricacion'
+      ? proyeccionFabricacion(f.litros ?? 0, estandares.find((e) => e.entidad === 'fabricacion' && e.clave === f.producto))
+      : f.entidad === 'envasado'
+        ? proyeccionEnvasado(f.cantidad ?? 0, estandares.find((e) => e.entidad === 'envasado' && e.clave === f.presentacion))
+        : null
 
   const [aviso, setAviso] = useState<string | null>(null)
   const [nuevaAbierta, setNuevaAbierta] = useState(false)
@@ -62,6 +76,7 @@ export function Flujo() {
                     nombres={nombres}
                     habilitado={flujo.conectado}
                     cargadoEn={cargadoEn}
+                    proyeccionMin={proyeccion(f)}
                     onAccion={(a) => void accionar(f, a)}
                   />
                 ))}

@@ -15,6 +15,7 @@ const datos: DatosOrden = {
   presentaciones: [{ id: 'pr1', nombre: '5L', litros_equiv: 5 }],
   operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
   asignados: { fab3: 200 },
+  estandares: [{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 7.5, muestras: 2, litros_hora_std: null }],
 }
 
 vi.mock('./datosOrden', () => ({
@@ -77,6 +78,16 @@ describe('NuevaOrden · fabricación', () => {
       operaria_id: null,
     })
     expect(onCreada).toHaveBeenCalled()
+  })
+})
+
+describe('NuevaOrden · proyección', () => {
+  it('muestra el tiempo estimado con la velocidad histórica', async () => {
+    await abrir()
+    cambiar('Tanque', 't1')
+    cambiar('Producto', 'p1')
+    cambiar('Litros', '600')
+    expect(screen.getByText('~80 min (histórico 7,5 L/min)')).toBeInTheDocument()
   })
 })
 

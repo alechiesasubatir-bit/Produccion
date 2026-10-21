@@ -17,17 +17,36 @@ function estadoMini(f: FilaFlujo): EstadoTanque {
   return 'cola_env'
 }
 
+function AvanceEstimado({ efectivos, estimado }: { efectivos: number; estimado: number }) {
+  const pct = Math.round((efectivos / estimado) * 100)
+  return (
+    <div
+      className={`avance${pct > 100 ? ' pasado' : ''}`}
+      role="progressbar"
+      aria-label={`Avance estimado: ${pct} % de ${estimado} min`}
+      aria-valuenow={Math.min(pct, 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <i style={{ width: `${Math.min(pct, 100)}%` }} />
+    </div>
+  )
+}
+
 export function TarjetaFlujo({
   fila,
   nombres,
   habilitado,
   cargadoEn,
+  proyeccionMin = null,
   onAccion,
 }: {
   fila: FilaFlujo
   nombres: Map<string, string>
   habilitado: boolean
   cargadoEn: number
+  /** Minutos estimados por la velocidad histórica (null si no hay historial). */
+  proyeccionMin?: number | null
   onAccion: (a: Accion) => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
@@ -71,6 +90,9 @@ export function TarjetaFlujo({
         {operarias.length > 0 && <span className="tf-operarias">{operarias.join(' · ')}</span>}
         <Cronometro tarea={fila} cargadoEn={cargadoEn} />
       </div>
+      {fila.corriendo && proyeccionMin ? (
+        <AvanceEstimado efectivos={fila.min_efectivos ?? 0} estimado={proyeccionMin} />
+      ) : null}
       {acciones.length > 0 && (
         <div className="tf-acciones">
           {acciones.map((a) => (

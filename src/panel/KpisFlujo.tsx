@@ -6,7 +6,7 @@ function sinMovimiento(): boolean {
 }
 
 // Número que se desliza hasta su valor nuevo (instantáneo con reduced motion).
-function Contador({ valor }: { valor: number }) {
+export function Contador({ valor }: { valor: number }) {
   const [mostrado, setMostrado] = useState(valor)
   const previo = useRef(valor)
   useEffect(() => {

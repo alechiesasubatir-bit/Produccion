@@ -4,6 +4,7 @@ import { useEnLinea } from '../lib/useEnLinea'
 import { Configuracion } from './config/Configuracion'
 import { Flujo } from './Flujo'
 import { Historial } from './historial/Historial'
+import { Kpis } from './kpis/Kpis'
 import { Tanques } from './Tanques'
 import './panel.css'
 
@@ -11,6 +12,7 @@ const PESTANAS = [
   { a: '/panel', texto: 'Flujo', end: true },
   { a: '/panel/tanques', texto: 'Tanques', end: false },
   { a: '/panel/historial', texto: 'Historial', end: false },
+  { a: '/panel/kpis', texto: 'KPIs', end: false },
   { a: '/panel/config', texto: 'Configuración', end: false },
 ]
 
@@ -48,6 +50,7 @@ export function PanelApp() {
           <Route index element={<Flujo />} />
           <Route path="tanques" element={<Tanques />} />
           <Route path="historial" element={<Historial />} />
+          <Route path="kpis" element={<Kpis />} />
           <Route path="config" element={<Configuracion />} />
         </Routes>
       </main>

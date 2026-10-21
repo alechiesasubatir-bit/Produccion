@@ -1,5 +1,7 @@
 import type { NuevaFabricacion, NuevoEnvasado, NuevoFraccionado } from '../domain/ordenes'
+import type { Estandar } from '../domain/kpis'
 import { db } from '../lib/supabase'
+import { cargarEstandares } from './historial/datosHistorial'
 
 export type TanqueOrden = {
   tanque_id: string
@@ -18,6 +20,8 @@ export type DatosOrden = {
   operarias: { empleado_id: string; nombre: string }[]
   /** Litros ya comprometidos por envasados en cola/activos/pausados, por fabricación. */
   asignados: Record<string, number>
+  /** Velocidades históricas para estimar el tiempo de la orden. */
+  estandares: Estandar[]
 }
 
 async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
@@ -28,7 +32,7 @@ async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown
 
 // Catálogos activos para armar una orden (pocas filas: no hace falta paginar).
 export async function cargarDatosOrden(): Promise<DatosOrden> {
-  const [tanques, productos, presentaciones, operarias, abiertos] = await Promise.all([
+  const [tanques, productos, presentaciones, operarias, abiertos, estandares] = await Promise.all([
     filas<TanqueOrden>(
       db.from('v_tanque_estado').select('tanque_id, codigo, capacidad_l, estado, fabricacion_id, producto, litros_restantes').order('orden'),
     ),
@@ -40,12 +44,13 @@ export async function cargarDatosOrden(): Promise<DatosOrden> {
     filas<{ fabricacion_id: string; cantidad: number; presentaciones: { litros_equiv: number } | null }>(
       db.from('envasados').select('fabricacion_id, cantidad, presentaciones(litros_equiv)').in('estado', ['cola', 'activo', 'pausado']),
     ),
+    cargarEstandares(),
   ])
   const asignados: Record<string, number> = {}
   for (const e of abiertos) {
     asignados[e.fabricacion_id] = (asignados[e.fabricacion_id] ?? 0) + e.cantidad * (e.presentaciones?.litros_equiv ?? 0)
   }
-  return { tanques, productos, presentaciones, operarias, asignados }
+  return { tanques, productos, presentaciones, operarias, asignados, estandares }
 }
 
 const TABLA = { fabricacion: 'fabricaciones', envasado: 'envasados', fraccionado: 'fraccionados' } as const
