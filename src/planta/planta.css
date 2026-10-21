@@ -212,3 +212,185 @@
     animation: none;
   }
 }
+
+/* ---------- Mis tareas ---------- */
+
+.mis-tareas-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.banda-planta {
+  margin: -28px -28px 20px;
+}
+
+.aviso-planta {
+  margin: 0 0 20px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.lista-tareas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.lista-tareas h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--apagado);
+}
+
+.tarjeta-tarea {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--linea);
+  border-radius: 16px;
+  background: var(--tarjeta);
+}
+
+.tarea-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tarea-titulo {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.tarea-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--tinta-2);
+  font-size: 14px;
+}
+
+.tarea-tanque,
+.tarea-lote {
+  font-family: var(--mono);
+}
+
+.cronometro {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tarea-acciones {
+  display: flex;
+  gap: 10px;
+}
+
+.accion {
+  appearance: none;
+  min-width: 132px;
+  min-height: 64px;
+  padding: 0 22px;
+  border: 1px solid var(--tinta);
+  border-radius: 14px;
+  background: var(--tinta);
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.accion-pausar {
+  background: var(--tarjeta);
+  color: var(--tinta);
+  border-color: var(--linea-2);
+}
+
+.accion-finalizar {
+  background: #166534;
+  border-color: #166534;
+}
+
+.accion:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Confirmación ---------- */
+
+.confirmacion {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 20px;
+  overflow: hidden;
+  background: var(--papel);
+}
+
+.confirmacion-estallido {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  opacity: 0.18;
+  animation: estallido 0.9s var(--ease) forwards;
+}
+
+@keyframes estallido {
+  from { transform: scale(0); opacity: 0.4; }
+  to { transform: scale(60); opacity: 0.12; }
+}
+
+.confirmacion-check {
+  position: relative;
+}
+
+.confirmacion-check path {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: trazo 0.45s 0.15s var(--ease) forwards;
+}
+
+@keyframes trazo {
+  to { stroke-dashoffset: 0; }
+}
+
+.confirmacion-texto {
+  position: relative;
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 30px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirmacion-estallido {
+    animation: none;
+  }
+  .confirmacion-check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
