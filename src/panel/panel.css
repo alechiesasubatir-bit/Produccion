@@ -1881,3 +1881,26 @@ th[aria-sort='descending'] .th-orden::after {
   background: transparent;
   color: var(--apagado);
 }
+
+/* ---------- Formularios: un texto largo en una lista no ensancha la ventana ---------- */
+
+.formulario {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.campo {
+  min-width: 0;
+}
+
+.campo input,
+.campo select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* el tanque a envasar lleva producto y litros que quedan: ocupa todo el ancho para leerse entero */
+.formulario .campo:has(> #o-fab) {
+  grid-column: 1 / -1;
+}
