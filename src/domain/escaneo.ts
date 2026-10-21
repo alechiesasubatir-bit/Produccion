@@ -42,3 +42,69 @@ export function normalizarPresentacion(s: string): string {
   const unidad = { l: 'L', lt: 'L', lts: 'L', litro: 'L', litros: 'L', kg: 'kg', g: 'g', gr: 'g', ml: 'ml', cc: 'ml' }[m[2]] ?? m[2]
   return `${m[1].replace(',', '.')}${unidad}`
 }
+
+type Presentacion = { nombre: string; cantidad: unknown }
+export type DatosEscaneo = {
+  producto?: string
+  granel?: string
+  cantidad?: unknown
+  lote?: string
+  fecha?: string
+  presentaciones?: Presentacion[]
+}
+export type CatalogosEscaneo = {
+  productos: { id: string; nombre: string }[]
+  presentaciones: { id: string; nombre: string }[]
+  tanquesEnvasar: { fabricacion_id: string; producto: string; codigo: string }[]
+}
+
+// Pasa lo leído de la hoja a campos del formulario. Lo que no se encuentra en los catálogos no se
+// precarga: va a `avisos` para que la encargada lo complete a mano.
+export function aplicarEscaneo(
+  tipo: 'fabricacion' | 'envasado' | 'fraccionado',
+  d: DatosEscaneo,
+  cat: CatalogosEscaneo,
+): { campos: Record<string, string | number>; avisos: string[] } {
+  const campos: Record<string, string | number> = {}
+  const avisos: string[] = []
+
+  const producto = (nombre: string | undefined) => {
+    if (!nombre) return
+    const p = buscarEnCatalogo(nombre, cat.productos)
+    if (p) campos.producto_id = p.id
+    else avisos.push(`No encontré «${nombre}» en productos.`)
+  }
+  const primeraPresentacion = (lista: Presentacion[] | undefined) => {
+    if (!lista?.length) return
+    if (lista.length > 1) avisos.push(`La hoja trae ${lista.length} presentaciones; cargá una orden por cada una.`)
+    const leida = lista[0]
+    const p =
+      buscarEnCatalogo(normalizarPresentacion(leida.nombre), cat.presentaciones) ?? buscarEnCatalogo(leida.nombre, cat.presentaciones)
+    if (p) campos.presentacion_id = p.id
+    else avisos.push(`No encontré «${leida.nombre}» en presentaciones.`)
+    const n = aNumero(leida.cantidad)
+    if (n !== null) campos.cantidad = Math.round(n)
+  }
+
+  if (tipo === 'fabricacion') {
+    producto(d.producto)
+    const litros = aNumero(d.cantidad)
+    if (litros !== null) campos.litros = litros
+  } else if (tipo === 'envasado') {
+    if (d.granel) {
+      const t = buscarEnCatalogo(
+        d.granel,
+        cat.tanquesEnvasar.map((x) => ({ ...x, nombre: x.producto })),
+      )
+      if (t) campos.fabricacion_id = t.fabricacion_id
+      else avisos.push(`No hay un tanque listo para envasar «${d.granel}».`)
+    }
+    primeraPresentacion(d.presentaciones)
+  } else {
+    producto(d.producto)
+    if (d.producto) campos.descripcion = d.producto
+    primeraPresentacion(d.presentaciones)
+  }
+  if (tipo !== 'envasado' && d.lote) campos.lote = d.lote
+  return { campos, avisos }
+}

@@ -1,6 +1,7 @@
 import type { NuevaFabricacion, NuevoEnvasado, NuevoFraccionado } from '../domain/ordenes'
 import type { Estandar } from '../domain/kpis'
-import { db } from '../lib/supabase'
+import { mensajeError } from '../lib/errores'
+import { db, supabase } from '../lib/supabase'
 import { cargarEstandares } from './historial/datosHistorial'
 
 export type TanqueOrden = {
@@ -61,4 +62,23 @@ export async function crearOrden(
 ): Promise<{ error: unknown }> {
   const { error } = await db.from(TABLA[tipo]).insert(datos as never)
   return { error }
+}
+
+// Lee la hoja con la Edge Function escanear-hoja (Claude). Nunca lanza.
+export async function escanearHoja(
+  tipo: keyof typeof TABLA,
+  imagen: string,
+): Promise<{ ok: true; datos: Record<string, unknown> } | { ok: false; error: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('escanear-hoja', { body: { tipo, imagen } })
+    if (error) {
+      // FunctionsHttpError trae el cuerpo de la función con el motivo.
+      const cuerpo = await (error as { context?: Response }).context?.json?.().catch(() => null)
+      return { ok: false, error: cuerpo?.error ?? 'El servicio de lectura no respondió. Probá de nuevo o cargala a mano.' }
+    }
+    if (!data?.ok) return { ok: false, error: data?.error ?? 'La lectura no trajo datos válidos. Cargala a mano.' }
+    return { ok: true, datos: data.datos }
+  } catch (e) {
+    return { ok: false, error: mensajeError(e).texto }
+  }
 }

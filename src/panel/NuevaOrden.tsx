@@ -7,10 +7,12 @@ import {
   type NuevoEnvasado,
   type NuevoFraccionado,
 } from '../domain/ordenes'
+import { aplicarEscaneo, type DatosEscaneo } from '../domain/escaneo'
 import { proyeccionEnvasado, proyeccionFabricacion, textoProyeccion } from '../domain/proyecciones'
 import { mensajeError } from '../lib/errores'
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarDatosOrden, crearOrden, type DatosOrden } from './datosOrden'
+import { EscanearHoja } from './EscanearHoja'
 
 export type TipoOrden = 'fabricacion' | 'envasado' | 'fraccionado'
 
@@ -76,6 +78,8 @@ export function NuevaOrden({
   const [tocados, setTocados] = useState<Set<string>>(new Set())
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [escaneando, setEscaneando] = useState(false)
+  const [avisosEscaneo, setAvisosEscaneo] = useState<string[]>([])
 
   useEffect(() => {
     if (!abierta) return
@@ -85,6 +89,8 @@ export function NuevaOrden({
     setFrac(vacioFrac())
     setTocados(new Set())
     setError(null)
+    setEscaneando(false)
+    setAvisosEscaneo([])
     cargarDatosOrden().then(setDatos, (e: unknown) => setError(mensajeError(e).texto))
   }, [abierta, tipoInicial, tanqueInicial])
 
@@ -128,6 +134,22 @@ export function NuevaOrden({
   const hayErrores = Object.values(errores).some(Boolean)
   const err = (c: string) => (tocados.has(c) ? errores[c] : undefined)
   const tocar = (c: string) => setTocados((t) => new Set(t).add(c))
+
+  // Precarga lo leído de la hoja; lo que no matchea con los catálogos queda como aviso.
+  const aplicarHoja = (leido: Record<string, unknown>) => {
+    if (!datos) return
+    const { campos, avisos } = aplicarEscaneo(tipo, leido as DatosEscaneo, {
+      productos: datos.productos,
+      presentaciones: datos.presentaciones,
+      tanquesEnvasar: aEnvasar.map((t) => ({ fabricacion_id: t.fabricacion_id!, producto: t.producto ?? '', codigo: t.codigo })),
+    })
+    if (tipo === 'fabricacion') setFab((f) => ({ ...f, ...campos }))
+    else if (tipo === 'envasado') setEnv((e) => ({ ...e, ...campos }))
+    else setFrac((f) => ({ ...f, ...campos }))
+    setTocados((t) => new Set([...t, ...Object.keys(campos)]))
+    setAvisosEscaneo(avisos.length ? avisos : ['Hoja leída. Revisá los datos antes de crear la orden.'])
+    setEscaneando(false)
+  }
 
   const crear = async () => {
     setEnviando(true)
@@ -183,6 +205,21 @@ export function NuevaOrden({
             </button>
           ))}
         </div>
+
+        {escaneando ? (
+          <EscanearHoja tipo={tipo} onDatos={aplicarHoja} onCancelar={() => setEscaneando(false)} />
+        ) : (
+          <button type="button" className="boton boton-sec escanear-boton" onClick={() => setEscaneando(true)} disabled={!enLinea || !datos}>
+            Escanear hoja
+          </button>
+        )}
+        {avisosEscaneo.length > 0 && (
+          <ul className="avisos-escaneo" role="status">
+            {avisosEscaneo.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        )}
 
         <form
           className="formulario"
