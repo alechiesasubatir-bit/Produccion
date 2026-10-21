@@ -1711,3 +1711,54 @@ th[aria-sort='descending'] .th-orden::after {
 .monitor-tanque:is(.estado-fabricando, .estado-envasando) {
   animation: respirar 3.2s ease-in-out infinite;
 }
+
+/* ---------- Modal en pantallas bajas: más compacto y con los botones siempre a la vista ---------- */
+
+.modal {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 32px);
+  padding: 22px 26px 0;
+}
+
+.modal-fondo {
+  padding: 16px;
+}
+
+.modal-cabecera {
+  margin-bottom: 14px;
+}
+
+.modal .segmentos {
+  margin-bottom: 14px;
+}
+
+.modal .formulario {
+  gap: 10px 16px;
+}
+
+/* la barra de botones queda pegada abajo aunque el contenido se deslice */
+.modal .modal-pie {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 6px -26px 0;
+  padding: 14px 26px 20px;
+  background: var(--tarjeta);
+  box-shadow: 0 -10px 16px -12px rgb(21 24 30 / 0.25);
+}
+
+@media (max-height: 700px) {
+  .modal-cabecera h2 {
+    font-size: 26px;
+  }
+
+  .modal .campo input,
+  .modal .campo select {
+    padding: 7px 10px;
+  }
+
+  .escanear {
+    gap: 8px;
+    padding: 10px;
+  }
+}
