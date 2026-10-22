@@ -124,4 +124,16 @@ describe('Tanques', () => {
     await act(async () => fireEvent.click(within(aside).getByRole('button', { name: 'Cargar envasado' })))
     expect(screen.getByText('nueva orden envasado fab9')).toBeInTheDocument()
   })
+
+  it('el carrusel gira y su tanque de adelante abre el panel', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('reduce'), addEventListener() {}, removeEventListener() {} }))
+    m.tanques = [tanque({}), tanque({ tanque_id: 't2', codigo: 'T-17', capacidad_l: 200 })]
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
+    const carrusel = screen.getByRole('region', { name: 'Carrusel de tanques' })
+    expect(within(carrusel).getByRole('button', { name: 'Usar T-01' })).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(carrusel).getByRole('button', { name: 'Tanque siguiente' })))
+    await act(async () => fireEvent.click(within(carrusel).getByRole('button', { name: 'Usar T-17' })))
+    expect(screen.getByRole('complementary', { name: 'Tanque T-17' })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
 })

@@ -499,13 +499,6 @@
 
 /* ---------- Tanques ---------- */
 
-.tanques.con-detalle {
-  display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 24px;
-  align-items: start;
-}
-
 .pared-boton {
   appearance: none;
   display: flex;
@@ -1505,12 +1498,12 @@ th[aria-sort='descending'] .th-orden::after {
 }
 
 .monitor .marca-nombre::before {
-  width: 0.7vw;
-  height: 1.4vw;
+  width: 2.2vw;
+  height: 2.2vw;
 }
 
 .monitor-etiqueta {
-  padding-left: calc(0.7vw + 10px);
+  padding-left: calc(2.2vw + 10px);
   font-family: var(--mono);
   font-size: 0.75em;
   letter-spacing: 0.3em;
@@ -1766,10 +1759,6 @@ th[aria-sort='descending'] .th-orden::after {
 /* ---------- Panel del tanque: entra entero en una laptop (solo pantalla; la impresión del QR no cambia) ---------- */
 
 @media screen {
-  .tanques.con-detalle {
-    grid-template-columns: minmax(0, 1fr) 500px;
-  }
-
   /* arriba el tanque y sus datos; abajo, acciones y recorrido a la izquierda y el QR a la derecha */
   .detalle-tanque {
     top: 76px;
@@ -1903,4 +1892,272 @@ th[aria-sort='descending'] .th-orden::after {
 /* el tanque a envasar lleva producto y litros que quedan: ocupa todo el ancho para leerse entero */
 .formulario .campo:has(> #o-fab) {
   grid-column: 1 / -1;
+}
+
+/* ---------- Tanques: pared de fichas + carrusel 3D a la derecha ---------- */
+
+.tanques {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    'titulo titulo'
+    'pared carrusel';
+  column-gap: 24px;
+  align-items: start;
+}
+
+.tanques > .titulo-panel { grid-area: titulo; }
+.tanques-pared { grid-area: pared; min-width: 0; }
+.tanques > .carrusel { grid-area: carrusel; }
+.tanques > .detalle-tanque { grid-area: detalle; }
+
+/* con el panel del tanque abierto: en una laptop el carrusel pasa arriba de la pared */
+.tanques.con-detalle {
+  grid-template-columns: minmax(0, 1fr) 500px;
+  grid-template-areas:
+    'titulo detalle'
+    'carrusel detalle'
+    'pared detalle';
+  grid-template-rows: auto auto 1fr;
+}
+
+.tanques.con-detalle > .carrusel {
+  position: static;
+  margin-bottom: 18px;
+}
+
+@media (min-width: 1600px) {
+  .tanques.con-detalle {
+    grid-template-columns: minmax(0, 1fr) 320px 500px;
+    grid-template-areas:
+      'titulo titulo detalle'
+      'pared carrusel detalle';
+    grid-template-rows: auto 1fr;
+  }
+
+  .tanques.con-detalle > .carrusel {
+    position: sticky;
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .tanques,
+  .tanques.con-detalle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'titulo' 'carrusel' 'detalle' 'pared';
+    grid-template-rows: none;
+  }
+
+  .tanques > .carrusel {
+    position: static;
+    margin-bottom: 18px;
+  }
+}
+
+/* fichas más chicas en la pared del panel */
+.tanques .pared {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.tanques .pared-celda {
+  gap: 4px;
+  padding: 12px 8px 9px;
+}
+
+.tanques .pared-codigo {
+  margin-top: 4px;
+  padding-top: 6px;
+  font-size: 13.5px;
+}
+
+.tanques .pared-capacidad {
+  font-size: 10px;
+}
+
+.tanques .pared-producto {
+  font-size: 11.5px;
+}
+
+.tanques .pared-celda .chip {
+  transform: scale(0.9);
+}
+
+/* el carrusel */
+.carrusel {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 14px 16px;
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  isolation: isolate;
+}
+
+.carrusel-escenario {
+  position: relative;
+  height: 220px;
+  perspective: 760px;
+  perspective-origin: 50% 15%;
+  overflow: hidden;
+  border-radius: var(--radio-chico);
+  background:
+    radial-gradient(70% 60% at 50% 88%, rgb(21 24 30 / 0.1), transparent 70%),
+    linear-gradient(to bottom, var(--papel), var(--tarjeta));
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.carrusel-escenario:active {
+  cursor: grabbing;
+}
+
+.carrusel-escenario:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 3px;
+}
+
+.carrusel-anillo {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.carrusel-item {
+  --producto: var(--linea-2);
+  appearance: none;
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  width: 92px;
+  margin-left: -46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 8px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--producto) 14%, var(--tarjeta)), var(--tarjeta) 65%);
+  box-shadow: 0 14px 22px -16px rgb(21 24 30 / 0.55);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  backface-visibility: hidden;
+}
+
+.carrusel-item::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--producto);
+}
+
+.carrusel-item.al-frente {
+  border-color: var(--tinta);
+  box-shadow: 4px 4px 0 var(--tinta);
+}
+
+.carrusel-item.elegida::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--senal);
+}
+
+.carrusel-codigo {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.carrusel-mando {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.carrusel-flecha {
+  appearance: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--linea-2);
+  border-radius: 50%;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.carrusel-flecha:hover {
+  border-color: var(--tinta);
+  background: var(--papel);
+}
+
+.carrusel-flecha:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.carrusel-frente {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.carrusel-frente strong {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.carrusel-frente span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.carrusel-frente .carrusel-litros {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.carrusel-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.carrusel-cuenta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.carrusel-usar {
+  width: 100%;
 }

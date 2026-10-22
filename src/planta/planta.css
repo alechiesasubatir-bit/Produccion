@@ -23,6 +23,11 @@
   font-size: 24px;
 }
 
+.planta-barra .marca-nombre::before {
+  width: 36px;
+  height: 36px;
+}
+
 .planta-reloj {
   padding: 4px 10px;
   border-radius: 6px;

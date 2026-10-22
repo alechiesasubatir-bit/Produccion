@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ParedTanques, useTanques } from '../pages/ParedTanques'
+import { CarruselTanques } from './CarruselTanques'
 import { DetalleTanque } from './DetalleTanque'
 import { NuevaOrden } from './NuevaOrden'
 
@@ -39,8 +40,8 @@ export function Tanques() {
 
   return (
     <div className={`tanques${fila ? ' con-detalle' : ''}`}>
-      <div>
-        <h1 className="titulo-panel">Tanques</h1>
+      <h1 className="titulo-panel">Tanques</h1>
+      <div className="tanques-pared">
         <ParedTanques
           tanques={tanques.datos}
           conectado={tanques.conectado}
@@ -49,6 +50,7 @@ export function Tanques() {
           onElegir={(t) => setElegido(t.tanque_id)}
         />
       </div>
+      <CarruselTanques tanques={tanques.datos} seleccionado={elegido} onElegir={(t) => setElegido(t.tanque_id)} />
       {fila && (
         <DetalleTanque
           key={fila.tanque_id}
