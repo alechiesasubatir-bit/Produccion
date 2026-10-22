@@ -422,3 +422,38 @@
 .boton:not(.boton-sec):hover::after {
   transform: translateX(120%);
 }
+
+/* ---------- aviso de versión nueva publicada ---------- */
+
+.aviso-actualizacion {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 10px 10px 10px 16px;
+  border: 1px solid var(--tinta);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: 6px 6px 0 var(--tinta);
+  font-size: 14px;
+  animation: aparecer 0.4s var(--ease) both;
+}
+
+.aviso-actualizacion-punto {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f97316;
+  box-shadow: 0 0 0 4px rgb(249 115 22 / 0.2);
+}
+
+.aviso-actualizacion .boton {
+  flex: none;
+}

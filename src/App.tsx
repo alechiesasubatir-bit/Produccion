@@ -4,6 +4,7 @@ import { Cargando, RequireRol, SinAcceso, SinVerificar } from './auth/RequireRol
 import { SesionProvider, useSesion } from './auth/useSesion'
 import { PanelApp } from './panel/PanelApp'
 import { PlantaApp } from './planta/PlantaApp'
+import { AvisoActualizacion } from './ui/AvisoActualizacion'
 import './ui/app.css'
 
 function Inicio() {
@@ -42,6 +43,7 @@ function App() {
           />
           <Route path="*" element={<Inicio />} />
         </Routes>
+        <AvisoActualizacion />
       </BrowserRouter>
     </SesionProvider>
   )
