@@ -69,7 +69,8 @@ export function Monitor({ salir }: { salir: string }) {
 
         <LayoutGroup>
           <div className="monitor-kanban">
-            {COLUMNAS.map((c) => {
+            {/* la TV muestra solo lo que está en marcha: sin "Terminadas hoy" */}
+            {COLUMNAS.filter((c) => c.id !== 'terminadas').map((c) => {
               const lista = grupos[c.id]
               return (
                 <section key={c.id} className={`kanban-col col-${c.id}`} aria-label={c.titulo}>

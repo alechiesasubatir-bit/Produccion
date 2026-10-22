@@ -160,7 +160,8 @@
 
 .kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-right: 30px; /* lugar para la lengüeta de Terminadas hoy */
   gap: 14px;
   align-items: start;
 }
@@ -1597,7 +1598,7 @@ th[aria-sort='descending'] .th-orden::after {
 
 .monitor-kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.9vw;
   min-height: 0;
 }
@@ -2160,4 +2161,87 @@ th[aria-sort='descending'] .th-orden::after {
 
 .carrusel-usar {
   width: 100%;
+}
+
+/* ---------- Flujo: "Terminadas hoy" como lengüeta que se despliega desde la derecha ---------- */
+
+.terminadas {
+  position: fixed;
+  top: 84px;
+  right: 0;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  transform: translateX(340px);
+  transition: transform 0.35s var(--ease);
+  pointer-events: none;
+}
+
+.terminadas.abierta {
+  transform: none;
+}
+
+.terminadas-lengueta {
+  appearance: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 100px;
+  padding: 14px 8px 12px;
+  border: 1px solid var(--linea-2);
+  border-right: 0;
+  border-left: 3px solid #7c3aed;
+  border-radius: var(--radio) 0 0 var(--radio);
+  background: var(--tarjeta);
+  box-shadow: -6px 8px 20px -14px rgb(21 24 30 / 0.45);
+  color: var(--tinta);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease);
+}
+
+.terminadas-lengueta:hover {
+  background: color-mix(in srgb, #7c3aed 8%, var(--tarjeta));
+}
+
+.terminadas-lengueta:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.terminadas-texto {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.terminadas-lengueta .kanban-contador {
+  margin-left: 0;
+}
+
+.terminadas-panel.kanban-col {
+  --columna: #7c3aed;
+  pointer-events: auto;
+  width: 340px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 0;
+  border-radius: 2px 0 0 var(--radio);
+  background: var(--tarjeta);
+  box-shadow: -12px 0 30px -18px rgb(21 24 30 / 0.5);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminadas {
+    transition: none;
+  }
 }

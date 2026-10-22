@@ -66,17 +66,25 @@ describe('Flujo', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('muestra las 6 columnas en orden', () => {
+  it('muestra las 5 columnas en orden y Terminadas hoy como lengüeta', () => {
     m.filas = []
     render(<Flujo />)
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.replace(/\d+$/, '').trim())).toEqual([
-      'Cola',
-      'Fabricando',
-      'Para envasar',
-      'Envasando',
-      'Fraccionado',
-      'Terminadas hoy',
-    ])
+    expect(
+      screen
+        .getAllByRole('heading', { level: 2 })
+        .slice(0, 5)
+        .map((h) => h.textContent?.replace(/\d+$/, '').trim()),
+    ).toEqual(['Cola', 'Fabricando', 'Para envasar', 'Envasando', 'Fraccionado'])
+    expect(screen.getByRole('button', { name: /Terminadas hoy/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('la lengüeta de Terminadas hoy se despliega con las terminadas', () => {
+    m.filas = [fila({ id: 'listo', estado: 'finalizada', corriendo: false, fin: '2026-10-22T12:00:00Z' })]
+    render(<Flujo />)
+    expect(within(columna('Terminadas hoy')).queryAllByRole('article')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: /Terminadas hoy/ }))
+    expect(screen.getByRole('button', { name: /Terminadas hoy/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(within(columna('Terminadas hoy')).getAllByRole('article')).toHaveLength(1)
   })
 
   it('una tarea que cambia de estado aparece una sola vez, en su nueva columna', () => {

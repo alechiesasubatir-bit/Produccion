@@ -47,11 +47,12 @@ const montar = () =>
 describe('Monitor (TV)', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('muestra el flujo en sus 6 columnas, sin botones de acción', () => {
+  it('muestra el flujo en 5 columnas (sin Terminadas hoy), sin botones de acción', () => {
     m.flujo = [fila({}), fila({ estado: 'cola', corriendo: false, min_efectivos: null, inicio: null })]
     m.tanques = []
     montar()
-    expect(screen.getAllByRole('region')).toHaveLength(6)
+    expect(screen.getAllByRole('region')).toHaveLength(5)
+    expect(screen.queryByRole('region', { name: 'Terminadas hoy' })).not.toBeInTheDocument()
     const fabricando = screen.getByRole('region', { name: 'Fabricando' })
     expect(within(fabricando).getByRole('article', { name: 'Lavandina · 900 L' })).toBeInTheDocument()
     expect(within(fabricando).getByText('Laura Paz')).toBeInTheDocument()
