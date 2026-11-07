@@ -7,7 +7,8 @@ import { mensajeError } from '../lib/errores'
 import type { EstadoTanqueFila } from '../pages/ParedTanques'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
-import { cargarRecorrido, type EventoRecorrido } from './datosTanque'
+import { TablaMp } from './TablaMp'
+import { cargarFabricacion, cargarRecorrido, type DatosFabricacion, type EventoRecorrido } from './datosTanque'
 import { QrTanque } from './QrTanque'
 
 const VERBOS: Record<string, string> = {
@@ -23,6 +24,7 @@ const CONFIRMAR: Accion[] = ['cancelar', 'finalizar']
 
 const hora = (at: string) =>
   new Date(at).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Montevideo' })
+const fechaAr = (iso: string) => iso.split('-').reverse().join('/')
 
 // El estado del tanque mezcla fabricación y envasado: se separan para ofrecer acciones de cada uno.
 function estadosDe(t: EstadoTanqueFila): { fabricacion: string | null; envasado: string | null } {
@@ -98,6 +100,7 @@ export function DetalleTanque({
   onCambio: () => void
 }) {
   const [recorrido, setRecorrido] = useState<EventoRecorrido[]>([])
+  const [fabricacion, setFabricacion] = useState<DatosFabricacion | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const estados = estadosDe(tanque)
 
@@ -105,11 +108,17 @@ export function DetalleTanque({
     setAviso(null)
     if (!tanque.fabricacion_id) {
       setRecorrido([])
+      setFabricacion(null)
       return
     }
     let vigente = true
-    cargarRecorrido(tanque.fabricacion_id).then(
-      (r) => vigente && setRecorrido(r),
+    const id = tanque.fabricacion_id
+    Promise.all([cargarRecorrido(id), cargarFabricacion(id)]).then(
+      ([r, f]) => {
+        if (!vigente) return
+        setRecorrido(r)
+        setFabricacion(f)
+      },
       (e: unknown) => vigente && setAviso(mensajeError(e).texto),
     )
     return () => {
@@ -127,6 +136,13 @@ export function DetalleTanque({
     <aside className="detalle-tanque" aria-label={`Tanque ${tanque.codigo}`}>
       <header className="detalle-cabecera">
         <h2>{tanque.codigo}</h2>
+        {/* En la cabecera y no como renglón aparte: el panel tiene que entrar en pantalla. */}
+        {fabricacion?.lote && (
+          <p className="detalle-lote">
+            {`Lote ${fabricacion.lote}`}
+            {fabricacion.vencimiento && ` · Vence ${fechaAr(fabricacion.vencimiento)}`}
+          </p>
+        )}
         <button type="button" className="boton boton-sec" onClick={onCerrar} aria-label="Cerrar panel">
           ×
         </button>
@@ -198,6 +214,9 @@ export function DetalleTanque({
           )}
         </section>
       )}
+
+      {/* Plegada tras «Ver MP (N)» y sin lugar si no hay MP: el panel tiene que entrar en pantalla. */}
+      {tanque.fabricacion_id && <TablaMp fabricacionId={tanque.fabricacion_id} estado={estados.fabricacion} plegable />}
 
       {recorrido.length > 0 && (
         <section className="detalle-seccion">

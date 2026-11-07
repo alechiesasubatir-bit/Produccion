@@ -8,7 +8,10 @@ type Respuesta = { ok?: boolean; fabricacion_cerrada?: boolean } | null
 
 // Las RPC de produccion no lanzan errores de negocio: devuelven {ok:false, codigo, detalle}.
 // Acá se unifican con los errores de PostgREST y de red en un solo formato.
-async function llamar(nombre: 'accion' | 'verificar_pin', args: Record<string, string>): Promise<Respuesta | Resultado> {
+async function llamar(
+  nombre: 'accion' | 'verificar_pin' | 'cargar_mp',
+  args: Record<string, string | boolean | undefined>,
+): Promise<Respuesta | Resultado> {
   try {
     const { data, error } = await db.rpc(nombre, args as never)
     if (error) return { ok: false, ...mensajeError(error) }
@@ -41,6 +44,24 @@ export async function ejecutarAccion(p: {
   })
   if (r && 'codigo' in r) return r
   return { ok: true, fabricacionCerrada: !!(r as Respuesta)?.fabricacion_cerrada }
+}
+
+// Carga lote/pesado de una MP de la fórmula (tablet, con PIN, u operaria pasada por el panel).
+export async function guardarMp(p: {
+  id: string
+  lote: string
+  pesado: boolean
+  empleadoId?: string
+  pin?: string
+}): Promise<Resultado> {
+  const r = await llamar('cargar_mp', {
+    p_mp_id: p.id,
+    p_lote: p.lote,
+    p_pesado: p.pesado,
+    p_empleado_id: p.empleadoId,
+    p_pin: p.pin,
+  })
+  return r && 'codigo' in r ? r : { ok: true }
 }
 
 // Acción de la encargada: el panel acciona sin operaria ni PIN (accion() lo permite a es_panel()).

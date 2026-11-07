@@ -70,13 +70,14 @@ export type Database = {
         {
           id: Uuid
           nombre: string
+          codigo: string | null
           color: string
           tipo: 'liquido' | 'denso' | 'polvo'
           litros_hora_std: number | null
           activo: boolean
           created_at: Ts
         },
-        'id' | 'color' | 'tipo' | 'litros_hora_std' | 'activo' | 'created_at'
+        'id' | 'codigo' | 'color' | 'tipo' | 'litros_hora_std' | 'activo' | 'created_at'
       >
       presentaciones: Tabla<
         { id: Uuid; nombre: string; litros_equiv: number; activo: boolean },
@@ -98,6 +99,8 @@ export type Database = {
           producto_id: Uuid
           litros: number
           lote: string | null
+          vencimiento: string | null
+          fecha_formula: string | null
           estado: EstadoFabricacion
           operaria_id: Uuid | null
           inicio: Ts | null
@@ -105,7 +108,31 @@ export type Database = {
           creado_por: Uuid | null
           created_at: Ts
         },
-        'id' | 'lote' | 'estado' | 'operaria_id' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
+        | 'id'
+        | 'lote'
+        | 'vencimiento'
+        | 'fecha_formula'
+        | 'estado'
+        | 'operaria_id'
+        | 'inicio'
+        | 'fin'
+        | 'creado_por'
+        | 'created_at'
+      >
+      fabricacion_mp: Tabla<
+        {
+          id: Uuid
+          fabricacion_id: Uuid
+          orden: number
+          codigo: string
+          descripcion: string
+          cantidad: number
+          lote: string | null
+          pesado: boolean
+          cargado_por: Uuid | null
+          cargado_at: Ts | null
+        },
+        'id' | 'lote' | 'pesado' | 'cargado_por' | 'cargado_at'
       >
       envasados: ConRelaciones<
         Tabla<
@@ -260,6 +287,8 @@ export type Database = {
         min_efectivos: number | null
         corriendo: boolean
         created_at: Ts
+        mp_total: number
+        mp_completas: number
       }>
       v_historial: Vista<{
         entidad: EntidadEvento
@@ -316,6 +345,32 @@ export type Database = {
       }
       set_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: undefined }
       verificar_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: Json }
+      crear_fabricacion_formula: {
+        Args: {
+          p_fab: {
+            tanque_id: Uuid
+            producto_id: Uuid
+            litros: number
+            lote: string
+            vencimiento: string
+            fecha_formula: string
+            operaria_id: Uuid | null
+            codigo_producto: string
+          }
+          p_mp: { codigo: string; descripcion: string; cantidad: number }[]
+        }
+        Returns: Json
+      }
+      cargar_mp: {
+        Args: {
+          p_mp_id: Uuid
+          p_lote: string
+          p_pesado: boolean
+          p_empleado_id?: Uuid
+          p_pin?: string
+        }
+        Returns: Json
+      }
       listar_usuarios: {
         Args: never
         Returns: {

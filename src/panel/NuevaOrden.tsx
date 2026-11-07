@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   validarEnvasado,
   validarFabricacion,
@@ -7,12 +7,11 @@ import {
   type NuevoEnvasado,
   type NuevoFraccionado,
 } from '../domain/ordenes'
-import { aplicarEscaneo, type DatosEscaneo } from '../domain/escaneo'
 import { proyeccionEnvasado, proyeccionFabricacion, textoProyeccion } from '../domain/proyecciones'
 import { mensajeError } from '../lib/errores'
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarDatosOrden, crearOrden, type DatosOrden } from './datosOrden'
-import { EscanearHoja } from './EscanearHoja'
+import { SubirFormula } from './SubirFormula'
 
 export type TipoOrden = 'fabricacion' | 'envasado' | 'fraccionado'
 
@@ -23,7 +22,14 @@ const TIPOS: { id: TipoOrden; texto: string }[] = [
 ]
 const PARA_ENVASAR = ['para_envasar', 'cola_env', 'envasando', 'env_pausado']
 
-const vacioFab = (tanque = ''): NuevaFabricacion => ({ tanque_id: tanque, producto_id: '', litros: 0, lote: '', operaria_id: null })
+const vacioFab = (tanque = ''): NuevaFabricacion => ({
+  tanque_id: tanque,
+  producto_id: '',
+  litros: 0,
+  lote: '',
+  operaria_id: null,
+  vencimiento: null,
+})
 const vacioEnv = (): NuevoEnvasado => ({
   fabricacion_id: '',
   presentacion_id: '',
@@ -81,8 +87,9 @@ export function NuevaOrden({
   const [tocados, setTocados] = useState<Set<string>>(new Set())
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [escaneando, setEscaneando] = useState(false)
-  const [avisosEscaneo, setAvisosEscaneo] = useState<string[]>([])
+  const [conPdf, setConPdf] = useState(false)
+  // Desde el PDF se pueden crear algunas y dejar otras con error: al cerrar hay que recargar igual.
+  const algunaCreada = useRef(false)
 
   useEffect(() => {
     if (!abierta) return
@@ -92,17 +99,17 @@ export function NuevaOrden({
     setFrac(vacioFrac())
     setTocados(new Set())
     setError(null)
-    setEscaneando(false)
-    setAvisosEscaneo([])
+    setConPdf(false)
+    algunaCreada.current = false
     cargarDatosOrden().then(setDatos, (e: unknown) => setError(mensajeError(e).texto))
   }, [abierta, tipoInicial, tanqueInicial, fabricacionInicial])
 
   useEffect(() => {
     if (!abierta) return
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar()
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && (algunaCreada.current ? onCreada() : onCerrar())
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
-  }, [abierta, onCerrar])
+  }, [abierta, onCerrar, onCreada])
 
   if (!abierta) return null
 
@@ -138,21 +145,7 @@ export function NuevaOrden({
   const err = (c: string) => (tocados.has(c) ? errores[c] : undefined)
   const tocar = (c: string) => setTocados((t) => new Set(t).add(c))
 
-  // Precarga lo leído de la hoja; lo que no matchea con los catálogos queda como aviso.
-  const aplicarHoja = (leido: Record<string, unknown>) => {
-    if (!datos) return
-    const { campos, avisos } = aplicarEscaneo(tipo, leido as DatosEscaneo, {
-      productos: datos.productos,
-      presentaciones: datos.presentaciones,
-      tanquesEnvasar: aEnvasar.map((t) => ({ fabricacion_id: t.fabricacion_id!, producto: t.producto ?? '', codigo: t.codigo })),
-    })
-    if (tipo === 'fabricacion') setFab((f) => ({ ...f, ...campos }))
-    else if (tipo === 'envasado') setEnv((e) => ({ ...e, ...campos }))
-    else setFrac((f) => ({ ...f, ...campos }))
-    setTocados((t) => new Set([...t, ...Object.keys(campos)]))
-    setAvisosEscaneo(avisos.length ? avisos : ['Hoja leída. Revisá los datos antes de crear la orden.'])
-    setEscaneando(false)
-  }
+  const cerrar = () => (algunaCreada.current ? onCreada() : onCerrar())
 
   const crear = async () => {
     setEnviando(true)
@@ -178,7 +171,7 @@ export function NuevaOrden({
   )
 
   return (
-    <div className="modal-fondo" onClick={onCerrar}>
+    <div className="modal-fondo" onClick={cerrar}>
       <div
         className="modal"
         role="dialog"
@@ -188,7 +181,7 @@ export function NuevaOrden({
       >
         <header className="modal-cabecera">
           <h2 id="nueva-orden-titulo">Nueva orden</h2>
-          <button type="button" className="boton boton-sec" onClick={onCerrar} aria-label="Cerrar">
+          <button type="button" className="boton boton-sec" onClick={cerrar} aria-label="Cerrar">
             ×
           </button>
         </header>
@@ -209,253 +202,262 @@ export function NuevaOrden({
           ))}
         </div>
 
-        {escaneando ? (
-          <EscanearHoja tipo={tipo} onDatos={aplicarHoja} onCancelar={() => setEscaneando(false)} />
-        ) : (
-          <button type="button" className="boton boton-sec escanear-boton" onClick={() => setEscaneando(true)} disabled={!enLinea || !datos}>
-            Escanear hoja
+        {tipo === 'fabricacion' && (
+          <button type="button" className="boton boton-sec subir-formula-boton" onClick={() => setConPdf((v) => !v)} disabled={!datos}>
+            {conPdf ? 'Cargar a mano' : 'Subir PDF de fórmula'}
           </button>
         )}
-        {avisosEscaneo.length > 0 && (
-          <ul className="avisos-escaneo" role="status">
-            {avisosEscaneo.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
+
+        {tipo === 'fabricacion' && conPdf && datos ? (
+          <SubirFormula
+            datos={datos}
+            onCreadas={onCreada}
+            onAlgunaCreada={() => {
+              algunaCreada.current = true
+            }}
+          />
+        ) : (
+          <form
+            className="formulario"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!hayErrores) void crear()
+            }}
+          >
+            {tipo === 'fabricacion' && (
+              <>
+                <Campo id="o-tanque" etiqueta="Tanque" error={err('tanque_id')}>
+                  <select
+                    id="o-tanque"
+                    value={fab.tanque_id}
+                    onChange={(e) => {
+                      setFab({ ...fab, tanque_id: e.target.value })
+                      tocar('tanque_id')
+                    }}
+                  >
+                    <option value="">— Elegí un tanque libre —</option>
+                    {libres.map((t) => (
+                      <option key={t.tanque_id} value={t.tanque_id}>
+                        {t.codigo} · {t.capacidad_l} L
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-producto" etiqueta="Producto" error={err('producto_id')}>
+                  <select
+                    id="o-producto"
+                    value={fab.producto_id}
+                    onChange={(e) => {
+                      setFab({ ...fab, producto_id: e.target.value })
+                      tocar('producto_id')
+                    }}
+                  >
+                    <option value="">— Elegí un producto —</option>
+                    {datos?.productos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-litros" etiqueta="Litros" error={err('litros')}>
+                  <input
+                    id="o-litros"
+                    type="number"
+                    min="1"
+                    inputMode="decimal"
+                    placeholder={tanqueFab ? String(tanqueFab.capacidad_l) : ''}
+                    value={fab.litros || ''}
+                    onChange={(e) => {
+                      setFab({ ...fab, litros: num(e.target.value) })
+                      tocar('litros')
+                    }}
+                  />
+                </Campo>
+                {minFab !== null && stdFab && <p className="proyeccion">{textoProyeccion(minFab, stdFab.velocidad, 'L')}</p>}
+                <Campo id="o-lote" etiqueta="Lote">
+                  <input id="o-lote" value={fab.lote} onChange={(e) => setFab({ ...fab, lote: e.target.value })} />
+                </Campo>
+                <Campo id="o-venc" etiqueta="Vencimiento">
+                  <input
+                    id="o-venc"
+                    type="date"
+                    value={fab.vencimiento ?? ''}
+                    onChange={(e) => setFab({ ...fab, vencimiento: opcional(e.target.value) })}
+                  />
+                </Campo>
+                <Campo id="o-operaria" etiqueta="Operaria (opcional)">
+                  <select
+                    id="o-operaria"
+                    value={fab.operaria_id ?? ''}
+                    onChange={(e) => setFab({ ...fab, operaria_id: opcional(e.target.value) })}
+                  >
+                    {operariasOpciones}
+                  </select>
+                </Campo>
+              </>
+            )}
+
+            {tipo === 'envasado' && (
+              <>
+                <Campo id="o-fab" etiqueta="Tanque a envasar" error={err('fabricacion_id')}>
+                  <select
+                    id="o-fab"
+                    value={env.fabricacion_id}
+                    onChange={(e) => {
+                      setEnv({ ...env, fabricacion_id: e.target.value })
+                      tocar('fabricacion_id')
+                    }}
+                  >
+                    <option value="">— Elegí un tanque —</option>
+                    {aEnvasar.map((t) => (
+                      <option key={t.fabricacion_id} value={t.fabricacion_id ?? ''}>
+                        {t.codigo} · {t.producto} · quedan {sinAsignar(t.fabricacion_id, t.litros_restantes) ?? '?'} L sin asignar
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-pres" etiqueta="Presentación" error={err('presentacion_id')}>
+                  <select
+                    id="o-pres"
+                    value={env.presentacion_id}
+                    onChange={(e) => {
+                      setEnv({ ...env, presentacion_id: e.target.value })
+                      tocar('presentacion_id')
+                    }}
+                  >
+                    <option value="">— Elegí una presentación —</option>
+                    {datos?.presentaciones.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-cant" etiqueta="Cantidad" error={err('cantidad')}>
+                  <input
+                    id="o-cant"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={env.cantidad || ''}
+                    onChange={(e) => {
+                      setEnv({ ...env, cantidad: num(e.target.value) })
+                      tocar('cantidad')
+                    }}
+                  />
+                </Campo>
+                {minEnv !== null && stdEnv && <p className="proyeccion">{textoProyeccion(minEnv, stdEnv.velocidad, 'u')}</p>}
+                {advertencia && (
+                  <p className="advertencia" role="status">
+                    {advertencia}
+                  </p>
+                )}
+                <Campo id="o-etiq" etiqueta="Etiquetado">
+                  <input id="o-etiq" value={env.etiquetado} onChange={(e) => setEnv({ ...env, etiquetado: e.target.value })} />
+                </Campo>
+                <Campo id="o-op1" etiqueta="Operaria 1 (opcional)">
+                  <select id="o-op1" value={env.operaria_1 ?? ''} onChange={(e) => setEnv({ ...env, operaria_1: opcional(e.target.value) })}>
+                    {operariasOpciones}
+                  </select>
+                </Campo>
+                <Campo id="o-op2" etiqueta="Operaria 2 (opcional)" error={erroresEnv.operaria_2}>
+                  <select id="o-op2" value={env.operaria_2 ?? ''} onChange={(e) => setEnv({ ...env, operaria_2: opcional(e.target.value) })}>
+                    {operariasOpciones}
+                  </select>
+                </Campo>
+              </>
+            )}
+
+            {tipo === 'fraccionado' && (
+              <>
+                <Campo id="o-tipo" etiqueta="Tipo" error={err('tipo')}>
+                  <input
+                    id="o-tipo"
+                    value={frac.tipo}
+                    onChange={(e) => {
+                      setFrac({ ...frac, tipo: e.target.value })
+                      tocar('tipo')
+                    }}
+                  />
+                </Campo>
+                <Campo id="o-desc" etiqueta="Descripción">
+                  <input id="o-desc" value={frac.descripcion} onChange={(e) => setFrac({ ...frac, descripcion: e.target.value })} />
+                </Campo>
+                <Campo id="o-fprod" etiqueta="Producto (opcional)">
+                  <select
+                    id="o-fprod"
+                    value={frac.producto_id ?? ''}
+                    onChange={(e) => setFrac({ ...frac, producto_id: opcional(e.target.value) })}
+                  >
+                    <option value="">—</option>
+                    {datos?.productos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-fpres" etiqueta="Presentación (opcional)">
+                  <select
+                    id="o-fpres"
+                    value={frac.presentacion_id ?? ''}
+                    onChange={(e) => setFrac({ ...frac, presentacion_id: opcional(e.target.value) })}
+                  >
+                    <option value="">—</option>
+                    {datos?.presentaciones.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo id="o-fcant" etiqueta="Cantidad" error={err('cantidad')}>
+                  <input
+                    id="o-fcant"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={frac.cantidad || ''}
+                    onChange={(e) => {
+                      setFrac({ ...frac, cantidad: num(e.target.value) })
+                      tocar('cantidad')
+                    }}
+                  />
+                </Campo>
+                <Campo id="o-flote" etiqueta="Lote">
+                  <input id="o-flote" value={frac.lote} onChange={(e) => setFrac({ ...frac, lote: e.target.value })} />
+                </Campo>
+                <Campo id="o-fetiq" etiqueta="Etiquetado">
+                  <input id="o-fetiq" value={frac.etiquetado} onChange={(e) => setFrac({ ...frac, etiquetado: e.target.value })} />
+                </Campo>
+                <Campo id="o-fop" etiqueta="Operaria (opcional)">
+                  <select
+                    id="o-fop"
+                    value={frac.operaria_id ?? ''}
+                    onChange={(e) => setFrac({ ...frac, operaria_id: opcional(e.target.value) })}
+                  >
+                    {operariasOpciones}
+                  </select>
+                </Campo>
+              </>
+            )}
+
+            {error && (
+              <p className="aviso-panel" role="alert">
+                {error}
+              </p>
+            )}
+            <footer className="modal-pie">
+              <button type="button" className="boton boton-sec" onClick={cerrar}>
+                Cancelar
+              </button>
+              <button type="submit" className="boton" disabled={hayErrores || enviando || !enLinea || !datos}>
+                Crear orden
+              </button>
+            </footer>
+          </form>
         )}
-
-        <form
-          className="formulario"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!hayErrores) void crear()
-          }}
-        >
-          {tipo === 'fabricacion' && (
-            <>
-              <Campo id="o-tanque" etiqueta="Tanque" error={err('tanque_id')}>
-                <select
-                  id="o-tanque"
-                  value={fab.tanque_id}
-                  onChange={(e) => {
-                    setFab({ ...fab, tanque_id: e.target.value })
-                    tocar('tanque_id')
-                  }}
-                >
-                  <option value="">— Elegí un tanque libre —</option>
-                  {libres.map((t) => (
-                    <option key={t.tanque_id} value={t.tanque_id}>
-                      {t.codigo} · {t.capacidad_l} L
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-producto" etiqueta="Producto" error={err('producto_id')}>
-                <select
-                  id="o-producto"
-                  value={fab.producto_id}
-                  onChange={(e) => {
-                    setFab({ ...fab, producto_id: e.target.value })
-                    tocar('producto_id')
-                  }}
-                >
-                  <option value="">— Elegí un producto —</option>
-                  {datos?.productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-litros" etiqueta="Litros" error={err('litros')}>
-                <input
-                  id="o-litros"
-                  type="number"
-                  min="1"
-                  inputMode="decimal"
-                  placeholder={tanqueFab ? String(tanqueFab.capacidad_l) : ''}
-                  value={fab.litros || ''}
-                  onChange={(e) => {
-                    setFab({ ...fab, litros: num(e.target.value) })
-                    tocar('litros')
-                  }}
-                />
-              </Campo>
-              {minFab !== null && stdFab && <p className="proyeccion">{textoProyeccion(minFab, stdFab.velocidad, 'L')}</p>}
-              <Campo id="o-lote" etiqueta="Lote">
-                <input id="o-lote" value={fab.lote} onChange={(e) => setFab({ ...fab, lote: e.target.value })} />
-              </Campo>
-              <Campo id="o-operaria" etiqueta="Operaria (opcional)">
-                <select
-                  id="o-operaria"
-                  value={fab.operaria_id ?? ''}
-                  onChange={(e) => setFab({ ...fab, operaria_id: opcional(e.target.value) })}
-                >
-                  {operariasOpciones}
-                </select>
-              </Campo>
-            </>
-          )}
-
-          {tipo === 'envasado' && (
-            <>
-              <Campo id="o-fab" etiqueta="Tanque a envasar" error={err('fabricacion_id')}>
-                <select
-                  id="o-fab"
-                  value={env.fabricacion_id}
-                  onChange={(e) => {
-                    setEnv({ ...env, fabricacion_id: e.target.value })
-                    tocar('fabricacion_id')
-                  }}
-                >
-                  <option value="">— Elegí un tanque —</option>
-                  {aEnvasar.map((t) => (
-                    <option key={t.fabricacion_id} value={t.fabricacion_id ?? ''}>
-                      {t.codigo} · {t.producto} · quedan {sinAsignar(t.fabricacion_id, t.litros_restantes) ?? '?'} L sin asignar
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-pres" etiqueta="Presentación" error={err('presentacion_id')}>
-                <select
-                  id="o-pres"
-                  value={env.presentacion_id}
-                  onChange={(e) => {
-                    setEnv({ ...env, presentacion_id: e.target.value })
-                    tocar('presentacion_id')
-                  }}
-                >
-                  <option value="">— Elegí una presentación —</option>
-                  {datos?.presentaciones.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-cant" etiqueta="Cantidad" error={err('cantidad')}>
-                <input
-                  id="o-cant"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={env.cantidad || ''}
-                  onChange={(e) => {
-                    setEnv({ ...env, cantidad: num(e.target.value) })
-                    tocar('cantidad')
-                  }}
-                />
-              </Campo>
-              {minEnv !== null && stdEnv && <p className="proyeccion">{textoProyeccion(minEnv, stdEnv.velocidad, 'u')}</p>}
-              {advertencia && (
-                <p className="advertencia" role="status">
-                  {advertencia}
-                </p>
-              )}
-              <Campo id="o-etiq" etiqueta="Etiquetado">
-                <input id="o-etiq" value={env.etiquetado} onChange={(e) => setEnv({ ...env, etiquetado: e.target.value })} />
-              </Campo>
-              <Campo id="o-op1" etiqueta="Operaria 1 (opcional)">
-                <select id="o-op1" value={env.operaria_1 ?? ''} onChange={(e) => setEnv({ ...env, operaria_1: opcional(e.target.value) })}>
-                  {operariasOpciones}
-                </select>
-              </Campo>
-              <Campo id="o-op2" etiqueta="Operaria 2 (opcional)" error={erroresEnv.operaria_2}>
-                <select id="o-op2" value={env.operaria_2 ?? ''} onChange={(e) => setEnv({ ...env, operaria_2: opcional(e.target.value) })}>
-                  {operariasOpciones}
-                </select>
-              </Campo>
-            </>
-          )}
-
-          {tipo === 'fraccionado' && (
-            <>
-              <Campo id="o-tipo" etiqueta="Tipo" error={err('tipo')}>
-                <input
-                  id="o-tipo"
-                  value={frac.tipo}
-                  onChange={(e) => {
-                    setFrac({ ...frac, tipo: e.target.value })
-                    tocar('tipo')
-                  }}
-                />
-              </Campo>
-              <Campo id="o-desc" etiqueta="Descripción">
-                <input id="o-desc" value={frac.descripcion} onChange={(e) => setFrac({ ...frac, descripcion: e.target.value })} />
-              </Campo>
-              <Campo id="o-fprod" etiqueta="Producto (opcional)">
-                <select
-                  id="o-fprod"
-                  value={frac.producto_id ?? ''}
-                  onChange={(e) => setFrac({ ...frac, producto_id: opcional(e.target.value) })}
-                >
-                  <option value="">—</option>
-                  {datos?.productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-fpres" etiqueta="Presentación (opcional)">
-                <select
-                  id="o-fpres"
-                  value={frac.presentacion_id ?? ''}
-                  onChange={(e) => setFrac({ ...frac, presentacion_id: opcional(e.target.value) })}
-                >
-                  <option value="">—</option>
-                  {datos?.presentaciones.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo id="o-fcant" etiqueta="Cantidad" error={err('cantidad')}>
-                <input
-                  id="o-fcant"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={frac.cantidad || ''}
-                  onChange={(e) => {
-                    setFrac({ ...frac, cantidad: num(e.target.value) })
-                    tocar('cantidad')
-                  }}
-                />
-              </Campo>
-              <Campo id="o-flote" etiqueta="Lote">
-                <input id="o-flote" value={frac.lote} onChange={(e) => setFrac({ ...frac, lote: e.target.value })} />
-              </Campo>
-              <Campo id="o-fetiq" etiqueta="Etiquetado">
-                <input id="o-fetiq" value={frac.etiquetado} onChange={(e) => setFrac({ ...frac, etiquetado: e.target.value })} />
-              </Campo>
-              <Campo id="o-fop" etiqueta="Operaria (opcional)">
-                <select
-                  id="o-fop"
-                  value={frac.operaria_id ?? ''}
-                  onChange={(e) => setFrac({ ...frac, operaria_id: opcional(e.target.value) })}
-                >
-                  {operariasOpciones}
-                </select>
-              </Campo>
-            </>
-          )}
-
-          {error && (
-            <p className="aviso-panel" role="alert">
-              {error}
-            </p>
-          )}
-          <footer className="modal-pie">
-            <button type="button" className="boton boton-sec" onClick={onCerrar}>
-              Cancelar
-            </button>
-            <button type="submit" className="boton" disabled={hayErrores || enviando || !enLinea || !datos}>
-              Crear orden
-            </button>
-          </footer>
-        </form>
       </div>
     </div>
   )

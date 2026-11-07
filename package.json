@@ -15,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "motion": "^14.4.0",
+    "pdfjs-dist": "^6.5.438",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

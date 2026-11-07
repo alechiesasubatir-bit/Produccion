@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validarEnvasado, validarFabricacion, validarFraccionado } from './ordenes'
+import { validarEnvasado, validarFabricacion, validarFabricacionFormula, validarFraccionado } from './ordenes'
 
 const fab = { tanque_id: 't1', producto_id: 'p1', litros: 1000, lote: '', operaria_id: null }
 
@@ -54,5 +54,33 @@ describe('validarFraccionado', () => {
     })
     expect(e.tipo).toBe('Indicá el tipo.')
     expect(e.cantidad).toBe('Tiene que ser un número entero mayor a 0.')
+  })
+})
+
+const formula = { ...fab, lote: '17702', vencimiento: '2028-10-21', fecha_formula: '2026-10-21', codigo_producto: 'F8' }
+const ctxFormula = { capacidad: 2000, tanqueLibre: true, loteExiste: false }
+
+describe('validarFabricacionFormula', () => {
+  it('una fórmula completa no tiene errores', () => {
+    expect(validarFabricacionFormula(formula, ctxFormula)).toEqual({})
+  })
+  it('suma los errores de validarFabricacion', () => {
+    expect(validarFabricacionFormula({ ...formula, litros: 2500 }, ctxFormula).litros).toBe('Máximo 2000 L.')
+  })
+  it('el vencimiento es obligatorio', () => {
+    expect(validarFabricacionFormula({ ...formula, vencimiento: '' }, ctxFormula).vencimiento).toBe('Poné la fecha de vencimiento')
+  })
+  it('el vencimiento tiene que ser posterior a la fecha de la fórmula', () => {
+    const msg = 'El vencimiento tiene que ser posterior a la fecha de la fórmula'
+    expect(validarFabricacionFormula({ ...formula, vencimiento: '2026-10-21' }, ctxFormula).vencimiento).toBe(msg)
+    expect(validarFabricacionFormula({ ...formula, vencimiento: '2026-10-01' }, ctxFormula).vencimiento).toBe(msg)
+  })
+  it('avisa si el lote ya existe', () => {
+    expect(validarFabricacionFormula(formula, { ...ctxFormula, loteExiste: true }).lote).toBe('Ya existe una fabricación con el lote 17702')
+  })
+  it('lote y fecha de la fórmula obligatorios (si el PDF no los trajo)', () => {
+    const e = validarFabricacionFormula({ ...formula, lote: ' ', fecha_formula: '' }, ctxFormula)
+    expect(e.lote).toBe('Poné el lote')
+    expect(e.fecha_formula).toBe('Poné la fecha de la fórmula')
   })
 })

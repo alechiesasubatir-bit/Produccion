@@ -5,6 +5,8 @@ import { Confirmacion } from './Confirmacion'
 import { MisTareas } from './MisTareas'
 import { TarjetaTarea } from './TarjetaTarea'
 
+vi.mock('../lib/supabase', () => ({ db: {} }))
+
 let n = 0
 function tarea(over: Partial<Tarea> = {}): Tarea {
   n += 1
@@ -27,6 +29,8 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     min_efectivos: null,
     corriendo: false,
     created_at: `2026-10-21T10:${String(n).padStart(2, '0')}:00Z`,
+    mp_total: 0,
+    mp_completas: 0,
     ...over,
   }
 }
@@ -34,11 +38,13 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
 const base = {
   nombre: 'Laura Paz',
   empleadoId: 'E1',
+  pin: '1234',
   tanque: null,
   conectado: true,
   cargadoEn: Date.now(),
   aviso: null,
   onAccion: () => {},
+  onPinInvalido: () => {},
   onSalir: () => {},
 }
 

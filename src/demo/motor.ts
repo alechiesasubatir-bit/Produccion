@@ -45,6 +45,8 @@ export function crearMotor(opts: { semilla?: number } = {}): Motor {
       consultar: (t) => sim.consultar(t),
       accion: (e, id, a, emp) => sim.accion(e, id, a, emp),
       insertar: (t, d) => sim.insertar(t, d),
+      crearFormula: (f, mp) => sim.crearFormula(f, mp),
+      cargarMp: (id, lote, pesado, emp) => sim.cargarMp(id, lote, pesado, emp),
     },
     ahora: () => sim.ahora(),
     velocidad: () => velocidad,

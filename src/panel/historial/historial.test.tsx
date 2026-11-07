@@ -11,6 +11,7 @@ vi.mock('../../domain/csv', async (original) => ({
   ...(await original<typeof import('../../domain/csv')>()),
   descargarCSV: m.descargar,
 }))
+vi.mock('../TablaMp', () => ({ TablaMp: (p: { fabricacionId: string }) => <p>{`mp de ${p.fabricacionId}`}</p> }))
 
 const filas = [
   filaH({ producto: 'Lavandina', min_efectivos: 30, dia: '2026-10-15' }),
@@ -65,6 +66,15 @@ describe('Historial', () => {
     const [nombre, contenido] = m.descargar.mock.calls[0]
     expect(nombre).toBe('prodcontrol-historial-2026-10-01_2026-10-31.csv')
     expect(contenido).toMatch(/^﻿Día;Tipo;Producto;/)
+  })
+
+  it('el botón Ver MP de una fabricación despliega la tabla de MP debajo de la fila y se puede ocultar', async () => {
+    await montar()
+    const filaFab = screen.getAllByRole('row')[1]
+    fireEvent.click(within(filaFab).getByRole('button', { name: 'Ver MP' }))
+    expect(screen.getByText(`mp de ${filas[0].id}`)).toBeInTheDocument()
+    fireEvent.click(within(filaFab).getByRole('button', { name: 'Ocultar MP' }))
+    expect(screen.queryByText(`mp de ${filas[0].id}`)).not.toBeInTheDocument()
   })
 
   it('en la vista Mes, elegir un día muestra la tabla de ese día', async () => {

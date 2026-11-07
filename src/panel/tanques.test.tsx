@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EstadoTanqueFila } from '../pages/ParedTanques'
 import { Tanques } from './Tanques'
 
@@ -23,6 +23,7 @@ const tanque = (over: Partial<EstadoTanqueFila>): EstadoTanqueFila => ({
 })
 
 const m = vi.hoisted(() => ({ tanques: [] as unknown[] }))
+const m2 = vi.hoisted(() => ({ fabricacion: null as { lote: string | null; vencimiento: string | null } | null }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../lib/acciones', () => ({ accionPanel: vi.fn() }))
@@ -33,6 +34,12 @@ vi.mock('./NuevaOrden', () => ({
 vi.mock('./datosTanque', () => ({
   cargarRecorrido: () =>
     Promise.resolve([{ at: '2026-10-21T13:15:00Z', accion: 'iniciar', quien: 'Laura Paz', entidad: 'fabricacion' }]),
+  cargarFabricacion: () => Promise.resolve(m2.fabricacion),
+}))
+vi.mock('./TablaMp', () => ({
+  TablaMp: (p: { fabricacionId: string; estado?: string | null; plegable?: boolean }) => (
+    <p>{`mp de ${p.fabricacionId} (${p.estado ?? '-'})${p.plegable ? ' plegable' : ''}`}</p>
+  ),
 }))
 vi.mock('../lib/useRealtime', () => ({
   useRealtime: () => ({ datos: m.tanques, conectado: true, enVivo: true, error: null, recargar: vi.fn() }),
@@ -45,6 +52,10 @@ async function elegir(codigo: string) {
 }
 
 describe('Tanques', () => {
+  beforeEach(() => {
+    m2.fabricacion = null
+  })
+
   it('cada tanque de la pared muestra su capacidad', () => {
     m.tanques = [tanque({}), tanque({ tanque_id: 't2', codigo: 'T-17', capacidad_l: 200 })]
     render(<MemoryRouter><Tanques /></MemoryRouter>)
@@ -123,6 +134,18 @@ describe('Tanques', () => {
     expect(within(aside).getByRole('button', { name: 'Cerrar con merma' })).toBeInTheDocument()
     await act(async () => fireEvent.click(within(aside).getByRole('button', { name: 'Cargar envasado' })))
     expect(screen.getByText('nueva orden envasado fab9')).toBeInTheDocument()
+  })
+
+  it('muestra el lote, el vencimiento y la tabla de MP de la fabricación en curso', async () => {
+    m2.fabricacion = { lote: '17702', vencimiento: '2028-10-21' }
+    m.tanques = [
+      tanque({ estado: 'fabricando', fabricacion_id: 'fab1', producto: 'Lavandina', color: '#0284c7', litros: 1200 }),
+    ]
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
+    const aside = await elegir('T-01')
+    expect(within(aside).getByText('Lote 17702 · Vence 21/10/2028')).toBeInTheDocument()
+    // en curso: la tabla recibe el estado para dejar cargar lote y pesado desde el panel
+    expect(within(aside).getByText('mp de fab1 (fabricando) plegable')).toBeInTheDocument()
   })
 
   it('el carrusel gira y su tanque de adelante abre el panel', async () => {

@@ -1,5 +1,5 @@
 // `fetch` falso para el cliente de Supabase en la DEMO: responde el mismo contrato HTTP de PostgREST
-// (y de rpc / functions) a partir del simulador en memoria. Ninguna request sale del navegador.
+// (y de rpc) a partir del simulador en memoria. Ninguna request sale del navegador.
 import type { Accion, Entidad } from '../domain/acciones'
 import type { Fila, Simulador } from './simulador'
 
@@ -53,18 +53,23 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
     const metodo = (init?.method ?? pedido?.method ?? 'GET').toUpperCase()
     const headers = new Headers(init?.headers ?? pedido?.headers)
 
-    if (url.pathname.startsWith('/functions/v1/')) {
-      return responder({ ok: false, error: 'En la demo no se leen hojas: cargá la orden a mano.' })
-    }
     if (url.pathname.startsWith('/auth/v1/')) return responder({}, 200)
     if (!url.pathname.startsWith('/rest/v1/')) return responder({ message: 'demo' }, 404)
 
     const ruta = url.pathname.slice('/rest/v1/'.length)
 
     if (ruta.startsWith('rpc/')) {
-      const args = ((await cuerpo(init)) ?? {}) as Record<string, string>
+      const args = ((await cuerpo(init)) ?? {}) as Record<string, unknown>
+      const texto = (k: string) => (args[k] === undefined || args[k] === null ? null : String(args[k]))
+      let r: { ok: boolean } | null = null
       if (ruta === 'rpc/accion') {
-        const r = sim.accion(args.p_entidad as Entidad, args.p_id, args.p_accion as Accion, args.p_empleado_id ?? null)
+        r = sim.accion(args.p_entidad as Entidad, String(args.p_id), args.p_accion as Accion, texto('p_empleado_id'))
+      } else if (ruta === 'rpc/crear_fabricacion_formula') {
+        r = sim.crearFormula((args.p_fab ?? {}) as Fila, (args.p_mp ?? []) as Fila[])
+      } else if (ruta === 'rpc/cargar_mp') {
+        r = sim.cargarMp(String(args.p_mp_id), texto('p_lote'), args.p_pesado === true, texto('p_empleado_id'))
+      }
+      if (r) {
         if (r.ok) onCambio()
         return responder(r)
       }

@@ -1,33 +1,40 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DatosOrden } from './datosOrden'
+import bactipro from '../domain/__fixtures__/bactipro.json'
+import type { Fragmento } from '../domain/formulaPdf'
 import { NuevaOrden } from './NuevaOrden'
 
-const m = vi.hoisted(() => ({ crearOrden: vi.fn() }))
+const m = vi.hoisted(() => ({ crearOrden: vi.fn(), crearFormula: vi.fn(), extraer: vi.fn() }))
 
 const datos: DatosOrden = {
   tanques: [
     { tanque_id: 't1', codigo: 'T-01', capacidad_l: 2000, estado: 'libre', fabricacion_id: null, producto: null, litros_restantes: null },
     { tanque_id: 't2', codigo: 'T-02', capacidad_l: 2000, estado: 'fabricando', fabricacion_id: 'fab2', producto: 'Cloro', litros_restantes: 1000 },
     { tanque_id: 't3', codigo: 'T-03', capacidad_l: 2000, estado: 'para_envasar', fabricacion_id: 'fab3', producto: 'Lavandina', litros_restantes: 300 },
+    { tanque_id: 't4', codigo: 'T-04', capacidad_l: 2000, estado: 'libre', fabricacion_id: null, producto: null, litros_restantes: null },
   ],
-  productos: [{ id: 'p1', nombre: 'Lavandina', color: '#0284c7' }],
+  productos: [{ id: 'p1', nombre: 'Lavandina', color: '#0284c7', codigo: null }],
   presentaciones: [{ id: 'pr1', nombre: '5L', litros_equiv: 5 }],
   operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
   asignados: { fab3: 200 },
   estandares: [{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 7.5, muestras: 2, litros_hora_std: null }],
+  lotesAbiertos: [],
 }
 
 vi.mock('./datosOrden', () => ({
   cargarDatosOrden: () => Promise.resolve(datos),
   crearOrden: m.crearOrden,
+  crearFabricacionFormula: m.crearFormula,
 }))
+vi.mock('./leerPdf', () => ({ extraerFragmentos: m.extraer }))
 
 async function abrir(props: Partial<Parameters<typeof NuevaOrden>[0]> = {}) {
   const onCreada = vi.fn()
-  render(<NuevaOrden abierta onCerrar={() => {}} onCreada={onCreada} {...props} />)
+  const onCerrar = vi.fn()
+  render(<NuevaOrden abierta onCerrar={onCerrar} onCreada={onCreada} {...props} />)
   await act(async () => {})
-  return { onCreada }
+  return { onCreada, onCerrar }
 }
 
 const campo = (etiqueta: string) => screen.getByLabelText(etiqueta)
@@ -69,6 +76,7 @@ describe('NuevaOrden · fabricación', () => {
     cambiar('Producto', 'p1')
     cambiar('Litros', '1200')
     cambiar('Lote', 'L-1')
+    cambiar('Vencimiento', '2028-01-31')
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Crear orden' })))
     expect(m.crearOrden).toHaveBeenLastCalledWith('fabricacion', {
       tanque_id: 't1',
@@ -76,8 +84,59 @@ describe('NuevaOrden · fabricación', () => {
       litros: 1200,
       lote: 'L-1',
       operaria_id: null,
+      vencimiento: '2028-01-31',
     })
     expect(onCreada).toHaveBeenCalled()
+  })
+})
+
+describe('NuevaOrden · PDF de fórmula', () => {
+  it('en Fabricación alterna entre el formulario y la subida del PDF', async () => {
+    await abrir()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir PDF de fórmula' }))
+    expect(campo('PDF de la fórmula')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Litros')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar a mano' }))
+    expect(campo('Litros')).toBeInTheDocument()
+  })
+
+  it('si creó alguna y cierra con otra pendiente, avisa onCreada (para recargar el tablero)', async () => {
+    const fr = bactipro as Fragmento[]
+    m.extraer.mockResolvedValue([...fr, ...fr.map((f) => ({ ...f, pagina: 2, str: f.str === '17702' ? '17703' : f.str }))])
+    m.crearFormula.mockResolvedValueOnce({ ok: true, id: 'a' }).mockResolvedValueOnce({ ok: false, codigo: 'TANQUE_OCUPADO', texto: 'x' })
+    const { onCreada, onCerrar } = await abrir()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir PDF de fórmula' }))
+    const archivo = new File(['%PDF'], 'B.pdf', { type: 'application/pdf' })
+    await act(async () => fireEvent.change(campo('PDF de la fórmula'), { target: { files: [archivo] } }))
+    for (const [lote, tanque] of [['17702', 't1'], ['17703', 't4']]) {
+      const t = screen.getByRole('region', { name: new RegExp(`Lote ${lote}`) })
+      fireEvent.change(within(t).getByLabelText('Tanque'), { target: { value: tanque } })
+      fireEvent.change(within(t).getByLabelText('Producto'), { target: { value: 'p1' } })
+      fireEvent.change(within(t).getByLabelText('Vencimiento'), { target: { value: '2028-10-21' } })
+      await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
+    }
+    expect(onCreada).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCreada).toHaveBeenCalledTimes(1)
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+
+  it('sin crear nada, cerrar es solo cerrar', async () => {
+    const { onCreada, onCerrar } = await abrir()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir PDF de fórmula' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+    expect(onCreada).not.toHaveBeenCalled()
+  })
+
+  it('ya no existe el escaneo con IA; Envasado y Fraccionado son solo manuales', async () => {
+    await abrir()
+    expect(screen.queryByRole('button', { name: /escane/i })).not.toBeInTheDocument()
+    for (const tipo of ['Envasado', 'Fraccionado']) {
+      fireEvent.click(screen.getByRole('button', { name: tipo }))
+      expect(screen.queryByRole('button', { name: /escane/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Subir PDF de fórmula' })).not.toBeInTheDocument()
+    }
   })
 })
 

@@ -5,6 +5,15 @@ export type NuevaFabricacion = {
   litros: number
   lote: string
   operaria_id: string | null
+  /** Opcional en la carga manual (YYYY-MM-DD). */
+  vencimiento?: string | null
+}
+// Fabricación creada desde la fórmula leída del PDF: suma vencimiento, fecha de la fórmula
+// y el código de producto (para matchear/crear el producto por código).
+export type NuevaFabricacionFormula = NuevaFabricacion & {
+  vencimiento: string
+  fecha_formula: string
+  codigo_producto: string
 }
 export type NuevoEnvasado = {
   fabricacion_id: string
@@ -42,6 +51,23 @@ export function validarFabricacion(
   if (!d.producto_id) e.producto_id = 'Elegí un producto.'
   if (!(d.litros > 0)) e.litros = 'Tiene que ser mayor a 0.'
   else if (ctx.capacidad !== null && d.litros > ctx.capacidad) e.litros = `Máximo ${litros(ctx.capacidad)} L.`
+  return e
+}
+
+// Fabricación desde el PDF: lo de validarFabricacion + lote y fecha (si el PDF no los trajo),
+// vencimiento posterior a la fecha de la fórmula y lote sin otra fabricación abierta.
+export function validarFabricacionFormula(
+  d: NuevaFabricacionFormula,
+  ctx: { capacidad: number | null; tanqueLibre: boolean; loteExiste: boolean },
+): Errores<NuevaFabricacionFormula> {
+  const e: Errores<NuevaFabricacionFormula> = validarFabricacion(d, ctx)
+  if (!d.lote.trim()) e.lote = 'Poné el lote'
+  else if (ctx.loteExiste) e.lote = `Ya existe una fabricación con el lote ${d.lote.trim()}`
+  if (!d.fecha_formula) e.fecha_formula = 'Poné la fecha de la fórmula'
+  if (!d.vencimiento) e.vencimiento = 'Poné la fecha de vencimiento'
+  else if (d.fecha_formula && d.vencimiento <= d.fecha_formula) {
+    e.vencimiento = 'El vencimiento tiene que ser posterior a la fecha de la fórmula'
+  }
   return e
 }
 

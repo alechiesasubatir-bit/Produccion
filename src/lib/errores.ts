@@ -12,6 +12,9 @@ export type CodigoError =
   | 'NO_PROPIO_ROL'
   | 'PIN_INVALIDO'
   | 'NOMBRE_DUPLICADO'
+  | 'MP_INCOMPLETA'
+  | 'LOTE_DUPLICADO'
+  | 'DATOS_INVALIDOS'
   | 'RED'
   | 'DESCONOCIDO'
 
@@ -29,6 +32,9 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   NO_PROPIO_ROL: () => 'No podés cambiar tu propio rol.',
   PIN_INVALIDO: () => 'El PIN son 4 dígitos.',
   NOMBRE_DUPLICADO: () => 'Ya existe uno con ese nombre.',
+  MP_INCOMPLETA: (d) => `Faltan ${d ?? 'algunas'} MP por completar.`,
+  LOTE_DUPLICADO: () => 'Ya existe una fabricación con ese lote.',
+  DATOS_INVALIDOS: () => 'Faltan datos o hay datos inválidos en la orden.',
   RED: () => 'Sin conexión. Revisá el WiFi.',
   DESCONOCIDO: () => 'Algo salió mal. Avisá a la encargada.',
 }

@@ -409,6 +409,152 @@
   cursor: not-allowed;
 }
 
+/* ---------- Checklist de materias primas ---------- */
+
+.tarea-acciones {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bloqueo-finalizar {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #8f1d0f;
+}
+
+.tarea-checklist {
+  grid-column: 1 / -1;
+  padding-top: 14px;
+  border-top: 1px solid var(--linea);
+}
+
+.mp-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.mp-titulo {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--tinta-2);
+}
+
+.mp-contador {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mp-fila {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 72px 180px auto 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-chico);
+  background: var(--papel);
+}
+
+.mp-completa {
+  border-color: #86c39b;
+  background: #eef7f0;
+}
+
+.mp-codigo,
+.mp-cantidad {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-cantidad {
+  text-align: right;
+}
+
+.mp-descripcion {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-lote {
+  min-height: 52px;
+  padding: 0 12px;
+  border: 1px solid var(--linea-2);
+  border-radius: var(--radio-chico);
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 18px;
+}
+
+.mp-pesado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mp-pesado input {
+  width: 32px;
+  height: 32px;
+  accent-color: #15803d;
+}
+
+.mp-lote:focus-visible,
+.mp-pesado input:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.mp-estado {
+  font-size: 13px;
+  color: var(--apagado);
+  text-align: center;
+}
+
+.mp-marca {
+  font-size: 22px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.mp-fila .mp-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.mp-error {
+  color: #8f1d0f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mp-cargando {
+  margin: 0;
+  color: var(--apagado);
+}
+
 /* ---------- Confirmación ---------- */
 
 .confirmacion {

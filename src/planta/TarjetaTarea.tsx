@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
 import { etiquetaAccion, formatoCronometro, segundosTranscurridos, tituloTarea, type Tarea } from '../domain/tareas'
@@ -13,7 +13,7 @@ function estadoMiniTanque(t: Tarea): EstadoTanque {
   return 'cola_env'
 }
 
-export function Cronometro({ tarea, cargadoEn }: { tarea: Tarea; cargadoEn: number }) {
+export function Cronometro({ tarea, cargadoEn }: { tarea: Pick<Tarea, 'min_efectivos' | 'corriendo'>; cargadoEn: number }) {
   const [ahora, setAhora] = useState(() => Date.now())
   useEffect(() => {
     if (!tarea.corriendo) return
@@ -34,15 +34,22 @@ export function TarjetaTarea({
   habilitado,
   cargadoEn,
   onAccion,
+  checklist,
+  bloqueoFinalizar,
 }: {
   tarea: Tarea
   disponible: boolean
   habilitado: boolean
   cargadoEn: number
   onAccion: (a: Accion) => void
+  // Checklist de materias primas (solo fabricaciones propias en curso con MP).
+  checklist?: ReactNode
+  // Si viene, Finalizar queda deshabilitado y se muestra este motivo.
+  bloqueoFinalizar?: string | null
 }) {
   const acciones: Accion[] = disponible ? ['iniciar'] : accionesPosibles(tarea.entidad, tarea.estado, 'planta')
   const estado = estadoMiniTanque(tarea)
+  const idBloqueo = useId()
 
   return (
     <article
@@ -69,18 +76,28 @@ export function TarjetaTarea({
       </div>
       <Cronometro tarea={tarea} cargadoEn={cargadoEn} />
       <div className="tarea-acciones">
-        {acciones.map((a) => (
-          <button
-            key={a}
-            type="button"
-            className={`accion accion-${a}`}
-            disabled={!habilitado}
-            onClick={() => onAccion(a)}
-          >
-            {etiquetaAccion(a, disponible)}
-          </button>
-        ))}
+        {acciones.map((a) => {
+          const bloqueada = a === 'finalizar' && !!bloqueoFinalizar
+          return (
+            <button
+              key={a}
+              type="button"
+              className={`accion accion-${a}`}
+              disabled={!habilitado || bloqueada}
+              aria-describedby={bloqueada ? idBloqueo : undefined}
+              onClick={() => onAccion(a)}
+            >
+              {etiquetaAccion(a, disponible)}
+            </button>
+          )
+        })}
+        {bloqueoFinalizar && acciones.includes('finalizar') && (
+          <span id={idBloqueo} className="bloqueo-finalizar">
+            {bloqueoFinalizar}
+          </span>
+        )}
       </div>
+      {checklist && <div className="tarea-checklist">{checklist}</div>}
     </article>
   )
 }

@@ -61,9 +61,80 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
     expect(mal.data).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
   })
 
-  it('el escáner de hojas no se usa en la demo', async () => {
-    const { supabase } = cliente()
-    const r = await supabase.functions.invoke('escanear-hoja', { body: { tipo: 'fabricacion', imagen: 'x' } })
-    expect(r.data).toMatchObject({ ok: false })
+  it('rpc/crear_fabricacion_formula crea la fabricación con sus MP; fabricacion_mp las devuelve en orden', async () => {
+    const { db, onCambio } = cliente()
+    const fab = { tanque_id: 'dt4', producto_id: 'dp1', litros: 1000, lote: '17702', vencimiento: '2028-11-06', fecha_formula: '2026-11-06' }
+    const mp = [
+      { codigo: 'MP1', descripcion: 'Agua', cantidad: 900 },
+      { codigo: 'MP2', descripcion: 'Tensioactivo', cantidad: 100 },
+    ]
+    const r = await db.rpc('crear_fabricacion_formula', { p_fab: fab, p_mp: mp } as never)
+    expect(r.data).toMatchObject({ ok: true, id: expect.any(String) })
+    expect(onCambio).toHaveBeenCalled()
+    const id = (r.data as { id: string }).id
+    const filas = await db.from('fabricacion_mp').select('*').eq('fabricacion_id', id).order('orden')
+    expect(filas.data).toEqual([
+      expect.objectContaining({ fabricacion_id: id, orden: 1, codigo: 'MP1', descripcion: 'Agua', cantidad: 900, lote: null, pesado: false }),
+      expect.objectContaining({ fabricacion_id: id, orden: 2, codigo: 'MP2', lote: null, pesado: false }),
+    ])
+    const flujo = await db.from('v_flujo').select('*')
+    expect(flujo.data).toEqual([expect.objectContaining({ id, lote: '17702', tanque_codigo: 'T-04' })])
+
+    const lote = await db.rpc('crear_fabricacion_formula', { p_fab: { ...fab, tanque_id: 'dt5' }, p_mp: mp } as never)
+    expect(lote.data).toMatchObject({ ok: false, codigo: 'LOTE_DUPLICADO' })
+    const tanque = await db.rpc('crear_fabricacion_formula', { p_fab: { ...fab, lote: '17703' }, p_mp: mp } as never)
+    expect(tanque.data).toMatchObject({ ok: false, codigo: 'TANQUE_OCUPADO' })
+    const mal = await db.rpc('crear_fabricacion_formula', { p_fab: { ...fab, tanque_id: 'dt6', lote: '17704', litros: 0 }, p_mp: mp } as never)
+    expect(mal.data).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+  })
+
+  it('rpc/cargar_mp completa la MP; finalizar con MP incompleta da MP_INCOMPLETA; v_tareas trae el avance', async () => {
+    const { db } = cliente()
+    const fab = { tanque_id: 'dt4', producto_id: 'dp1', litros: 1000, lote: '17702' }
+    const mp = [
+      { codigo: 'MP1', descripcion: 'Agua', cantidad: 900 },
+      { codigo: 'MP2', descripcion: 'Tensioactivo', cantidad: 100 },
+    ]
+    const id = ((await db.rpc('crear_fabricacion_formula', { p_fab: fab, p_mp: mp } as never)).data as { id: string }).id
+    const filas = (await db.from('fabricacion_mp').select('*').eq('fabricacion_id', id).order('orden')).data as { id: string }[]
+
+    // en cola todavía no se carga
+    const antes = await db.rpc('cargar_mp', { p_mp_id: filas[0].id, p_lote: 'A1', p_pesado: true, p_empleado_id: 'do1', p_pin: '1234' } as never)
+    expect(antes.data).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    await db.rpc('accion', { p_entidad: 'fabricacion', p_id: id, p_accion: 'iniciar' } as never)
+
+    const tarea = async () => ((await db.from('v_tareas').select('*')).data ?? []).find((t) => t.id === id)
+    expect(await tarea()).toMatchObject({ entidad: 'fabricacion', estado: 'fabricando', lote: '17702', mp_total: 2, mp_completas: 0 })
+
+    const ok = await db.rpc('cargar_mp', { p_mp_id: filas[0].id, p_lote: ' A1 ', p_pesado: true, p_empleado_id: 'do1', p_pin: '1234' } as never)
+    expect(ok.data).toEqual({ ok: true })
+    const fila = (await db.from('fabricacion_mp').select('*').eq('id', filas[0].id)).data?.[0]
+    expect(fila).toMatchObject({ lote: 'A1', pesado: true, cargado_por: 'do1', cargado_at: expect.any(String) })
+    expect(await tarea()).toMatchObject({ mp_total: 2, mp_completas: 1 })
+    const noExiste = await db.rpc('cargar_mp', { p_mp_id: 'nada', p_lote: 'x', p_pesado: true } as never)
+    expect(noExiste.data).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+
+    const fin = await db.rpc('accion', { p_entidad: 'fabricacion', p_id: id, p_accion: 'finalizar' } as never)
+    expect(fin.data).toMatchObject({ ok: false, codigo: 'MP_INCOMPLETA', detalle: '1' })
+
+    // lote en blanco no cuenta como completa
+    await db.rpc('cargar_mp', { p_mp_id: filas[1].id, p_lote: '  ', p_pesado: true } as never)
+    expect(await tarea()).toMatchObject({ mp_completas: 1 })
+    await db.rpc('cargar_mp', { p_mp_id: filas[1].id, p_lote: 'B2', p_pesado: true } as never)
+    expect(await tarea()).toMatchObject({ mp_completas: 2 })
+    const listo = await db.rpc('accion', { p_entidad: 'fabricacion', p_id: id, p_accion: 'finalizar' } as never)
+    expect(listo.data).toMatchObject({ ok: true })
+  })
+
+  it('v_tareas: envasado y fraccionado van con 0/0 MP; una fabricación sin fórmula también', async () => {
+    const { db, sim } = cliente()
+    sim.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: 'dp1', litros: 100, lote: 'L-1' })
+    const fab = sim.consultar('v_flujo')[0].id as string
+    sim.insertar('envasados', { fabricacion_id: fab, presentacion_id: 'dr2', cantidad: 50 })
+    const tareas = (await db.from('v_tareas').select('*').order('created_at')).data ?? []
+    expect(tareas.map((t) => [t.entidad, t.mp_total, t.mp_completas])).toEqual([
+      ['fabricacion', 0, 0],
+      ['envasado', 0, 0],
+    ])
   })
 })

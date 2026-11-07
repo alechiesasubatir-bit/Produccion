@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aNumero, aplicarEscaneo, buscarEnCatalogo, normalizarNombre, normalizarPresentacion } from './escaneo'
+import { aNumero, buscarEnCatalogo, coincidir, normalizarNombre } from './escaneo'
 
 describe('aNumero (Macrosoft: coma = miles, punto = decimal)', () => {
   it('nunca multiplica por 1000', () => {
@@ -33,74 +33,17 @@ describe('catálogo', () => {
   })
 })
 
-describe('normalizarPresentacion', () => {
-  it('equivalencias de la app vieja', () => {
-    expect(normalizarPresentacion('x 5 L')).toBe('5L')
-    expect(normalizarPresentacion('1/2 kg')).toBe('500g')
-    expect(normalizarPresentacion('1/4 kg')).toBe('250g')
-    expect(normalizarPresentacion('1 lt')).toBe('1L')
+describe('coincidir', () => {
+  it('parcial: elige la más específica y marca que no es exacta', () => {
+    const c = coincidir('CLORO GEL 5%', [{ id: 'c1', nombre: 'Cloro' }, { id: 'c2', nombre: 'Cloro gel' }])
+    expect(c).toEqual({ item: { id: 'c2', nombre: 'Cloro gel' }, exacta: false })
   })
-})
-
-describe('aplicarEscaneo', () => {
-  const cat = {
-    productos: [{ id: 'p1', nombre: 'Lavandina' }],
-    presentaciones: [{ id: 'pr1', nombre: '5L' }],
-    tanquesEnvasar: [{ fabricacion_id: 'fab3', producto: 'Lavandina', codigo: 'T-03' }],
-  }
-
-  it('fabricación: producto del catálogo, litros sin multiplicar y lote', () => {
-    const r = aplicarEscaneo('fabricacion', { producto: 'LAVANDINA', cantidad: '3,000.000', lote: '123', fecha: '21/10/2026' }, cat)
-    expect(r.campos).toEqual({ producto_id: 'p1', litros: 3000, lote: '123' })
-    expect(r.avisos).toEqual([])
-  })
-
-  it('producto desconocido: aviso y sin precargar', () => {
-    const r = aplicarEscaneo('fabricacion', { producto: 'Detergente X', cantidad: 500, lote: '9', fecha: '' }, cat)
-    expect(r.campos.producto_id).toBeUndefined()
-    expect(r.avisos).toContain('No encontré «Detergente X» en productos.')
-  })
-
-  it('envasado: tanque por el granel, presentación normalizada y aviso si hay varias', () => {
-    const r = aplicarEscaneo(
-      'envasado',
-      {
-        granel: 'Lavandina',
-        fecha: '',
-        presentaciones: [
-          { nombre: 'x 5 L', cantidad: 120 },
-          { nombre: '1 lt', cantidad: 50 },
-        ],
-      },
-      cat,
-    )
-    expect(r.campos).toEqual({ fabricacion_id: 'fab3', presentacion_id: 'pr1', cantidad: 120 })
-    expect(r.avisos).toContain('La hoja trae 2 presentaciones; cargá una orden por cada una.')
-  })
-
-  it('coincidencia parcial: elige la más específica y avisa', () => {
-    const r = aplicarEscaneo(
-      'fabricacion',
-      { producto: 'CLORO GEL 5%', cantidad: 100, lote: '1', fecha: '' },
-      { ...cat, productos: [{ id: 'c1', nombre: 'Cloro' }, { id: 'c2', nombre: 'Cloro gel' }] },
-    )
-    expect(r.campos.producto_id).toBe('c2')
-    expect(r.avisos).toContain('«CLORO GEL 5%» se asoció a «Cloro gel». Revisalo.')
-  })
-
-  it('dos tanques listos con el mismo producto: no elige y avisa', () => {
-    const r = aplicarEscaneo(
-      'envasado',
-      { granel: 'Lavandina', fecha: '', presentaciones: [] },
-      {
-        ...cat,
-        tanquesEnvasar: [
-          { fabricacion_id: 'f1', producto: 'Lavandina', codigo: 'T-01' },
-          { fabricacion_id: 'f2', producto: 'Lavandina', codigo: 'T-02' },
-        ],
-      },
-    )
-    expect(r.campos.fabricacion_id).toBeUndefined()
-    expect(r.avisos).toContain('Hay 2 tanques listos con «Lavandina» (T-01, T-02); elegí cuál.')
+  it('varias igual de específicas: devuelve las ambiguas', () => {
+    const lista = [
+      { id: 'f1', nombre: 'Lavandina' },
+      { id: 'f2', nombre: 'Lavandina' },
+    ]
+    expect(coincidir('Lavandina', lista)).toEqual({ ambiguas: lista })
+    expect(buscarEnCatalogo('Lavandina', lista)).toBeNull()
   })
 })

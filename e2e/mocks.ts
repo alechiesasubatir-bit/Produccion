@@ -25,7 +25,27 @@ export const operarias = [
   { empleado_id: 'E2', nombre: 'Rosa Díaz', foto_url: null, categoria: 'A', color_avatar: '#0284c7', activo: true },
 ]
 
-export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'planta') {
+export type MpMock = { codigo: string; descripcion: string; cantidad: number }
+
+// Materias primas de BACTIPRO.pdf (la fórmula de e2e/fixtures).
+export const MP_BACTIPRO: MpMock[] = [
+  { codigo: '900101', descripcion: 'Esencia Floral Prueba x Kg ( MP )', cantidad: 6.5 },
+  { codigo: '900102', descripcion: 'Colorante Azul Prueba ( MP )', cantidad: 0.3 },
+  { codigo: '900103', descripcion: 'Tensioactivo Prueba X Kg (Materia Prima)', cantidad: 22.5 },
+  { codigo: '900104', descripcion: 'Agua Prueba ( MP )', cantidad: 970.7 },
+]
+
+type FilaMp = MpMock & { id: string; fabricacion_id: string; orden: number; lote: string | null; pesado: boolean; cargado_por: string | null; cargado_at: string | null }
+
+/**
+ * `opciones.mp`: la fabricación F1 de la tablet viene con ese checklist de MP (como si se hubiera
+ * creado desde el PDF de la fórmula). Sin MP, F1 es una fabricación cargada a mano.
+ */
+export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'planta', opciones: { mp?: MpMock[] } = {}) {
+  const mp: FilaMp[] = (opciones.mp ?? []).map((m, i) => ({
+    ...m, id: `MP${i + 1}`, fabricacion_id: 'F1', orden: i + 1, lote: null, pesado: false, cargado_por: null, cargado_at: null,
+  }))
+  const mpCompleta = (m: FilaMp) => !!m.lote?.trim() && m.pesado
   const tarea = {
     entidad: 'fabricacion',
     id: 'F1',
@@ -47,8 +67,14 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     created_at: '2026-10-21T09:00:00Z',
   }
   let abierta = true
+  const conMp = () => ({ ...tarea, mp_total: mp.length, mp_completas: mp.filter(mpCompleta).length })
+  // Lo que el panel mandó a crear_fabricacion_formula (para verificar el payload).
+  const formulasCreadas: { p_fab: Record<string, unknown> & { lote: string; vencimiento: string; tanque_id: string }; p_mp: MpMock[] }[] = []
   // Estado del panel: un tanque libre y las fabricaciones que se van creando.
-  const productos = [{ id: 'p1', nombre: 'Lavandina', color: '#0284c7', tipo: 'liquido', litros_hora_std: null, activo: true }]
+  const productos = [
+    { id: 'p1', nombre: 'Lavandina', color: '#0284c7', codigo: null, tipo: 'liquido', litros_hora_std: null, activo: true },
+    { id: 'p2', nombre: 'Bactipro', color: '#16a34a', codigo: null, tipo: 'liquido', litros_hora_std: null, activo: true },
+  ]
   const presentaciones = [{ id: 'pr1', nombre: '5L', litros_equiv: 5, activo: true }]
   const tanque = {
     tanque_id: 't1', codigo: 'T-01', capacidad_l: 2000, orden: 1, estado: 'libre',
@@ -79,11 +105,6 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
   await page.routeWebSocket(/realtime/, (ws) => ws.close())
   await page.route('**/auth/v1/**', (r: Route) => r.fulfill({ json: sesionFalsa().user }))
 
-  // Edge Function de escaneo: devuelve una hoja de fabricación leída.
-  await page.route('**/functions/v1/escanear-hoja', (r: Route) =>
-    r.fulfill({ json: { ok: true, datos: { producto: 'LAVANDINA', cantidad: '1,500.000', lote: 'L-900', fecha: '21/10/2026' } } }),
-  )
-
   await page.route('**/rest/v1/**', async (r: Route) => {
     const url = new URL(r.request().url())
     const ruta = url.pathname.replace('/rest/v1/', '')
@@ -103,20 +124,32 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       return r.fulfill({ status: 204, body: '' })
     }
     if (ruta === 'envasados' && metodo === 'GET') return r.fulfill({ json: [] })
+    if (ruta === 'fabricaciones' && metodo === 'GET') return r.fulfill({ json: [] })
+    if (ruta === 'rpc/crear_fabricacion_formula') {
+      const pedido = r.request().postDataJSON()
+      formulasCreadas.push(pedido)
+      altaFabricacion(pedido.p_fab)
+      return r.fulfill({ json: { ok: true, id: 'NF1' } })
+    }
     if (ruta === 'fabricaciones' && metodo === 'POST') {
-      const d = r.request().postDataJSON()
-      const prod = productos.find((p) => p.id === d.producto_id)
-      flujo.push({
-        entidad: 'fabricacion', id: 'NF1', estado: 'cola', producto: prod?.nombre ?? null, color: prod?.color ?? null,
-        tanque_codigo: 'T-01', presentacion: null, cantidad: null, litros: d.litros, lote: d.lote, descripcion: null,
-        operaria_1: d.operaria_id, operaria_2: null, listo: true, inicio: null, min_efectivos: null, corriendo: false,
-        created_at: new Date().toISOString(), fin: null, fabricacion_id: null, litros_restantes: d.litros,
-      })
-      Object.assign(tanque, { estado: 'cola', fabricacion_id: 'NF1', producto_id: d.producto_id, producto: prod?.nombre, color: prod?.color, litros: d.litros, litros_restantes: d.litros })
+      altaFabricacion(r.request().postDataJSON())
       return r.fulfill({ status: 201, body: '' })
     }
+    if (ruta === 'fabricacion_mp' && metodo === 'GET') {
+      const id = url.searchParams.get('id')?.replace(/^eq\./, '')
+      const fab = url.searchParams.get('fabricacion_id')?.replace(/^eq\./, '')
+      return r.fulfill({ json: mp.filter((m) => (!id || m.id === id) && (!fab || m.fabricacion_id === fab)) })
+    }
+    if (ruta === 'rpc/cargar_mp') {
+      const { p_mp_id, p_lote, p_pesado, p_empleado_id, p_pin } = r.request().postDataJSON()
+      if (p_pin !== '1234') return r.fulfill({ json: { ok: false, codigo: 'PIN_INCORRECTO' } })
+      const fila = mp.find((m) => m.id === p_mp_id)
+      if (!fila) return r.fulfill({ json: { ok: false, codigo: 'NO_ENCONTRADO' } })
+      Object.assign(fila, { lote: p_lote?.trim() || null, pesado: !!p_pesado, cargado_por: p_empleado_id, cargado_at: new Date().toISOString() })
+      return r.fulfill({ json: { ok: true } })
+    }
     if (ruta === 'v_operarias') return r.fulfill({ json: operarias })
-    if (ruta === 'v_tareas') return r.fulfill({ json: abierta ? [tarea] : [] })
+    if (ruta === 'v_tareas') return r.fulfill({ json: abierta ? [conMp()] : [] })
     if (ruta === 'rpc/verificar_pin') {
       const { p_pin } = r.request().postDataJSON()
       return r.fulfill({ json: p_pin === '1234' ? { ok: true } : { ok: false, codigo: 'PIN_INCORRECTO' } })
@@ -126,9 +159,28 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       if (p_accion === 'iniciar') {
         Object.assign(tarea, { estado: 'fabricando', operaria_1: p_empleado_id, corriendo: true, min_efectivos: 0, inicio: new Date().toISOString() })
       }
-      if (p_accion === 'finalizar') abierta = false
+      if (p_accion === 'finalizar') {
+        // como accion(): no se finaliza con MP sin lote o sin pesar
+        const faltan = mp.filter((m) => !mpCompleta(m)).length
+        if (faltan > 0) return r.fulfill({ json: { ok: false, codigo: 'MP_INCOMPLETA', detalle: String(faltan) } })
+        abierta = false
+      }
       return r.fulfill({ json: { ok: true, fabricacion_cerrada: false } })
     }
     return r.fulfill({ status: 404, json: { message: `sin mock: ${ruta}` } })
   })
+
+  // Alta de una fabricación en el panel (a mano o desde la fórmula): ocupa T-01 y aparece en el flujo.
+  function altaFabricacion(d: { producto_id: string; litros: number; lote: string | null; operaria_id?: string | null }) {
+    const prod = productos.find((p) => p.id === d.producto_id)
+    flujo.push({
+      entidad: 'fabricacion', id: 'NF1', estado: 'cola', producto: prod?.nombre ?? null, color: prod?.color ?? null,
+      tanque_codigo: 'T-01', presentacion: null, cantidad: null, litros: d.litros, lote: d.lote, descripcion: null,
+      operaria_1: d.operaria_id ?? null, operaria_2: null, listo: true, inicio: null, min_efectivos: null, corriendo: false,
+      created_at: new Date().toISOString(), fin: null, fabricacion_id: null, litros_restantes: d.litros,
+    })
+    Object.assign(tanque, { estado: 'cola', fabricacion_id: 'NF1', producto_id: d.producto_id, producto: prod?.nombre, color: prod?.color, litros: d.litros, litros_restantes: d.litros })
+  }
+
+  return { formulasCreadas }
 }

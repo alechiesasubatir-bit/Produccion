@@ -34,6 +34,8 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     min_efectivos: null,
     corriendo: false,
     created_at: `2026-10-21T10:${String(n).padStart(2, '0')}:00Z`,
+    mp_total: 0,
+    mp_completas: 0,
     ...over,
   }
 }

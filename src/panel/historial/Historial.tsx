@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Entidad } from '../../domain/acciones'
 import { aCSV, descargarCSV, type ColumnaCSV } from '../../domain/csv'
@@ -14,6 +14,7 @@ import {
 import { formatoCronometro } from '../../domain/tareas'
 import { mensajeError } from '../../lib/errores'
 import { Chip } from '../../ui/Chip'
+import { TablaMp } from '../TablaMp'
 import { Calendario, tituloRango } from './Calendario'
 import { cargarHistorial } from './datosHistorial'
 import { SelectorRango } from './SelectorRango'
@@ -86,6 +87,7 @@ export function Historial() {
   const [estado, setEstado] = useState('')
   const [texto, setTexto] = useState('')
   const [orden, setOrden] = useState<{ por: keyof FilaHistorial; asc: boolean } | null>(null)
+  const [verMp, setVerMp] = useState<string | null>(null)
 
   useEffect(() => {
     let vigente = true
@@ -204,21 +206,46 @@ export function Historial() {
                     </button>
                   </th>
                 ))}
+                <th scope="col">MP</th>
               </tr>
             </thead>
             <tbody>
               {visibles.map((f) => {
                 const irAlTanque = f.entidad === 'fabricacion' && ABIERTA.includes(f.estado) && f.tanque_codigo
+                const clave = `${f.entidad}-${f.id}`
+                const mpAbierta = verMp === clave
                 return (
-                  <tr
-                    key={`${f.entidad}-${f.id}`}
-                    className={irAlTanque ? 'fila-enlace' : ''}
-                    onClick={irAlTanque ? () => navegar(`/panel/tanques?tanque=${encodeURIComponent(f.tanque_codigo!)}`) : undefined}
-                  >
-                    {COLUMNAS.map((c) => (
-                      <td key={c.clave}>{c.celda(f)}</td>
-                    ))}
-                  </tr>
+                  <Fragment key={clave}>
+                    <tr
+                      className={irAlTanque ? 'fila-enlace' : ''}
+                      onClick={irAlTanque ? () => navegar(`/panel/tanques?tanque=${encodeURIComponent(f.tanque_codigo!)}`) : undefined}
+                    >
+                      {COLUMNAS.map((c) => (
+                        <td key={c.clave}>{c.celda(f)}</td>
+                      ))}
+                      <td>
+                        {f.entidad === 'fabricacion' && (
+                          <button
+                            type="button"
+                            className="boton-mini"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setVerMp(mpAbierta ? null : clave)
+                            }}
+                          >
+                            {mpAbierta ? 'Ocultar MP' : 'Ver MP'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {mpAbierta && (
+                      <tr className="fila-mp">
+                        <td colSpan={COLUMNAS.length + 1}>
+                          <TablaMp fabricacionId={f.id} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
             </tbody>

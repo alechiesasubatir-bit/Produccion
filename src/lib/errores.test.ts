@@ -64,6 +64,22 @@ describe('mensajeError', () => {
     })
   })
 
+  it('MP incompleta usa el detalle', () => {
+    expect(mensajeError({ ok: false, codigo: 'MP_INCOMPLETA', detalle: '2' }).texto).toBe('Faltan 2 MP por completar.')
+  })
+
+  it('MP incompleta sin detalle', () => {
+    expect(mensajeError({ ok: false, codigo: 'MP_INCOMPLETA' }).texto).toBe('Faltan algunas MP por completar.')
+  })
+
+  it('lote duplicado', () => {
+    expect(mensajeError({ ok: false, codigo: 'LOTE_DUPLICADO' }).texto).toBe('Ya existe una fabricación con ese lote.')
+  })
+
+  it('datos inválidos', () => {
+    expect(mensajeError({ ok: false, codigo: 'DATOS_INVALIDOS' }).texto).toBe('Faltan datos o hay datos inválidos en la orden.')
+  })
+
   it('cualquier otro error', () => {
     expect(mensajeError(new Error('boom'))).toEqual({
       codigo: 'DESCONOCIDO',

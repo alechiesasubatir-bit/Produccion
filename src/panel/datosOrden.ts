@@ -1,7 +1,9 @@
-import type { NuevaFabricacion, NuevoEnvasado, NuevoFraccionado } from '../domain/ordenes'
+import type { MpFormula } from '../domain/formulaPdf'
+import type { NuevaFabricacion, NuevaFabricacionFormula, NuevoEnvasado, NuevoFraccionado } from '../domain/ordenes'
 import type { Estandar } from '../domain/kpis'
+import type { Resultado } from '../lib/acciones'
 import { mensajeError } from '../lib/errores'
-import { db, supabase } from '../lib/supabase'
+import { db } from '../lib/supabase'
 import { cargarEstandares } from './historial/datosHistorial'
 
 export type TanqueOrden = {
@@ -16,13 +18,15 @@ export type TanqueOrden = {
 
 export type DatosOrden = {
   tanques: TanqueOrden[]
-  productos: { id: string; nombre: string; color: string }[]
+  productos: { id: string; nombre: string; color: string; codigo: string | null }[]
   presentaciones: { id: string; nombre: string; litros_equiv: number }[]
   operarias: { empleado_id: string; nombre: string }[]
   /** Litros ya comprometidos por envasados en cola/activos/pausados, por fabricación. */
   asignados: Record<string, number>
   /** Velocidades históricas para estimar el tiempo de la orden. */
   estandares: Estandar[]
+  /** Lotes de fabricaciones no canceladas (para no crear dos veces la misma fórmula). */
+  lotesAbiertos: string[]
 }
 
 async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
@@ -33,11 +37,11 @@ async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown
 
 // Catálogos activos para armar una orden (pocas filas: no hace falta paginar).
 export async function cargarDatosOrden(): Promise<DatosOrden> {
-  const [tanques, productos, presentaciones, operarias, abiertos, estandares] = await Promise.all([
+  const [tanques, productos, presentaciones, operarias, abiertos, estandares, lotes] = await Promise.all([
     filas<TanqueOrden>(
       db.from('v_tanque_estado').select('tanque_id, codigo, capacidad_l, estado, fabricacion_id, producto, litros_restantes').order('orden'),
     ),
-    filas<DatosOrden['productos'][number]>(db.from('productos').select('id, nombre, color').eq('activo', true).order('nombre')),
+    filas<DatosOrden['productos'][number]>(db.from('productos').select('id, nombre, color, codigo').eq('activo', true).order('nombre')),
     filas<DatosOrden['presentaciones'][number]>(
       db.from('presentaciones').select('id, nombre, litros_equiv').eq('activo', true).order('nombre'),
     ),
@@ -46,12 +50,14 @@ export async function cargarDatosOrden(): Promise<DatosOrden> {
       db.from('envasados').select('fabricacion_id, cantidad, presentaciones(litros_equiv)').in('estado', ['cola', 'activo', 'pausado']),
     ),
     cargarEstandares(),
+    filas<{ lote: string | null }>(db.from('fabricaciones').select('lote').neq('estado', 'cancelada')),
   ])
   const asignados: Record<string, number> = {}
   for (const e of abiertos) {
     asignados[e.fabricacion_id] = (asignados[e.fabricacion_id] ?? 0) + e.cantidad * (e.presentaciones?.litros_equiv ?? 0)
   }
-  return { tanques, productos, presentaciones, operarias, asignados, estandares }
+  const lotesAbiertos = [...new Set(lotes.map((f) => (f.lote ?? '').trim()).filter(Boolean))]
+  return { tanques, productos, presentaciones, operarias, asignados, estandares, lotesAbiertos }
 }
 
 const TABLA = { fabricacion: 'fabricaciones', envasado: 'envasados', fraccionado: 'fraccionados' } as const
@@ -64,21 +70,28 @@ export async function crearOrden(
   return { error }
 }
 
-// Lee la hoja con la Edge Function escanear-hoja (Claude). Nunca lanza.
-export async function escanearHoja(
-  tipo: keyof typeof TABLA,
-  imagen: string,
-): Promise<{ ok: true; datos: Record<string, unknown> } | { ok: false; error: string }> {
+// Crea una fabricación con su checklist de MP a partir de una fórmula leída del PDF. Nunca lanza:
+// la RPC produccion.crear_fabricacion_formula() devuelve {ok:false, codigo, detalle} en negocio.
+export async function crearFabricacionFormula(fab: NuevaFabricacionFormula, mp: MpFormula[]): Promise<Resultado<{ id: string }>> {
   try {
-    const { data, error } = await supabase.functions.invoke('escanear-hoja', { body: { tipo, imagen } })
-    if (error) {
-      // FunctionsHttpError trae el cuerpo de la función con el motivo.
-      const cuerpo = await (error as { context?: Response }).context?.json?.().catch(() => null)
-      return { ok: false, error: cuerpo?.error ?? 'El servicio de lectura no respondió. Probá de nuevo o cargala a mano.' }
-    }
-    if (!data?.ok) return { ok: false, error: data?.error ?? 'La lectura no trajo datos válidos. Cargala a mano.' }
-    return { ok: true, datos: data.datos }
+    const { data, error } = await db.rpc('crear_fabricacion_formula', {
+      p_fab: {
+        tanque_id: fab.tanque_id,
+        producto_id: fab.producto_id,
+        litros: fab.litros,
+        lote: fab.lote,
+        vencimiento: fab.vencimiento,
+        fecha_formula: fab.fecha_formula,
+        operaria_id: fab.operaria_id,
+        codigo_producto: fab.codigo_producto,
+      },
+      p_mp: mp,
+    } as never)
+    if (error) return { ok: false, ...mensajeError(error) }
+    const r = data as { ok?: boolean; id?: string } | null
+    if (!r?.ok) return { ok: false, ...mensajeError(r) }
+    return { ok: true, id: r.id as string }
   } catch (e) {
-    return { ok: false, error: mensajeError(e).texto }
+    return { ok: false, ...mensajeError(e) }
   }
 }

@@ -7,11 +7,19 @@ import { PlantaApp } from './PlantaApp'
 const m = vi.hoisted(() => ({
   verificarPin: vi.fn(),
   ejecutarAccion: vi.fn(),
+  guardarMp: vi.fn(),
+  cargarMpDe: vi.fn(),
   recargar: vi.fn(),
   error: null as string | null,
+  mpTotal: 0,
 }))
 
-vi.mock('../lib/acciones', () => ({ verificarPin: m.verificarPin, ejecutarAccion: m.ejecutarAccion }))
+vi.mock('../lib/acciones', () => ({
+  verificarPin: m.verificarPin,
+  ejecutarAccion: m.ejecutarAccion,
+  guardarMp: m.guardarMp,
+}))
+vi.mock('../lib/datosMp', () => ({ cargarMpDe: m.cargarMpDe }))
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../auth/useSesion', () => ({ salir: vi.fn() }))
 
@@ -38,11 +46,13 @@ const suya: Tarea = {
   min_efectivos: 5,
   corriendo: true,
   created_at: '2026-10-21T09:00:00Z',
+  mp_total: 0,
+  mp_completas: 0,
 }
 
 vi.mock('../lib/useRealtime', () => ({
   useRealtime: (tabla: string) => ({
-    datos: tabla === 'v_operarias' ? operarias : [suya],
+    datos: tabla === 'v_operarias' ? operarias : [{ ...suya, mp_total: m.mpTotal }],
     conectado: true,
     enVivo: true,
     error: tabla === 'v_tareas' ? m.error : null,
@@ -71,7 +81,10 @@ async function entrarComoLaura(pinOk = true) {
 }
 
 describe('PlantaApp', () => {
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    m.mpTotal = 0
+  })
 
   it('flujo feliz: persona → PIN → finalizar → confirmación', async () => {
     montar()
@@ -117,6 +130,35 @@ describe('PlantaApp', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Esta tarea ya la finalizó Rosa Díaz a las 10:15.')
     expect(screen.queryByText(/^Listo:/)).toBeNull()
     expect(m.recargar).toHaveBeenCalled()
+  })
+
+  it('PIN rechazado al guardar una MP: olvida el PIN y vuelve al teclado', async () => {
+    m.mpTotal = 1
+    m.cargarMpDe.mockResolvedValue([
+      { id: 'mp1', orden: 1, codigo: '900101', descripcion: 'Bacterias', cantidad: 6.5, lote: null, pesado: false, cargado_por: null, cargado_at: null },
+    ])
+    m.guardarMp.mockResolvedValue({ ok: false, codigo: 'PIN_INCORRECTO', texto: 'PIN incorrecto. Probá de nuevo.' })
+    montar()
+    await entrarComoLaura()
+    await act(async () => fireEvent.click(await screen.findByRole('checkbox', { name: 'Pesado 900101' })))
+    expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp1', lote: '', pesado: true, empleadoId: 'E1', pin: '1234' })
+    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('PIN incorrecto. Probá de nuevo.')
+  })
+
+  it('Finalizar rechazado por MP incompletas: vuelve a leer el checklist de la base', async () => {
+    m.mpTotal = 1
+    const mp = { id: 'mp1', orden: 1, codigo: '900101', descripcion: 'Bacterias', cantidad: 6.5, cargado_por: null, cargado_at: null }
+    m.cargarMpDe.mockReset().mockResolvedValueOnce([{ ...mp, lote: 'L1', pesado: true }]).mockResolvedValue([{ ...mp, lote: 'L1', pesado: false }])
+    m.ejecutarAccion.mockResolvedValue({ ok: false, codigo: 'MP_INCOMPLETA', texto: 'Faltan 1 MP por completar.' })
+    montar()
+    await entrarComoLaura()
+    expect(await screen.findByLabelText('900101 completa')).toBeInTheDocument()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Finalizar' })))
+    expect(m.cargarMpDe).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('checkbox', { name: 'Pesado 900101' })).not.toBeChecked()
+    expect(screen.getByRole('button', { name: /Finalizar/ })).toBeDisabled()
+    m.mpTotal = 0
   })
 
   it('a los 30 s sin tocar vuelve a "¿Quién trabaja?" y olvida el PIN', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, ejecutarAccion, verificarPin } from './acciones'
+import { accionPanel, ejecutarAccion, guardarMp, verificarPin } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -80,5 +80,33 @@ describe('accionPanel', () => {
     rpc.mockResolvedValue({ data: { ok: true, fabricacion_cerrada: true }, error: null })
     expect(await accionPanel({ entidad: 'envasado', id: 'v1', accion: 'cancelar' })).toEqual({ ok: true, fabricacionCerrada: true })
     expect(rpc).toHaveBeenLastCalledWith('accion', { p_entidad: 'envasado', p_id: 'v1', p_accion: 'cancelar' })
+  })
+})
+
+describe('guardarMp', () => {
+  it('llama a cargar_mp con los nombres de parámetro exactos', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    await guardarMp({ id: 'mp1', lote: 'L123', pesado: true, empleadoId: 'E1', pin: '1234' })
+    expect(rpc).toHaveBeenLastCalledWith('cargar_mp', {
+      p_mp_id: 'mp1',
+      p_lote: 'L123',
+      p_pesado: true,
+      p_empleado_id: 'E1',
+      p_pin: '1234',
+    })
+  })
+
+  it('éxito', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    expect(await guardarMp({ id: 'mp1', lote: 'L123', pesado: true })).toEqual({ ok: true })
+  })
+
+  it('rechazo de negocio', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'TRANSICION_INVALIDA' }, error: null })
+    expect(await guardarMp({ id: 'mp1', lote: 'L123', pesado: false })).toEqual({
+      ok: false,
+      codigo: 'TRANSICION_INVALIDA',
+      texto: 'Esta tarea ya cambió de estado.',
+    })
   })
 })

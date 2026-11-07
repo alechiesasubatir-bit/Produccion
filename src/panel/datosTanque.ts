@@ -1,6 +1,14 @@
 import { db } from '../lib/supabase'
 
 export type EventoRecorrido = { at: string; accion: string; quien: string; entidad: string }
+export type DatosFabricacion = { lote: string | null; vencimiento: string | null }
+
+// Lote y vencimiento de la fabricación en curso, para mostrarlos en el detalle del tanque.
+export async function cargarFabricacion(fabricacionId: string): Promise<DatosFabricacion | null> {
+  const { data, error } = await db.from('fabricaciones').select('lote, vencimiento').eq('id', fabricacionId).maybeSingle()
+  if (error) throw error
+  return data
+}
 
 // Eventos de una fabricación y de sus envasados, con el nombre de quién los hizo.
 export async function cargarRecorrido(fabricacionId: string): Promise<EventoRecorrido[]> {

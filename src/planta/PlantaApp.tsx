@@ -50,6 +50,8 @@ export function PlantaApp() {
   const [intentos, setIntentos] = useState(0)
   const [verificando, setVerificando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
+  // Sube cuando la base rechaza Finalizar por MP incompletas: el checklist se vuelve a leer.
+  const [recargaMp, setRecargaMp] = useState(0)
   const [confirmacion, setConfirmacion] = useState<{ color: string; texto: string } | null>(null)
   const enviando = useRef(false)
   // Cada vez que cambia la persona se incrementa: una respuesta que llega tarde de una sesión
@@ -101,6 +103,13 @@ export function PlantaApp() {
     setPantalla('tareas')
   }
 
+  // La encargada le cambió el PIN o quedó bloqueada: volver a pedirlo.
+  const pedirPinDeNuevo = (texto: string) => {
+    setPin(null)
+    fallarPin(texto)
+    setPantalla('pin')
+  }
+
   const accionar = async (t: Tarea, a: Accion) => {
     if (!operaria || !pin || enviando.current) return
     const mia = sesion.current
@@ -115,13 +124,8 @@ export function PlantaApp() {
       return
     }
     tareas.recargar()
-    if (r.codigo === 'PIN_INCORRECTO' || r.codigo === 'PIN_BLOQUEADO') {
-      // La encargada le cambió el PIN o quedó bloqueada: volver a pedirlo.
-      setPin(null)
-      fallarPin(r.texto)
-      setPantalla('pin')
-      return
-    }
+    if (r.codigo === 'MP_INCOMPLETA') setRecargaMp((n) => n + 1)
+    if (r.codigo === 'PIN_INCORRECTO' || r.codigo === 'PIN_BLOQUEADO') return pedirPinDeNuevo(r.texto)
     setAviso(r.texto)
   }
 
@@ -188,16 +192,19 @@ export function PlantaApp() {
             onVolver={volverAlInicio}
           />
         )}
-        {pantalla === 'tareas' && operaria && (
+        {pantalla === 'tareas' && operaria && pin && (
           <MisTareas
             nombre={operaria.nombre}
             tareas={tareas.datos}
             empleadoId={operaria.empleado_id}
+            pin={pin}
             tanque={tanque}
             conectado={tareas.conectado}
             cargadoEn={cargadoEn}
             aviso={aviso}
+            recargaMp={recargaMp}
             onAccion={(t, a) => void accionar(t, a)}
+            onPinInvalido={pedirPinDeNuevo}
             onSalir={volverAlInicio}
           />
         )}
