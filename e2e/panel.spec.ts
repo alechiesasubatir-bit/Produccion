@@ -28,7 +28,8 @@ test('encargada: nueva orden → flujo → tanque con QR → configuración', as
   await page.getByRole('button', { name: 'Tanque T-01' }).click()
   const detalle = page.getByRole('complementary', { name: 'Tanque T-01' })
   await expect(detalle.locator('.qr svg')).toBeVisible()
-  await expect(detalle.getByText(/planta\?tanque=T-01$/)).toBeVisible()
+  // la dirección no se muestra en pantalla (solo impresa), pero va en el QR
+  await expect(detalle.getByText(/planta\?tanque=T-01$/)).toBeAttached()
   await page.screenshot({ path: 'test-results/panel-tanques-1440.png', fullPage: true })
   await page.emulateMedia({ media: 'print' })
   await page.screenshot({ path: 'test-results/qr-impresion.png' })

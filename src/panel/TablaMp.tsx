@@ -122,69 +122,75 @@ export function TablaMp({
   if (aviso) return aviso
   if (filas.length === 0) return <p className="vacio">Sin materias primas (orden cargada a mano)</p>
 
+  // En cola la base no deja cargar todavía: se avisa en vez de mostrar una tabla que parece rota.
+  const pista = estado === 'cola' && (
+    <p className="mp-pista">Lote y pesado se cargan cuando la fabricación está en curso: tocá «Iniciar».</p>
+  )
   const tabla = (
-    <table className={`tabla-mp${editable ? ' tabla-mp-editable' : ''}`}>
-      <thead>
-        <tr>
-          <th scope="col">Código</th>
-          <th scope="col">Descripción</th>
-          <th scope="col">Cantidad</th>
-          <th scope="col">Lote</th>
-          <th scope="col">Pesado</th>
-          <th scope="col">Cargó</th>
-          <th scope="col">Hora</th>
-        </tr>
-      </thead>
-      <tbody>
-        {filas.map((f) => (
-          <tr key={f.id}>
-            <td>{f.codigo}</td>
-            <td>{f.descripcion}</td>
-            <td>{numero(f.cantidad)}</td>
-            <td>
-              {editable ? (
-                <input
-                  className="mp-lote-panel"
-                  type="text"
-                  aria-label={`Lote de ${f.codigo}`}
-                  placeholder="Lote"
-                  autoComplete="off"
-                  value={f.borrador}
-                  onChange={(e) => cambiar(f.id, { borrador: e.target.value })}
-                  onBlur={() => salirDelLote(f)}
-                />
-              ) : (
-                (f.lote ?? '—')
-              )}
-            </td>
-            <td>
-              {editable ? (
-                <>
-                  <input
-                    type="checkbox"
-                    aria-label={`Pesado ${f.codigo}`}
-                    checked={f.pesado}
-                    onChange={(e) => tildar(f, e.target.checked)}
-                  />
-                  {f.ok && <span className="mp-guardado">Guardado</span>}
-                  {f.error && (
-                    <span className="mp-error-panel" role="alert">
-                      {f.error}
-                    </span>
-                  )}
-                </>
-              ) : f.pesado ? (
-                '✓'
-              ) : (
-                '—'
-              )}
-            </td>
-            <td>{(f.cargado_por && nombres.get(f.cargado_por)) || '—'}</td>
-            <td>{f.cargado_at ? hora(f.cargado_at) : '—'}</td>
+    <div className="tabla-mp-caja">
+      <table className={`tabla-mp${editable ? ' tabla-mp-editable' : ''}`}>
+        <thead>
+          <tr>
+            <th scope="col">Código</th>
+            <th scope="col">Descripción</th>
+            <th scope="col">Cantidad</th>
+            <th scope="col">Lote</th>
+            <th scope="col">Pesado</th>
+            <th scope="col">Cargó</th>
+            <th scope="col">Hora</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {filas.map((f) => (
+            <tr key={f.id}>
+              <td>{f.codigo}</td>
+              <td>{f.descripcion}</td>
+              <td>{numero(f.cantidad)}</td>
+              <td>
+                {editable ? (
+                  <input
+                    className="mp-lote-panel"
+                    type="text"
+                    aria-label={`Lote de ${f.codigo}`}
+                    placeholder="Lote"
+                    autoComplete="off"
+                    value={f.borrador}
+                    onChange={(e) => cambiar(f.id, { borrador: e.target.value })}
+                    onBlur={() => salirDelLote(f)}
+                  />
+                ) : (
+                  (f.lote ?? '—')
+                )}
+              </td>
+              <td>
+                {editable ? (
+                  <>
+                    <input
+                      type="checkbox"
+                      aria-label={`Pesado ${f.codigo}`}
+                      checked={f.pesado}
+                      onChange={(e) => tildar(f, e.target.checked)}
+                    />
+                    {f.ok && <span className="mp-guardado">Guardado</span>}
+                    {f.error && (
+                      <span className="mp-error-panel" role="alert">
+                        {f.error}
+                      </span>
+                    )}
+                  </>
+                ) : f.pesado ? (
+                  '✓'
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td>{(f.cargado_por && nombres.get(f.cargado_por)) || '—'}</td>
+              <td>{f.cargado_at ? hora(f.cargado_at) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
   if (!plegable) return tabla
   return (
@@ -192,6 +198,7 @@ export function TablaMp({
       <button type="button" className="boton-mini" aria-expanded={abierta} onClick={() => setAbierta((a) => !a)}>
         {abierta ? 'Ocultar MP' : `Ver MP (${filas.length})`}
       </button>
+      {abierta && pista}
       {abierta && tabla}
     </section>
   )
