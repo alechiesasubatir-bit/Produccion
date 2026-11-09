@@ -28,6 +28,8 @@ export const PRODUCTOS: ProductoDemo[] = [
   { id: 'dp10', nombre: 'Jabon Liquido Lavarropas (Granel)', color: '#d97706', tipo: 'liquido' },
   { id: 'dp11', nombre: 'Gel Desengrasante (Granel)', color: '#c2410c', tipo: 'denso' },
   { id: 'dp12', nombre: 'Esencia Hornitos Vainilla (Granel)', color: '#c084fc', tipo: 'liquido' },
+  { id: 'dp13', nombre: 'Limpia y Desodoriza Graseras (Granel)', color: '#22c55e', tipo: 'polvo' },
+  { id: 'dp14', nombre: 'Cloro Shock (Granel)', color: '#06b6d4', tipo: 'polvo' },
 ]
 
 // Productos que se fraccionan (no salen de un tanque).

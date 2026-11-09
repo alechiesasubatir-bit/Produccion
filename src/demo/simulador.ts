@@ -546,12 +546,15 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
 
   // Estado inicial: casi todos los tanques con una orden, y la planta "calentada" unas horas.
   if (autonomo) {
-    for (const tq of TANQUES) {
-      if (azar() < 0.85) {
+    // T-03 arranca siempre con un polvo, para que se vea la bolsa ziplock.
+    const polvos = PRODUCTOS.filter((p) => p.tipo === 'polvo')
+    TANQUES.forEach((tq, i) => {
+      const forzado = i === 2
+      if (forzado || azar() < 0.85) {
         const litros = Math.round((tq.capacidad_l * (0.55 + azar() * 0.35)) / 50) * 50
-        insertar('fabricaciones', { tanque_id: tq.id, producto_id: elegir(PRODUCTOS).id, litros })
+        insertar('fabricaciones', { tanque_id: tq.id, producto_id: elegir(forzado ? polvos : PRODUCTOS).id, litros })
       }
-    }
+    })
     avanzar(calentar)
   }
 
