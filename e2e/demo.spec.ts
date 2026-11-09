@@ -43,3 +43,24 @@ test('demo pública: sin usuario, en vivo, se puede tocar y no sale a la red', a
 
   expect(externas).toEqual([])
 })
+
+test('demo: la pestaña Tablet muestra la app de planta y una acción se ve en el flujo', async ({ page }) => {
+  await page.goto('demo')
+  await page.getByRole('button', { name: 'Pausa', exact: true }).click()
+  await page.getByRole('link', { name: 'Tablet' }).click()
+  const tablet = page.getByRole('region', { name: 'Vista de la tablet' })
+  await expect(tablet.getByText('Control de Producción')).toBeVisible()
+  await page.screenshot({ path: 'test-results/demo-tablet-1440.png' })
+  // elegir una operaria y entrar con cualquier PIN
+  await tablet.getByRole('button').first().click()
+  for (const d of ['1', '2', '3', '4']) await tablet.getByRole('button', { name: d, exact: true }).click()
+  await expect(tablet.getByRole('button', { name: 'No soy yo' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/demo-tablet-tareas-1440.png' })
+
+  // tomar una fabricación en cola y verla en Fabricando (mismo simulador que el panel)
+  const tarea = tablet.getByRole('region', { name: 'Disponibles para tomar' }).getByRole('article').filter({ hasText: 'En cola' }).filter({ has: page.getByRole('img') }).first()
+  const nombre = (await tarea.getAttribute('aria-label'))!
+  await tarea.getByRole('button', { name: 'Tomar' }).click()
+  await page.getByRole('link', { name: 'Flujo' }).click()
+  await expect(page.getByRole('region', { name: 'Fabricando' }).getByRole('article', { name: nombre })).toBeVisible()
+})

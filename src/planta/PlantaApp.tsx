@@ -33,7 +33,9 @@ function Reloj() {
   return <span className="planta-reloj">{ahora.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
 }
 
-export function PlantaApp() {
+// `embebida`: la vista de la tablet dentro del panel (pestaña Tablet). Datos y acciones reales,
+// pero sin el menú del dispositivo (cerraría la sesión del panel).
+export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
   const [params] = useSearchParams()
   const tanque = params.get('tanque')
 
@@ -140,6 +142,7 @@ export function PlantaApp() {
   const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const soltarLogo = () => clearTimeout(temporizador.current)
   const apretarLogo = () => {
+    if (embebida) return
     soltarLogo()
     temporizador.current = setTimeout(() => setMenu(true), MANTENER_LOGO_MS)
   }

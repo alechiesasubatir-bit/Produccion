@@ -11,6 +11,7 @@ import { Historial } from './historial/Historial'
 import { Kpis } from './kpis/Kpis'
 import { Monitor } from './monitor/Monitor'
 import { Tanques } from './Tanques'
+import { VistaTablet } from './VistaTablet'
 import './panel.css'
 
 type Pestana = { a: string; texto: string; end: boolean; enDemo: boolean }
@@ -23,6 +24,7 @@ const PESTANAS: Pestana[] = [
   { a: '/alertas', texto: 'Alertas', end: false, enDemo: false },
   { a: '/config', texto: 'Configuración', end: false, enDemo: false },
   { a: '/monitor', texto: 'Monitor', end: false, enDemo: true },
+  { a: '/tablet', texto: 'Tablet', end: false, enDemo: true },
 ]
 
 // `base` es la raíz de las rutas ('/panel' o '/demo'). En la demo se ven solo las vistas en vivo,
@@ -78,6 +80,7 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
           <Route index element={<Flujo />} />
           <Route path="tanques" element={<Tanques />} />
           <Route path="monitor" element={<Monitor salir={base} />} />
+          <Route path="tablet" element={<VistaTablet demo={demo} />} />
           {!demo && (
             <>
               <Route path="historial" element={<Historial />} />
