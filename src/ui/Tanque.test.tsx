@@ -58,3 +58,13 @@ test('expone role img con aria-label y data-estado', () => {
   rerender(<Tanque estado="cola" nivel={0} etiqueta="T-01 en cola" />)
   expect(getByRole('img', { name: 'T-01 en cola' })).toBeInTheDocument()
 })
+
+test('polvo dibuja una bolsa ziplock con polvo que cae mientras se fabrica o envasa', () => {
+  const { container, rerender } = render(<Tanque estado="envasando" nivel={0.5} color="#eab308" tipo="polvo" />)
+  expect(container.querySelector('.ziplock')).not.toBeNull()
+  expect(container.querySelector('.liquido')).toBeNull()
+  expect(container.querySelectorAll('.burbuja')).toHaveLength(0)
+  expect(container.querySelectorAll('.grano').length).toBeGreaterThan(0)
+  rerender(<Tanque estado="env_pausado" nivel={0.5} color="#eab308" tipo="polvo" />)
+  expect(container.querySelectorAll('.grano')).toHaveLength(0)
+})

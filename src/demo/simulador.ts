@@ -403,7 +403,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       if (f.estado === 'cancelada' || !visible(f, 'finalizada')) continue
       const p = producto(f.producto_id)
       filas.push({
-        entidad: 'fabricacion', id: f.id, estado: f.estado, producto: p?.nombre ?? null, color: p?.color ?? null,
+        entidad: 'fabricacion', id: f.id, estado: f.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: tanque(f.tanque_id).codigo, presentacion: null, cantidad: null, litros: f.litros, lote: f.lote,
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando',
@@ -416,7 +416,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const p = producto(f.producto_id)
       const pr = presentacion(e.presentacion_id)
       filas.push({
-        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null,
+        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: tanque(f.tanque_id).codigo, presentacion: pr.nombre, cantidad: e.cantidad, litros: e.cantidad * pr.litros_equiv,
         lote: f.lote, descripcion: null, operaria_1: e.operaria_1, operaria_2: e.operaria_2, listo: f.estado === 'para_envasar',
         inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos, corriendo: e.estado === 'activo',
@@ -428,7 +428,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const p = producto(x.producto_id)
       const pr = presentacion(x.presentacion_id)
       filas.push({
-        entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? x.descripcion, color: p?.color ?? null,
+        entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? x.descripcion, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: null, presentacion: pr.nombre, cantidad: x.cantidad, litros: x.cantidad * pr.litros_equiv, lote: x.lote,
         descripcion: x.descripcion, operaria_1: x.operaria, operaria_2: null, listo: true, inicio: iso(x.inicio),
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
@@ -443,7 +443,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const f = fabAbierta(tq.id)
       const vacio = {
         tanque_id: tq.id, codigo: tq.codigo, capacidad_l: tq.capacidad_l, orden: tq.orden, estado: 'libre',
-        fabricacion_id: null, producto_id: null, producto: null, color: null, litros: null, litros_restantes: null,
+        fabricacion_id: null, producto_id: null, producto: null, color: null, litros: null, litros_restantes: null, producto_tipo: null,
         envasado_id: null, operaria_id: null, inicio: null,
       }
       if (!f) return vacio
@@ -455,7 +455,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const estado =
         f.estado !== 'para_envasar' ? f.estado : activo ? 'envasando' : pausado ? 'env_pausado' : abiertos.length ? 'cola_env' : 'para_envasar'
       return {
-        ...vacio, estado, fabricacion_id: f.id, producto_id: f.producto_id, producto: p?.nombre ?? null, color: p?.color ?? null,
+        ...vacio, estado, fabricacion_id: f.id, producto_id: f.producto_id, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         litros: f.litros, litros_restantes: restante(f), envasado_id: env?.id ?? null,
         operaria_id: env ? env.operaria_1 : f.operaria, inicio: iso(env?.inicio ?? f.inicio),
       }
@@ -469,7 +469,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const p = producto(f.producto_id)
       const mp = mpDe(f.id)
       filas.push({
-        entidad: 'fabricacion', id: f.id, estado: f.estado, producto: p?.nombre ?? null, color: p?.color ?? null,
+        entidad: 'fabricacion', id: f.id, estado: f.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: tanque(f.tanque_id).codigo, presentacion: null, cantidad: null, litros: f.litros, lote: f.lote,
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando', created_at: iso(f.creado),
@@ -481,7 +481,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const f = fabDe(e.fabricacion_id)
       const p = producto(f.producto_id)
       filas.push({
-        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null,
+        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: tanque(f.tanque_id).codigo, presentacion: presentacion(e.presentacion_id).nombre, cantidad: e.cantidad,
         litros: f.litros, lote: f.lote, descripcion: null, operaria_1: e.operaria_1, operaria_2: e.operaria_2,
         listo: f.estado === 'para_envasar', inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos,
@@ -492,7 +492,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       if (!ABIERTA_TAREA.has(x.estado)) continue
       const p = producto(x.producto_id)
       filas.push({
-        entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? null, color: p?.color ?? null,
+        entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: null, presentacion: presentacion(x.presentacion_id).nombre, cantidad: x.cantidad, litros: null,
         lote: x.lote, descripcion: x.descripcion, operaria_1: x.operaria, operaria_2: null, listo: true, inicio: iso(x.inicio),
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),

@@ -23,7 +23,7 @@ let n = 0
 function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
   n += 1
   return {
-    entidad: 'fabricacion', id: `f${n}`, estado: 'fabricando', producto: 'Lavandina', color: '#facc15', tanque_codigo: 'T-01',
+    entidad: 'fabricacion', id: `f${n}`, estado: 'fabricando', producto: 'Lavandina', color: '#facc15', producto_tipo: null, tanque_codigo: 'T-01',
     presentacion: null, cantidad: null, litros: 900, lote: `L-${n}`, descripcion: null, operaria_1: 'E1', operaria_2: null,
     listo: true, inicio: '2026-10-21T12:00:00Z', min_efectivos: 12, corriendo: true, created_at: `2026-10-21T10:${String(n).padStart(2, '0')}:00Z`,
     fin: null, fabricacion_id: null, litros_restantes: 900, ...over,
@@ -33,7 +33,7 @@ function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
 function tanque(over: Partial<EstadoTanqueFila>): EstadoTanqueFila {
   return {
     tanque_id: 't1', codigo: 'T-01', capacidad_l: 2000, orden: 1, estado: 'fabricando', fabricacion_id: 'f1', producto_id: 'p1',
-    producto: 'Lavandina', color: '#facc15', litros: 900, litros_restantes: 900, envasado_id: null, operaria_id: null, inicio: null, ...over,
+    producto: 'Lavandina', color: '#facc15', litros: 900, litros_restantes: 900, envasado_id: null, operaria_id: null, inicio: null, producto_tipo: null, ...over,
   }
 }
 

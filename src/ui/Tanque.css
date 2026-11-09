@@ -23,3 +23,12 @@
   transform-origin: center;
   animation: burbuja 2.6s ease-in infinite;
 }
+
+.tanque .polvo {
+  transition: transform 1.6s var(--ease);
+}
+
+.tanque .grano {
+  opacity: 0;
+  animation: polvo-cae 1s ease-in infinite;
+}

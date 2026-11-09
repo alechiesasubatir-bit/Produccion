@@ -61,6 +61,7 @@ export function TarjetaTarea({
         <Tanque
           estado={estado}
           color={tarea.color ?? undefined}
+          tipo={tarea.producto_tipo}
           ancho={44}
           nivel={nivelTanque({ estado, capacidad: 1, litros: 1, litrosRestantes: 1, progresoFab: 0.6 })}
           etiqueta={`Tanque ${tarea.tanque_codigo}`}

@@ -53,7 +53,13 @@ export function Configuracion() {
           orden="nombre"
           nuevo={{ nombre: '', color: '#0284c7', tipo: 'liquido', litros_hora_std: null }}
           vistaPrevia={(b) => (
-            <Tanque estado="fabricando" nivel={0.6} ancho={28} color={HEX.test(b.color ?? '') ? b.color : undefined} />
+            <Tanque
+              estado="fabricando"
+              nivel={0.6}
+              ancho={28}
+              color={HEX.test(b.color ?? '') ? b.color : undefined}
+              tipo={b.tipo === 'polvo' ? 'polvo' : undefined}
+            />
           )}
         />
       )}

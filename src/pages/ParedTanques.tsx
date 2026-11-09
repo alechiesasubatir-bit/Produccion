@@ -22,6 +22,7 @@ function Celda({ t }: { t: EstadoTanqueFila }) {
       <Tanque
         estado={t.estado}
         color={t.color ?? undefined}
+        tipo={t.producto_tipo}
         ancho={48}
         nivel={nivelTanque({ estado: t.estado, capacidad: t.capacidad_l, litros: t.litros, litrosRestantes: t.litros_restantes })}
         etiqueta={`Tanque ${t.codigo}: ${t.producto ?? 'libre'}`}

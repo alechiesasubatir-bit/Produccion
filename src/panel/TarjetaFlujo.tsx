@@ -93,7 +93,7 @@ export function TarjetaFlujo({
       style={{ '--producto': fila.color ?? undefined } as CSSProperties}
     >
       <div className="tf-cabecera">
-        {fila.tanque_codigo && <Tanque estado={estado} color={fila.color ?? undefined} nivel={nivel} ancho={28} />}
+        {fila.tanque_codigo && <Tanque estado={estado} color={fila.color ?? undefined} tipo={fila.producto_tipo} nivel={nivel} ancho={28} />}
         <div className="tf-titulo">
           <span className="tf-nombre">{tituloTarea(fila)}</span>
           <span className="tf-meta">

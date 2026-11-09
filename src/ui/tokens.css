@@ -84,6 +84,23 @@ body {
   }
 }
 
+@keyframes polvo-cae {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--caida, 60px));
+    opacity: 0;
+  }
+}
+
 @keyframes pulso {
   50% {
     opacity: .25;
@@ -207,6 +224,8 @@ body {
   .ola,
   .burbuja,
   .liquido,
+  .grano,
+  .polvo,
   .chip i {
     animation: none !important;
     transition: none !important;

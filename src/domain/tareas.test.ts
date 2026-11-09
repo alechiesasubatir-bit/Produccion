@@ -21,6 +21,7 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     estado: 'cola',
     producto: 'Lavandina',
     color: '#0284c7',
+    producto_tipo: null,
     tanque_codigo: 'T-01',
     presentacion: null,
     cantidad: null,

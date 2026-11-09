@@ -10,6 +10,7 @@ type Uuid = string
 type EstadoFabricacion = 'cola' | 'fabricando' | 'pausada' | 'para_envasar' | 'finalizada' | 'cancelada'
 type EstadoTarea = 'cola' | 'activo' | 'pausado' | 'finalizado' | 'cancelado'
 type EntidadEvento = 'fabricacion' | 'envasado' | 'fraccionado'
+export type TipoProducto = 'liquido' | 'denso' | 'polvo'
 
 // Row completo; Insert hace opcionales las columnas con default.
 type Tabla<Row, Opcionales extends keyof Row, Requeridas extends keyof Row = Exclude<keyof Row, Opcionales>> = {
@@ -72,7 +73,7 @@ export type Database = {
           nombre: string
           codigo: string | null
           color: string
-          tipo: 'liquido' | 'denso' | 'polvo'
+          tipo: TipoProducto
           litros_hora_std: number | null
           activo: boolean
           created_at: Ts
@@ -244,6 +245,7 @@ export type Database = {
         envasado_id: Uuid | null
         operaria_id: Uuid | null
         inicio: Ts | null
+        producto_tipo: TipoProducto | null
       }>
       v_flujo: Vista<{
         entidad: EntidadEvento
@@ -267,6 +269,7 @@ export type Database = {
         fin: Ts | null
         fabricacion_id: Uuid | null
         litros_restantes: number | null
+        producto_tipo: TipoProducto | null
       }>
       v_tareas: Vista<{
         entidad: EntidadEvento
@@ -289,6 +292,7 @@ export type Database = {
         created_at: Ts
         mp_total: number
         mp_completas: number
+        producto_tipo: TipoProducto | null
       }>
       v_historial: Vista<{
         entidad: EntidadEvento

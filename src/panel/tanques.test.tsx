@@ -7,6 +7,7 @@ import { Tanques } from './Tanques'
 const tanque = (over: Partial<EstadoTanqueFila>): EstadoTanqueFila => ({
   tanque_id: 't1',
   codigo: 'T-01',
+  producto_tipo: null,
   capacidad_l: 2000,
   orden: 1,
   estado: 'libre',
