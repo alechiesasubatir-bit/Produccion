@@ -141,8 +141,8 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       return r.fulfill({ json: mp.filter((m) => (!id || m.id === id) && (!fab || m.fabricacion_id === fab)) })
     }
     if (ruta === 'rpc/cargar_mp') {
-      const { p_mp_id, p_lote, p_pesado, p_empleado_id, p_pin } = r.request().postDataJSON()
-      if (p_pin !== '1234') return r.fulfill({ json: { ok: false, codigo: 'PIN_INCORRECTO' } })
+      const { p_mp_id, p_lote, p_pesado, p_empleado_id } = r.request().postDataJSON()
+      if (!p_empleado_id) return r.fulfill({ json: { ok: false, codigo: 'NO_AUTORIZADO' } })
       const fila = mp.find((m) => m.id === p_mp_id)
       if (!fila) return r.fulfill({ json: { ok: false, codigo: 'NO_ENCONTRADO' } })
       Object.assign(fila, { lote: p_lote?.trim() || null, pesado: !!p_pesado, cargado_por: p_empleado_id, cargado_at: new Date().toISOString() })
@@ -150,10 +150,6 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     }
     if (ruta === 'v_operarias') return r.fulfill({ json: operarias })
     if (ruta === 'v_tareas') return r.fulfill({ json: abierta ? [conMp()] : [] })
-    if (ruta === 'rpc/verificar_pin') {
-      const { p_pin } = r.request().postDataJSON()
-      return r.fulfill({ json: p_pin === '1234' ? { ok: true } : { ok: false, codigo: 'PIN_INCORRECTO' } })
-    }
     if (ruta === 'rpc/accion') {
       const { p_accion, p_empleado_id } = r.request().postDataJSON()
       if (p_accion === 'iniciar') {

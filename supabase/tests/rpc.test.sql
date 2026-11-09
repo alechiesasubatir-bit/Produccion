@@ -48,24 +48,20 @@ insert into _tap (l) select is(
     '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
   'TRANSICION_INVALIDA', 'finalizar desde cola es inválido');
 
--- 3. PIN incorrecto suma un intento (y persiste)
-select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'pausar',
-  '00000000-0000-0000-0000-0000000000e1', '9999')::text, true);
-reset role;
+-- 3. sin PIN: la tablet acciona solo con la operaria (migración 013)
 insert into _tap (l) select is(
-  (current_setting('t.r')::jsonb->>'codigo') || '/' ||
-  (select pin_intentos from produccion.operarias where empleado_id = '00000000-0000-0000-0000-0000000000e1'),
-  'PIN_INCORRECTO/1', 'PIN incorrecto: código y pin_intentos = 1');
-set local role authenticated;
+  produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'pausar',
+    '00000000-0000-0000-0000-0000000000e1')->>'estado',
+  'pausada', 'tablet pausa sin PIN');
 
--- 4. acierto después de errores reinicia el contador
-select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'pausar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+-- 4. un PIN cualquiera se ignora (clientes viejos) y no suma intentos
+select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'reanudar',
+  '00000000-0000-0000-0000-0000000000e1', '9999')::text, true);
 reset role;
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'estado') || '/' ||
   (select pin_intentos from produccion.operarias where empleado_id = '00000000-0000-0000-0000-0000000000e1'),
-  'pausada/0', 'PIN correcto tras un error: pausada y pin_intentos = 0');
+  'fabricando/0', 'PIN viejo ignorado: reanuda y pin_intentos = 0');
 set local role authenticated;
 
 -- 5. operaria dada de baja en core
@@ -116,13 +112,10 @@ insert into _tap (l) select is(
   (select estado from produccion.fabricaciones where id = '00000000-0000-0000-0000-0000000000b7'),
   'true/finalizada', 'envasar más de lo fabricado cierra la fabricación');
 
--- 11. bloqueo: 5 PINs incorrectos, después ni el correcto entra
-select produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'reanudar', '00000000-0000-0000-0000-0000000000e2', '9999')
-from generate_series(1, 5);
+-- 11. sin operaria la tablet no acciona
 insert into _tap (l) select is(
-  produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'reanudar',
-    '00000000-0000-0000-0000-0000000000e2', '1234')->>'codigo',
-  'PIN_BLOQUEADO', '5 errores bloquean aunque el PIN siguiente sea correcto');
+  produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'pausar')->>'codigo',
+  'NO_AUTORIZADO', 'tablet sin operaria: NO_AUTORIZADO');
 
 -- 12. usuario sin rol de producción
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}';

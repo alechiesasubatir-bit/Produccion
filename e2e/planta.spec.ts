@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { MP_BACTIPRO, simularSupabase } from './mocks'
 
-test('operaria → PIN → tomar → finalizar', async ({ page }) => {
+test('operaria (sin PIN) → tomar → finalizar', async ({ page }) => {
   await simularSupabase(page)
   await page.goto('planta?tanque=T-01')
 
   await expect(page.getByRole('heading', { name: '¿Quién trabaja?' })).toBeVisible()
   await page.getByRole('button', { name: /Laura Paz/ }).click()
-  for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click()
 
   await expect(page.getByRole('heading', { name: 'Hola, Laura Paz' })).toBeVisible()
   await page.screenshot({ path: 'test-results/planta-1180.png', fullPage: true })
@@ -29,7 +28,6 @@ test('fabricación con fórmula: Finalizar bloqueado hasta completar lote y pesa
   await simularSupabase(page, 'planta', { mp: MP_BACTIPRO })
   await page.goto('planta?tanque=T-01')
   await page.getByRole('button', { name: /Laura Paz/ }).click()
-  for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click()
   await page.getByRole('button', { name: 'Tomar' }).click()
   await expect(page.getByText('Listo: empezaste Lavandina · 1200 L')).toBeVisible()
 

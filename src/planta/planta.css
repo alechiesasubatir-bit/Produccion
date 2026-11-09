@@ -71,11 +71,6 @@
   animation: trazar 0.6s 0.15s var(--ease) both;
 }
 
-.pin .titulo-planta::after {
-  margin-inline: auto;
-  transform-origin: center;
-}
-
 /* ---------- ¿Quién trabaja? ---------- */
 
 .quien-grilla {
@@ -115,7 +110,6 @@
 }
 
 .quien-boton:focus-visible,
-.pin-tecla:focus-visible,
 .accion:focus-visible {
   outline: 3px solid var(--foco);
   outline-offset: 2px;
@@ -160,103 +154,6 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   text-align: center;
-}
-
-/* ---------- PIN ---------- */
-
-.pin {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.pin .titulo-planta {
-  margin-bottom: 8px;
-}
-
-.pin-hola,
-.pin-ayuda {
-  margin: 0;
-  color: var(--tinta-2);
-  font-size: 17px;
-}
-
-.pin-puntos {
-  display: flex;
-  gap: 18px;
-  margin: 24px 0 8px;
-}
-
-.pin-punto {
-  width: 22px;
-  height: 22px;
-  border: 2px solid var(--tinta);
-  border-radius: 50%;
-  transition: background-color 0.15s var(--ease), transform 0.2s var(--ease);
-}
-
-.pin-punto.lleno {
-  background: var(--senal);
-  border-color: var(--senal);
-  transform: scale(1.1);
-}
-
-.pin-puntos.sacudir {
-  animation: sacudir 0.4s var(--ease);
-}
-
-@keyframes sacudir {
-  20%, 60% { transform: translateX(-10px); }
-  40%, 80% { transform: translateX(10px); }
-}
-
-.pin-error {
-  min-height: 24px;
-  margin: 0 0 12px;
-  color: #991b1b;
-  font-weight: 500;
-}
-
-.pin-teclas {
-  display: grid;
-  grid-template-columns: repeat(3, 96px);
-  gap: 14px;
-}
-
-.pin-tecla {
-  appearance: none;
-  height: 80px;
-  border: 1px solid var(--linea-2);
-  border-radius: var(--radio);
-  background: var(--tarjeta);
-  color: var(--tinta);
-  font-family: var(--mono);
-  font-size: 30px;
-  cursor: pointer;
-  box-shadow: 0 2px 0 var(--linea-2);
-  transition: box-shadow 0.08s var(--ease), background-color 0.08s, color 0.08s;
-}
-
-.pin-tecla:active:not(:disabled) {
-  background: var(--tinta);
-  color: #fff;
-  box-shadow: 0 0 0 var(--linea-2);
-}
-
-.pin-tecla:disabled {
-  opacity: 0.5;
-}
-
-.pin-tecla-sec {
-  font-family: var(--sans);
-  font-size: 16px;
-  color: var(--tinta-2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pin-puntos.sacudir {
-    animation: none;
-  }
 }
 
 /* ---------- Mis tareas ---------- */
@@ -643,17 +540,6 @@
 
 .tarjeta-tarea:has(.chip.en-curso) .cronometro {
   color: color-mix(in srgb, var(--producto) 55%, var(--tinta));
-}
-
-/* PIN: cada punto "salta" al llenarse */
-.pin-punto.lleno {
-  animation: saltar 0.35s var(--ease);
-}
-
-@keyframes saltar {
-  0% { transform: scale(0.6); }
-  60% { transform: scale(1.3); }
-  100% { transform: scale(1.1); }
 }
 
 /* ¿Quién trabaja?: el avatar gira un anillo de color al tocar */

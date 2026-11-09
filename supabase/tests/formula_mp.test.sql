@@ -95,8 +95,8 @@ insert into _tap (l) select is(
 
 -- 9-11. cargar_mp rechazos
 insert into _tap (l) select is(
-  produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e1', '9999')->>'codigo',
-  'PIN_INCORRECTO', 'cargar_mp con PIN incorrecto');
+  produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true)->>'codigo',
+  'NO_AUTORIZADO', 'cargar_mp desde la tablet sin operaria');
 insert into _tap (l) select is(
   produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e2', '1234')->>'codigo',
   'NO_AUTORIZADO', 'cargar_mp con una operaria que no es la de la fabricación');
@@ -104,13 +104,13 @@ insert into _tap (l) select is(
   produccion.cargar_mp(current_setting('t.mp3')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
   'TRANSICION_INVALIDA', 'cargar_mp en una fabricación en cola');
 
--- 11b. fabricación sin operaria asignada: cualquier operaria activa con PIN carga, a su nombre
+-- 11b. fabricación sin operaria asignada: cualquier operaria activa carga, a su nombre (sin PIN)
 select set_config('t.r', produccion.cargar_mp(current_setting('t.mp4')::uuid, 'L-77', true,
-  '00000000-0000-0000-0000-0000000000e2', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e2')::text, true);
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'ok') || '/' ||
   (select lote || '/' || cargado_por from produccion.fabricacion_mp where id = current_setting('t.mp4')::uuid),
-  'true/L-77/00000000-0000-0000-0000-0000000000e2', 'sin operaria asignada: carga quien pone su PIN');
+  'true/L-77/00000000-0000-0000-0000-0000000000e2', 'sin operaria asignada: carga la operaria elegida');
 
 -- 12. carga OK (recorta el lote)
 select produccion.cargar_mp(current_setting('t.mp1')::uuid, ' L-55 ', true, '00000000-0000-0000-0000-0000000000e1', '1234');

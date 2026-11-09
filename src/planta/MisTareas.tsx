@@ -13,27 +13,23 @@ export function MisTareas({
   nombre,
   tareas,
   empleadoId,
-  pin,
   tanque,
   conectado,
   cargadoEn,
   aviso,
   recargaMp = 0,
   onAccion,
-  onPinInvalido,
   onSalir,
 }: {
   nombre: string
   tareas: Tarea[]
   empleadoId: string
-  pin: string
   tanque: string | null
   conectado: boolean
   cargadoEn: number
   aviso: string | null
   recargaMp?: number
   onAccion: (t: Tarea, a: Accion) => void
-  onPinInvalido: (texto: string) => void
   onSalir: () => void
 }) {
   const { mias, disponibles } = clasificarTareas(tareas, empleadoId, tanque)
@@ -83,10 +79,8 @@ export function MisTareas({
                   <ChecklistMp
                     fabricacionId={t.id}
                     empleadoId={empleadoId}
-                    pin={pin}
                     habilitado={conectado}
                     recarga={recargaMp}
-                    onPinInvalido={onPinInvalido}
                     onCambio={(n) => setCompletasLocal((c) => (c[t.id] === n ? c : { ...c, [t.id]: n }))}
                   />
                 )

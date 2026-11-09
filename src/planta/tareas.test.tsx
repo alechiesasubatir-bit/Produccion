@@ -39,13 +39,11 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
 const base = {
   nombre: 'Laura Paz',
   empleadoId: 'E1',
-  pin: '1234',
   tanque: null,
   conectado: true,
   cargadoEn: Date.now(),
   aviso: null,
   onAccion: () => {},
-  onPinInvalido: () => {},
   onSalir: () => {},
 }
 

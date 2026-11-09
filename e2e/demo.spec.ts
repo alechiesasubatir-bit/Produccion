@@ -51,9 +51,8 @@ test('demo: la pestaña Tablet muestra la app de planta y una acción se ve en e
   const tablet = page.getByRole('region', { name: 'Vista de la tablet' })
   await expect(tablet.getByText('Control de Producción')).toBeVisible()
   await page.screenshot({ path: 'test-results/demo-tablet-1440.png' })
-  // elegir una operaria y entrar con cualquier PIN
+  // elegir una operaria: entra directo, sin PIN
   await tablet.getByRole('button').first().click()
-  for (const d of ['1', '2', '3', '4']) await tablet.getByRole('button', { name: d, exact: true }).click()
   await expect(tablet.getByRole('button', { name: 'No soy yo' })).toBeVisible()
   await page.screenshot({ path: 'test-results/demo-tablet-tareas-1440.png' })
 

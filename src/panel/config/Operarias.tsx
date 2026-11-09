@@ -4,44 +4,14 @@ import { useEnLinea } from '../../lib/useEnLinea'
 import {
   altaOperaria,
   cambiarActiva,
-  cambiarPin,
   listarFuncionarios,
   listarOperarias,
   type Funcionario,
   type OperariaConfig,
 } from './datosPersonas'
 
-const PIN = /^\d{4}$/
 const HEX = /^#[0-9a-fA-F]{6}$/
 const COLORES = ['#db2777', '#0284c7', '#16a34a', '#ea580c', '#7c3aed', '#0d9488']
-
-function CambiarPin({ empleadoId, onListo }: { empleadoId: string; onListo: (aviso: string | null) => void }) {
-  const [pin, setPin] = useState('')
-  const valido = PIN.test(pin)
-  return (
-    <span className="cambiar-pin">
-      <input
-        aria-label="PIN nuevo"
-        className="mono"
-        inputMode="numeric"
-        maxLength={4}
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
-      />
-      <button
-        type="button"
-        className="boton-mini"
-        disabled={!valido}
-        onClick={async () => {
-          const r = await cambiarPin(empleadoId, pin)
-          onListo(r.error ? mensajeError(r.error).texto : null)
-        }}
-      >
-        Guardar PIN
-      </button>
-    </span>
-  )
-}
 
 export function Operarias() {
   const enLinea = useEnLinea()
@@ -54,9 +24,7 @@ export function Operarias() {
   const [elegida, setElegida] = useState<Funcionario | null>(null)
   const [categoria, setCategoria] = useState('')
   const [color, setColor] = useState(COLORES[0])
-  const [pin, setPin] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [pinDe, setPinDe] = useState<string | null>(null)
 
   const cargar = useCallback(() => {
     Promise.all([listarFuncionarios(), listarOperarias()]).then(
@@ -85,7 +53,6 @@ export function Operarias() {
   const cancelarAlta = () => {
     setAgregando(false)
     setElegida(null)
-    setPin('')
     setCategoria('')
     setErrores({})
   }
@@ -93,18 +60,10 @@ export function Operarias() {
   const darDeAlta = async () => {
     if (!elegida) return
     const e: Record<string, string> = {}
-    if (!PIN.test(pin)) e.pin = 'El PIN son 4 dígitos.'
     if (!HEX.test(color)) e.color = 'Color inválido.'
     setErrores(e)
     if (Object.keys(e).length) return
-    const r = await altaOperaria({ empleado_id: elegida.id, categoria: categoria.trim(), color_avatar: color }, pin)
-    if (r.error && r.creada) {
-      // La fila se creó pero el PIN no: cerrar el alta para que no reintente (daría "ya es operaria").
-      setAviso('Se dio de alta, pero falta el PIN: usá «Cambiar PIN».')
-      cancelarAlta()
-      cargar()
-      return
-    }
+    const r = await altaOperaria({ empleado_id: elegida.id, categoria: categoria.trim(), color_avatar: color })
     if (r.error) {
       setAviso(mensajeError(r.error).texto)
       cargar()
@@ -181,18 +140,6 @@ export function Operarias() {
                 <input id="op-color" className="mono" value={color} onChange={(e) => setColor(e.target.value)} />
                 {errores.color && <span className="campo-error">{errores.color}</span>}
               </div>
-              <div className="campo">
-                <label htmlFor="op-pin">PIN inicial</label>
-                <input
-                  id="op-pin"
-                  className="mono"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                />
-                {errores.pin && <span className="campo-error">{errores.pin}</span>}
-              </div>
               <footer className="modal-pie">
                 <button type="button" className="boton boton-sec" onClick={cancelarAlta}>
                   Cancelar
@@ -229,19 +176,6 @@ export function Operarias() {
                 </span>
               </td>
               <td className="celda-acciones">
-                {pinDe === o.empleado_id ? (
-                  <CambiarPin
-                    empleadoId={o.empleado_id}
-                    onListo={(a) => {
-                      setAviso(a)
-                      if (!a) setPinDe(null)
-                    }}
-                  />
-                ) : (
-                  <button type="button" className="boton-mini" onClick={() => setPinDe(o.empleado_id)} disabled={!enLinea}>
-                    Cambiar PIN
-                  </button>
-                )}
                 <button
                   type="button"
                   className="boton-mini"

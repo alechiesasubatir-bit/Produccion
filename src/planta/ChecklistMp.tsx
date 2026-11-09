@@ -19,21 +19,16 @@ const completa = (g: Guardado) => g.lote.trim() !== '' && g.pesado
 export function ChecklistMp({
   fabricacionId,
   empleadoId,
-  pin,
   habilitado,
   recarga = 0,
   onCambio,
-  onPinInvalido,
 }: {
   fabricacionId: string
   empleadoId: string
-  pin: string
   habilitado: boolean
   // Al cambiar, vuelve a leer las MP de la base (p. ej. si Finalizar dijo que faltan MP).
   recarga?: number
   onCambio: (completas: number) => void
-  // PIN cambiado o bloqueado: quien la usa vuelve a pedirlo (igual que con accion()).
-  onPinInvalido: (texto: string) => void
 }) {
   const [filas, setFilas] = useState<Fila[] | null>(null)
   const [errorCarga, setErrorCarga] = useState(false)
@@ -44,10 +39,8 @@ export function ChecklistMp({
   // Los guardados de una misma fila van de a uno y en orden (si no, la base puede quedar con el viejo).
   const [encolar] = useState(crearColaPorFila)
   const onCambioRef = useRef(onCambio)
-  const onPinInvalidoRef = useRef(onPinInvalido)
   useEffect(() => {
     onCambioRef.current = onCambio
-    onPinInvalidoRef.current = onPinInvalido
   })
   // Una respuesta que llega después de desmontar (otra persona, otra pantalla) se descarta.
   const montado = useRef(true)
@@ -98,14 +91,13 @@ export function ChecklistMp({
       // Si ya hay otro pedido detrás, ese manda el valor más nuevo: este no hace falta.
       if (envios.current[id] !== n) return
       const v = deseado.current[id] ?? valor
-      const r = await guardarMp({ id, lote: v.lote, pesado: v.pesado, empleadoId, pin })
+      const r = await guardarMp({ id, lote: v.lote, pesado: v.pesado, empleadoId })
       if (!montado.current) return
       // En orden: cada respuesta ok refleja lo que quedó en la base.
       if (r.ok) cambiar(id, { guardado: v })
       if (envios.current[id] !== n) return
       if (r.ok) return cambiar(id, { ok: true })
       cambiar(id, { error: r.texto })
-      if (r.codigo === 'PIN_INCORRECTO' || r.codigo === 'PIN_BLOQUEADO') onPinInvalidoRef.current(r.texto)
     })
   }
 

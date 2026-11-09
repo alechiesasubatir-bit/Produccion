@@ -5,7 +5,6 @@ import type { Tarea } from '../domain/tareas'
 import { PlantaApp } from './PlantaApp'
 
 const m = vi.hoisted(() => ({
-  verificarPin: vi.fn(),
   ejecutarAccion: vi.fn(),
   guardarMp: vi.fn(),
   cargarMpDe: vi.fn(),
@@ -15,7 +14,6 @@ const m = vi.hoisted(() => ({
 }))
 
 vi.mock('../lib/acciones', () => ({
-  verificarPin: m.verificarPin,
   ejecutarAccion: m.ejecutarAccion,
   guardarMp: m.guardarMp,
 }))
@@ -69,16 +67,10 @@ function montar() {
   )
 }
 
-// Cada tecla es un evento propio (como en la tablet); después se espera la verificación.
-async function teclear(pin: string) {
-  for (const d of pin) fireEvent.click(screen.getByRole('button', { name: d }))
-  await act(async () => {})
-}
-
-async function entrarComoLaura(pinOk = true) {
-  m.verificarPin.mockResolvedValue(pinOk ? { ok: true } : { ok: false, codigo: 'PIN_INCORRECTO', texto: 'PIN incorrecto. Probá de nuevo.' })
+// Sin PIN: tocar el nombre entra directo a las tareas.
+async function entrarComoLaura() {
   fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
-  await teclear('1234')
+  await act(async () => {})
 }
 
 describe('PlantaApp', () => {
@@ -87,7 +79,7 @@ describe('PlantaApp', () => {
     m.mpTotal = 0
   })
 
-  it('flujo feliz: persona → PIN → finalizar → confirmación', async () => {
+  it('flujo feliz: persona → finalizar → confirmación, sin PIN', async () => {
     montar()
     await entrarComoLaura()
     expect(screen.getByText('Hola, Laura Paz')).toBeInTheDocument()
@@ -98,24 +90,15 @@ describe('PlantaApp', () => {
       id: 'F1',
       accion: 'finalizar',
       empleadoId: 'E1',
-      pin: '1234',
     })
     expect(screen.getByText('Listo: finalizaste Lavandina · 1200 L')).toBeInTheDocument()
   })
 
-  it('PIN incorrecto: mensaje y sigue en el teclado', async () => {
+  it('tocar el nombre entra directo a sus tareas', async () => {
     montar()
-    await entrarComoLaura(false)
-    expect(screen.getByRole('alert')).toHaveTextContent('PIN incorrecto. Probá de nuevo.')
-    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
-  })
-
-  it('PIN bloqueado', async () => {
-    montar()
-    m.verificarPin.mockResolvedValue({ ok: false, codigo: 'PIN_BLOQUEADO', texto: 'Demasiados intentos. Esperá un minuto.' })
     fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
-    await teclear('1234')
-    expect(screen.getByRole('alert')).toHaveTextContent('Demasiados intentos. Esperá un minuto.')
+    expect(screen.getByText('Hola, Laura Paz')).toBeInTheDocument()
+    expect(screen.queryByText('Ingresá tu PIN')).toBeNull()
   })
 
   it('acción rechazada: aviso, recarga y sin confirmación', async () => {
@@ -133,18 +116,18 @@ describe('PlantaApp', () => {
     expect(m.recargar).toHaveBeenCalled()
   })
 
-  it('PIN rechazado al guardar una MP: olvida el PIN y vuelve al teclado', async () => {
+  it('error al guardar una MP: se muestra en la fila y sigue en sus tareas', async () => {
     m.mpTotal = 1
     m.cargarMpDe.mockResolvedValue([
       { id: 'mp1', orden: 1, codigo: '900101', descripcion: 'Bacterias', cantidad: 6.5, lote: null, pesado: false, cargado_por: null, cargado_at: null },
     ])
-    m.guardarMp.mockResolvedValue({ ok: false, codigo: 'PIN_INCORRECTO', texto: 'PIN incorrecto. Probá de nuevo.' })
+    m.guardarMp.mockResolvedValue({ ok: false, codigo: 'NO_AUTORIZADO', texto: 'No tenés permiso para esta acción.' })
     montar()
     await entrarComoLaura()
     await act(async () => fireEvent.click(await screen.findByRole('checkbox', { name: 'Pesado 900101' })))
-    expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp1', lote: '', pesado: true, empleadoId: 'E1', pin: '1234' })
-    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('PIN incorrecto. Probá de nuevo.')
+    expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp1', lote: '', pesado: true, empleadoId: 'E1' })
+    expect(screen.getByText('Hola, Laura Paz')).toBeInTheDocument()
+    expect(screen.getByText('No tenés permiso para esta acción.')).toBeInTheDocument()
   })
 
   it('Finalizar rechazado por MP incompletas: vuelve a leer el checklist de la base', async () => {
@@ -162,29 +145,27 @@ describe('PlantaApp', () => {
     m.mpTotal = 0
   })
 
-  it('a los 30 s sin tocar vuelve a "¿Quién trabaja?" y olvida el PIN', async () => {
+  it('a los 30 s sin tocar vuelve a "¿Quién trabaja?"', async () => {
     vi.useFakeTimers()
     montar()
     await entrarComoLaura()
     expect(screen.getByText('Hola, Laura Paz')).toBeInTheDocument()
     act(() => vi.advanceTimersByTime(31_000))
     expect(screen.getByText('¿Quién trabaja?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
-    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
+    expect(screen.queryByText('Hola, Laura Paz')).toBeNull()
   })
 
-  it('una verificación que vuelve tarde no mete a nadie en la sesión de otra', async () => {
+  it('una acción que vuelve tarde no muestra confirmación en la sesión de otra', async () => {
     montar()
+    await entrarComoLaura()
     let resolver!: (v: unknown) => void
-    m.verificarPin.mockReturnValue(new Promise((r) => (resolver = r)))
-    fireEvent.click(screen.getByRole('button', { name: /Laura Paz/ }))
-    for (const d of '1234') fireEvent.click(screen.getByRole('button', { name: d }))
-    fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+    m.ejecutarAccion.mockReturnValue(new Promise((r) => (resolver = r)))
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'No soy yo' }))
     fireEvent.click(screen.getByRole('button', { name: /Rosa Díaz/ }))
-    await act(async () => resolver({ ok: true }))
-    expect(screen.queryByText(/^Hola, /)).toBeNull()
-    expect(screen.getByText('Ingresá tu PIN')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Rosa Díaz' })).toBeInTheDocument()
+    await act(async () => resolver({ ok: true, fabricacionCerrada: false }))
+    expect(screen.queryByText(/^Listo:/)).toBeNull()
+    expect(screen.getByText('Hola, Rosa Díaz')).toBeInTheDocument()
   })
 
   it('al volver al inicio recarga operarias y tareas', async () => {

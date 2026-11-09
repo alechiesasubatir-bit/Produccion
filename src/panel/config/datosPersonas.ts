@@ -19,20 +19,9 @@ export const listarFuncionarios = () =>
 export const listarOperarias = () =>
   datos<OperariaConfig[]>(db.from('operarias').select('empleado_id, categoria, color_avatar, activo'))
 
-// Alta en dos pasos: la fila (grants por columna) y después el PIN (solo por RPC, nunca se lee).
-// Si falla el PIN la operaria queda creada sin PIN y se puede reintentar con "Cambiar PIN".
-export async function altaOperaria(
-  o: { empleado_id: string; categoria: string; color_avatar: string },
-  pin: string,
-): Promise<{ error: unknown; creada: boolean }> {
-  const alta = await db.from('operarias').insert({ ...o, activo: true })
-  if (alta.error) return { error: alta.error, creada: false }
-  const r = await cambiarPin(o.empleado_id, pin)
-  return { error: r.error, creada: true }
-}
-
-export async function cambiarPin(empleadoId: string, pin: string): Promise<{ error: unknown }> {
-  const { error } = await db.rpc('set_pin', { p_empleado_id: empleadoId, p_pin: pin })
+// La tablet no pide PIN (migración 013): el alta es solo la fila.
+export async function altaOperaria(o: { empleado_id: string; categoria: string; color_avatar: string }): Promise<{ error: unknown }> {
+  const { error } = await db.from('operarias').insert({ ...o, activo: true })
   return { error }
 }
 

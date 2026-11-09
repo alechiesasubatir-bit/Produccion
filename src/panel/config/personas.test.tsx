@@ -5,7 +5,6 @@ import { Usuarios } from './Usuarios'
 
 const m = vi.hoisted(() => ({
   altaOperaria: vi.fn(),
-  cambiarPin: vi.fn(),
   cambiarActiva: vi.fn(),
   setRol: vi.fn(),
 }))
@@ -19,7 +18,6 @@ vi.mock('./datosPersonas', () => ({
     ]),
   listarOperarias: () => Promise.resolve([{ empleado_id: 'F1', categoria: 'A', color_avatar: '#0284c7', activo: true }]),
   altaOperaria: m.altaOperaria,
-  cambiarPin: m.cambiarPin,
   cambiarActiva: m.cambiarActiva,
   listarUsuarios: () =>
     Promise.resolve([
@@ -59,20 +57,16 @@ describe('Operarias', () => {
     expect(within(candidatas).getByRole('button', { name: /Rosa Díaz/ })).toBeInTheDocument()
   })
 
-  it('PIN inválido no llama a la API', async () => {
+  it('el alta no pide PIN', async () => {
     await elegirRosa()
-    cambiar('PIN inicial', '12a4')
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Dar de alta' })))
-    expect(screen.getByText('El PIN son 4 dígitos.')).toBeInTheDocument()
-    expect(m.altaOperaria).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('PIN inicial')).toBeNull()
   })
 
   it('alta válida', async () => {
     m.altaOperaria.mockResolvedValue({ error: null })
     await elegirRosa()
-    cambiar('PIN inicial', '1234')
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Dar de alta' })))
-    expect(m.altaOperaria).toHaveBeenCalledWith({ empleado_id: 'F2', categoria: 'A', color_avatar: '#db2777' }, '1234')
+    expect(m.altaOperaria).toHaveBeenCalledWith({ empleado_id: 'F2', categoria: 'A', color_avatar: '#db2777' })
   })
 
   it('si ya era operaria: mensaje humano', async () => {
@@ -80,20 +74,8 @@ describe('Operarias', () => {
       error: { code: '23505', message: 'duplicate key value violates unique constraint "operarias_pkey"' },
     })
     await elegirRosa()
-    cambiar('PIN inicial', '1234')
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Dar de alta' })))
     expect(screen.getByRole('alert')).toHaveTextContent('Esa persona ya es operaria.')
-  })
-})
-
-describe('Operarias · alta a medias', () => {
-  it('si se creó pero falló el PIN, cierra el alta y avisa que falta el PIN', async () => {
-    m.altaOperaria.mockResolvedValue({ error: { message: 'TypeError: Failed to fetch' }, creada: true })
-    await elegirRosa()
-    cambiar('PIN inicial', '1234')
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Dar de alta' })))
-    expect(screen.getByRole('alert')).toHaveTextContent('Se dio de alta, pero falta el PIN: usá «Cambiar PIN».')
-    expect(screen.queryByRole('button', { name: 'Dar de alta' })).toBeNull()
   })
 })
 

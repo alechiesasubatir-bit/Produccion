@@ -3,14 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import { salir as salirDispositivo } from '../auth/useSesion'
 import type { Accion } from '../domain/acciones'
 import { pasadoAccion, tituloTarea, type Tarea } from '../domain/tareas'
-import { ejecutarAccion, verificarPin } from '../lib/acciones'
+import { ejecutarAccion } from '../lib/acciones'
 import { db, fetchAll } from '../lib/supabase'
 import { useRealtime } from '../lib/useRealtime'
 import { AnilloInactividad } from './AnilloInactividad'
 import { Confirmacion } from './Confirmacion'
 import { MisTareas } from './MisTareas'
 import { QuienTrabaja, type OperariaFila } from './QuienTrabaja'
-import { TecladoPin } from './TecladoPin'
 import { useInactividad } from './useInactividad'
 import './planta.css'
 
@@ -22,7 +21,7 @@ const cargarOperarias = () =>
 const cargarTareas = () =>
   fetchAll<Tarea>((from, to) => db.from('v_tareas').select('*').order('created_at').range(from, to))
 
-type Pantalla = 'quien' | 'pin' | 'tareas' | 'confirmacion'
+type Pantalla = 'quien' | 'tareas' | 'confirmacion'
 
 function Reloj() {
   const [ahora, setAhora] = useState(() => new Date())
@@ -46,77 +45,43 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
 
   const [pantalla, setPantalla] = useState<Pantalla>('quien')
   const [operaria, setOperaria] = useState<OperariaFila | null>(null)
-  // El PIN vive solo acá, en memoria, mientras la operaria está activa.
-  const [pin, setPin] = useState<string | null>(null)
-  const [pinError, setPinError] = useState<string | null>(null)
-  const [intentos, setIntentos] = useState(0)
-  const [verificando, setVerificando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   // Sube cuando la base rechaza Finalizar por MP incompletas: el checklist se vuelve a leer.
   const [recargaMp, setRecargaMp] = useState(0)
   const [confirmacion, setConfirmacion] = useState<{ color: string; texto: string } | null>(null)
   const enviando = useRef(false)
   // Cada vez que cambia la persona se incrementa: una respuesta que llega tarde de una sesión
-  // anterior (verificación o acción) se descarta en vez de pisar la sesión actual.
+  // anterior se descarta en vez de pisar la sesión actual.
   const sesion = useRef(0)
 
   const volverAlInicio = () => {
     sesion.current += 1
     enviando.current = false
-    setVerificando(false)
     operarias.recargar()
     tareas.recargar()
     setPantalla('quien')
     setOperaria(null)
-    setPin(null)
-    setPinError(null)
     setAviso(null)
     setConfirmacion(null)
   }
 
-  const activa = pantalla === 'pin' || pantalla === 'tareas'
+  const activa = pantalla === 'tareas'
   const errorCarga =
     pantalla === 'quien' ? (operarias.error ?? tareas.error) : pantalla === 'tareas' ? tareas.error : null
   const restante = useInactividad(activa, INACTIVIDAD_MS, volverAlInicio)
 
-  const fallarPin = (texto: string) => {
-    setPinError(texto)
-    setIntentos((n) => n + 1)
-  }
-
   const elegir = (o: OperariaFila) => {
     sesion.current += 1
     setOperaria(o)
-    setPin(null)
-    setPinError(null)
-    setPantalla('pin')
-  }
-
-  const ingresarPin = async (p: string) => {
-    if (!operaria) return
-    const mia = sesion.current
-    setVerificando(true)
-    const r = await verificarPin(operaria.empleado_id, p)
-    if (mia !== sesion.current) return
-    setVerificando(false)
-    if (!r.ok) return fallarPin(r.texto)
-    setPin(p)
     setAviso(null)
     setPantalla('tareas')
   }
 
-  // La encargada le cambió el PIN o quedó bloqueada: volver a pedirlo.
-  const pedirPinDeNuevo = (texto: string) => {
-    setPin(null)
-    fallarPin(texto)
-    setPantalla('pin')
-  }
-
   const accionar = async (t: Tarea, a: Accion) => {
-    if (!operaria || !pin || enviando.current) return
+    if (!operaria || enviando.current) return
     const mia = sesion.current
     enviando.current = true
-    const r = await ejecutarAccion({ entidad: t.entidad, id: t.id, accion: a, empleadoId: operaria.empleado_id, pin })
+    const r = await ejecutarAccion({ entidad: t.entidad, id: t.id, accion: a, empleadoId: operaria.empleado_id })
     if (mia !== sesion.current) return
     enviando.current = false
     if (r.ok) {
@@ -127,7 +92,6 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
     }
     tareas.recargar()
     if (r.codigo === 'MP_INCOMPLETA') setRecargaMp((n) => n + 1)
-    if (r.codigo === 'PIN_INCORRECTO' || r.codigo === 'PIN_BLOQUEADO') return pedirPinDeNuevo(r.texto)
     setAviso(r.texto)
   }
 
@@ -185,29 +149,17 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
           </div>
         )}
         {pantalla === 'quien' && <QuienTrabaja operarias={operarias.datos} tareas={tareas.datos} onElegir={elegir} />}
-        {pantalla === 'pin' && operaria && (
-          <TecladoPin
-            nombre={operaria.nombre}
-            error={pinError}
-            intento={intentos}
-            ocupado={verificando || !operarias.conectado}
-            onCompleto={(p) => void ingresarPin(p)}
-            onVolver={volverAlInicio}
-          />
-        )}
-        {pantalla === 'tareas' && operaria && pin && (
+        {pantalla === 'tareas' && operaria && (
           <MisTareas
             nombre={operaria.nombre}
             tareas={tareas.datos}
             empleadoId={operaria.empleado_id}
-            pin={pin}
             tanque={tanque}
             conectado={tareas.conectado}
             cargadoEn={cargadoEn}
             aviso={aviso}
             recargaMp={recargaMp}
             onAccion={(t, a) => void accionar(t, a)}
-            onPinInvalido={pedirPinDeNuevo}
             onSalir={volverAlInicio}
           />
         )}

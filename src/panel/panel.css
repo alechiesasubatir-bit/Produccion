@@ -892,18 +892,7 @@
   color: var(--apagado);
 }
 
-.cambiar-pin {
-  display: inline-flex;
-  gap: 6px;
-}
 
-.cambiar-pin input {
-  width: 64px;
-  padding: 4px 8px;
-  border: 1px solid var(--linea-2);
-  border-radius: 8px;
-  font: inherit;
-}
 
 .rol-usuario {
   display: inline-flex;

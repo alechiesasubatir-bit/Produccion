@@ -31,7 +31,7 @@ const filas = () => [
   fila(4, '100001', 'Agua desmineralizada', 967),
 ]
 
-const props = { fabricacionId: 'F1', empleadoId: 'E1', pin: '1234', habilitado: true, onPinInvalido: () => {} }
+const props = { fabricacionId: 'F1', empleadoId: 'E1', habilitado: true }
 
 beforeEach(() => {
   m.cargarMpDe.mockReset().mockResolvedValue(filas())
@@ -57,11 +57,11 @@ describe('ChecklistMp', () => {
     fireEvent.change(lote, { target: { value: 'L-778' } })
     fireEvent.blur(lote)
     await waitFor(() =>
-      expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp1', lote: 'L-778', pesado: false, empleadoId: 'E1', pin: '1234' }),
+      expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp1', lote: 'L-778', pesado: false, empleadoId: 'E1' }),
     )
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pesado 900101' }))
     await waitFor(() =>
-      expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-778', pesado: true, empleadoId: 'E1', pin: '1234' }),
+      expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-778', pesado: true, empleadoId: 'E1' }),
     )
     expect(await screen.findByLabelText('900101 completa')).toBeInTheDocument()
     expect(screen.getByText('1 de 4 MP')).toBeInTheDocument()
@@ -80,24 +80,24 @@ describe('ChecklistMp', () => {
     expect(screen.getByText('0 de 4 MP')).toBeInTheDocument()
   })
 
-  it('PIN incorrecto o bloqueado al guardar: lo avisa hacia arriba', async () => {
-    m.guardarMp.mockResolvedValue({ ok: false, codigo: 'PIN_INCORRECTO', texto: 'PIN incorrecto. Probá de nuevo.' })
-    const onPinInvalido = vi.fn()
-    render(<ChecklistMp {...props} onPinInvalido={onPinInvalido} onCambio={() => {}} />)
+  it('error al guardar: el texto queda en la fila', async () => {
+    m.guardarMp.mockResolvedValue({ ok: false, codigo: 'NO_AUTORIZADO', texto: 'No tenés permiso para esta acción.' })
+    render(<ChecklistMp {...props} onCambio={() => {}} />)
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Pesado 900101' }))
-    await waitFor(() => expect(onPinInvalido).toHaveBeenCalledWith('PIN incorrecto. Probá de nuevo.'))
+    expect(await screen.findByText('No tenés permiso para esta acción.')).toBeInTheDocument()
   })
 
   it('una respuesta que llega después de desmontar no avisa nada', async () => {
     let responder: (r: unknown) => void = () => {}
     m.guardarMp.mockReturnValue(new Promise((r) => (responder = r)))
-    const onPinInvalido = vi.fn()
-    const { unmount } = render(<ChecklistMp {...props} onPinInvalido={onPinInvalido} onCambio={() => {}} />)
+    const onCambio = vi.fn()
+    const { unmount } = render(<ChecklistMp {...props} onCambio={onCambio} />)
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Pesado 900101' }))
+    const llamadas = onCambio.mock.calls.length
     unmount()
-    responder({ ok: false, codigo: 'PIN_INCORRECTO', texto: 'PIN incorrecto. Probá de nuevo.' })
+    responder({ ok: true })
     await new Promise((r) => setTimeout(r, 0))
-    expect(onPinInvalido).not.toHaveBeenCalled()
+    expect(onCambio).toHaveBeenCalledTimes(llamadas)
   })
 
   it('tipear el lote y tildar enseguida: los guardados de la fila van en orden, el último con lote y pesado', async () => {
@@ -114,7 +114,7 @@ describe('ChecklistMp', () => {
     expect(m.guardarMp).toHaveBeenCalledTimes(1)
     responder({ ok: true })
     await waitFor(() => expect(m.guardarMp).toHaveBeenCalledTimes(2))
-    expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-778', pesado: true, empleadoId: 'E1', pin: '1234' })
+    expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-778', pesado: true, empleadoId: 'E1' })
     expect(await screen.findByLabelText('900101 completa')).toBeInTheDocument()
   })
 
@@ -164,13 +164,11 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
 const base = {
   nombre: 'Laura Paz',
   empleadoId: 'E1',
-  pin: '1234',
   tanque: null,
   conectado: true,
   cargadoEn: Date.now(),
   aviso: null,
   onAccion: () => {},
-  onPinInvalido: () => {},
   onSalir: () => {},
 }
 

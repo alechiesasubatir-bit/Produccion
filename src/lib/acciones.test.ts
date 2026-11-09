@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, ejecutarAccion, guardarMp, verificarPin } from './acciones'
+import { accionPanel, ejecutarAccion, guardarMp } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
 
-const base = { entidad: 'fabricacion' as const, id: 'f1', accion: 'finalizar' as const, empleadoId: 'E1', pin: '1234' }
+const base = { entidad: 'fabricacion' as const, id: 'f1', accion: 'finalizar' as const, empleadoId: 'E1' }
 
 describe('ejecutarAccion', () => {
   it('llama a la RPC con los nombres de parámetro exactos', async () => {
@@ -15,7 +15,6 @@ describe('ejecutarAccion', () => {
       p_id: 'f1',
       p_accion: 'finalizar',
       p_empleado_id: 'E1',
-      p_pin: '1234',
     })
   })
 
@@ -58,25 +57,8 @@ describe('ejecutarAccion', () => {
   })
 })
 
-describe('verificarPin', () => {
-  it('PIN bloqueado', async () => {
-    rpc.mockResolvedValue({ data: { ok: false, codigo: 'PIN_BLOQUEADO' }, error: null })
-    expect(await verificarPin('E1', '1234')).toEqual({
-      ok: false,
-      codigo: 'PIN_BLOQUEADO',
-      texto: 'Demasiados intentos. Esperá un minuto.',
-    })
-    expect(rpc).toHaveBeenLastCalledWith('verificar_pin', { p_empleado_id: 'E1', p_pin: '1234' })
-  })
-
-  it('PIN correcto', async () => {
-    rpc.mockResolvedValue({ data: { ok: true }, error: null })
-    expect(await verificarPin('E1', '1234')).toEqual({ ok: true })
-  })
-})
-
 describe('accionPanel', () => {
-  it('acciona sin operaria ni PIN', async () => {
+  it('acciona sin operaria', async () => {
     rpc.mockResolvedValue({ data: { ok: true, fabricacion_cerrada: true }, error: null })
     expect(await accionPanel({ entidad: 'envasado', id: 'v1', accion: 'cancelar' })).toEqual({ ok: true, fabricacionCerrada: true })
     expect(rpc).toHaveBeenLastCalledWith('accion', { p_entidad: 'envasado', p_id: 'v1', p_accion: 'cancelar' })
@@ -86,13 +68,12 @@ describe('accionPanel', () => {
 describe('guardarMp', () => {
   it('llama a cargar_mp con los nombres de parámetro exactos', async () => {
     rpc.mockResolvedValue({ data: { ok: true }, error: null })
-    await guardarMp({ id: 'mp1', lote: 'L123', pesado: true, empleadoId: 'E1', pin: '1234' })
+    await guardarMp({ id: 'mp1', lote: 'L123', pesado: true, empleadoId: 'E1' })
     expect(rpc).toHaveBeenLastCalledWith('cargar_mp', {
       p_mp_id: 'mp1',
       p_lote: 'L123',
       p_pesado: true,
       p_empleado_id: 'E1',
-      p_pin: '1234',
     })
   })
 
