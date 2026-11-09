@@ -41,10 +41,9 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--serif);
+  font-family: var(--titulo);
   font-size: 22px;
-  font-weight: 600;
-  font-variation-settings: 'opsz' 72;
+  font-weight: 800;
   letter-spacing: -0.02em;
 }
 
@@ -214,6 +213,17 @@
   box-shadow: inset 0 -2px 0 var(--senal), 0 1px 0 rgb(21 24 30 / 0.2);
 }
 
+/* el botón principal lleva el naranja de Subatir */
+.boton:not(.boton-sec) {
+  border-color: var(--marca-oscuro);
+  background: var(--marca-oscuro);
+}
+
+.boton:not(.boton-sec):hover {
+  background: #9a3412;
+  box-shadow: 0 1px 0 rgb(21 24 30 / 0.2);
+}
+
 .boton:focus-visible,
 .tarjeta-login input:focus-visible {
   outline: 2px solid var(--foco);
@@ -292,11 +302,9 @@
 .tarjeta-login h1,
 .tarjeta-aviso h1 {
   margin: 0 0 4px;
-  font-family: var(--serif);
+  font-family: var(--titulo);
   font-size: 34px;
-  font-weight: 500;
-  font-style: italic;
-  font-variation-settings: 'opsz' 144;
+  font-weight: 800;
   letter-spacing: -0.02em;
 }
 

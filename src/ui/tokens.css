@@ -19,9 +19,18 @@
   --radio-chico: 6px;
   --sombra: 0 1px 0 var(--linea-2), 0 8px 24px -16px rgb(21 24 30 / 0.25);
 
-  --serif: 'Fraunces', Georgia, serif;
-  --sans: 'Geist', system-ui, sans-serif;
-  --mono: 'Geist Mono', ui-monospace, monospace;
+  /* color de marca (el naranja del logo de Subatir) y un azul de apoyo */
+  --marca: #ea580c;
+  --marca-oscuro: #c2410c;
+  --marca-suave: #fff1e6;
+  --marca-linea: #fcd3b4;
+  --azul: #0369a1;
+  --azul-suave: #e6f2fa;
+
+  --titulo: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* códigos y números: misma letra, con cifras de ancho fijo (ya no máquina de escribir) */
+  --mono: 'Plus Jakarta Sans', system-ui, sans-serif;
   --ease: cubic-bezier(.22, 1, .36, 1);
 
   color-scheme: light;
@@ -42,6 +51,7 @@ body {
   color: var(--tinta);
   font-family: var(--sans);
   font-size: 14px;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   /* papel milimetrado: línea fina cada 24 px, más marcada cada 120 px */
   background-color: var(--papel);

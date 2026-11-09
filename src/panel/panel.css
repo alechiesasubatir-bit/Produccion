@@ -63,11 +63,9 @@
 .titulo-panel {
   position: relative;
   margin: 0 0 24px;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
+  font-family: var(--titulo);
+  font-weight: 800;
   font-size: 42px;
-  font-variation-settings: 'opsz' 144;
   line-height: 1;
   letter-spacing: -0.025em;
   animation: aparecer 0.5s var(--ease) both;
@@ -131,10 +129,9 @@
 }
 
 .kpi-valor {
-  font-family: var(--serif);
-  font-weight: 300;
+  font-family: var(--titulo);
+  font-weight: 700;
   font-size: 32px;
-  font-variation-settings: 'opsz' 144;
   line-height: 1;
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -383,11 +380,9 @@
 
 .modal-cabecera h2 {
   margin: 0;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
+  font-family: var(--titulo);
+  font-weight: 800;
   font-size: 30px;
-  font-variation-settings: 'opsz' 144;
   letter-spacing: -0.02em;
 }
 
@@ -888,9 +883,9 @@
 .alta-nombre {
   grid-column: 1 / -1;
   margin: 0;
-  font-family: var(--serif);
-  font-style: italic;
+  font-family: var(--titulo);
   font-size: 22px;
+  font-weight: 700;
 }
 
 .apagado {
@@ -1309,9 +1304,9 @@ th[aria-sort='descending'] .th-orden::after {
 
 .formula-cabecera h3 {
   margin: 0;
-  font-family: var(--serif);
+  font-family: var(--titulo);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .formula-creada {
@@ -1895,11 +1890,11 @@ th[aria-sort='descending'] .th-orden::after {
 /* ---------- Panel del tanque: entra entero en una laptop (solo pantalla; la impresión del QR no cambia) ---------- */
 
 @media screen {
-  /* arriba el tanque y sus datos; abajo, acciones y recorrido a la izquierda y el QR a la derecha */
+  /* arriba el tanque y sus datos con el QR a la derecha; abajo, a todo el ancho, acciones, MP y recorrido */
   .detalle-tanque {
     top: 76px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 140px;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-auto-flow: row dense;
     align-content: start;
     column-gap: 20px;
@@ -1909,24 +1904,23 @@ th[aria-sort='descending'] .th-orden::after {
   }
 
   .detalle-tanque > * {
-    grid-column: 1;
+    grid-column: 1 / -1;
     min-width: 0;
   }
 
-  .detalle-tanque > .detalle-cabecera,
-  .detalle-tanque > .detalle-tanque-grande,
-  .detalle-tanque > .aviso-panel {
-    grid-column: 1 / -1;
+  .detalle-tanque > .detalle-tanque-grande {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .detalle-tanque > .detalle-seccion:has(.qr-tanque) {
     grid-column: 2;
-    grid-row: 3 / span 3;
+    grid-row: 2;
+    align-self: center;
   }
 
-  /* con MP hay una fila más a la izquierda: el QR la acompaña para que el recorrido no baje */
-  .detalle-tanque:has(> .detalle-mp) > .detalle-seccion:has(.qr-tanque) {
-    grid-row: 3 / span 4;
+  .detalle-tanque > .detalle-seccion:has(.qr-tanque) h3 {
+    display: none;
   }
 
   .detalle-cabecera {
@@ -1968,16 +1962,33 @@ th[aria-sort='descending'] .th-orden::after {
   .qr-tanque {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: #fff;
   }
 
   .qr-tanque .qr {
-    width: 120px;
-    height: 120px;
+    width: 112px;
+    height: 112px;
   }
 
+  .qr-tanque figcaption {
+    align-items: center;
+    font-size: 12px;
+    color: var(--tinta-2);
+  }
+
+  /* la dirección completa solo sale impresa: en pantalla ocupaba media columna */
   .qr-tanque .qr-url {
-    font-size: 10px;
+    display: none;
+  }
+
+  .qr-tanque .boton {
+    padding: 4px 12px;
+    font-size: 12px;
   }
 }
 
@@ -2384,4 +2395,105 @@ th[aria-sort='descending'] .th-orden::after {
   .terminadas {
     transition: none;
   }
+}
+
+/* ---------- Color: el naranja de Subatir y un azul de apoyo ---------- */
+
+.boton-mini.principal {
+  border-color: var(--marca-oscuro);
+  background: var(--marca-oscuro);
+}
+
+.titulo-panel::after {
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--marca);
+}
+
+.pestana[aria-current='page'] {
+  color: var(--marca-oscuro);
+}
+
+.pestana[aria-current='page']::after {
+  background: var(--marca);
+}
+
+.kpi-valor {
+  color: var(--azul);
+}
+
+.detalle-tanque {
+  border-color: var(--marca-oscuro);
+  box-shadow: 8px 8px 0 var(--marca-linea);
+}
+
+.detalle-cabecera {
+  border-bottom-color: var(--marca);
+}
+
+.detalle-cabecera h2 {
+  font-family: var(--titulo);
+  font-weight: 800;
+}
+
+.detalle-datos dt {
+  color: var(--azul);
+}
+
+.detalle-seccion h3 {
+  color: var(--marca-oscuro);
+}
+
+.detalle-seccion h3::after {
+  background: var(--marca-linea);
+}
+
+.tabla-mp-caja {
+  margin-top: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-chico);
+  background: #fff;
+}
+
+.tabla-mp th {
+  background: var(--azul-suave);
+  color: var(--azul);
+  border-bottom-color: #bcdcef;
+  white-space: nowrap;
+}
+
+.tabla-mp tbody tr:nth-child(even) td {
+  background: #fbfaf6;
+}
+
+.tabla-mp td:first-child {
+  font-weight: 600;
+  color: var(--marca-oscuro);
+}
+
+.tabla-mp td {
+  vertical-align: top;
+}
+
+.mp-pista {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--marca);
+  border-radius: 0 var(--radio-chico) var(--radio-chico) 0;
+  background: var(--marca-suave);
+  color: #7c2d12;
+  font-size: 13px;
+}
+
+.tabla-mp .mp-lote-panel {
+  width: 6.5em;
+}
+
+.tabla-mp input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--marca-oscuro);
+  cursor: pointer;
 }

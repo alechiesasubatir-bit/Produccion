@@ -52,11 +52,9 @@
 
 .titulo-planta {
   margin: 0 0 24px;
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 400;
+  font-family: var(--titulo);
+  font-weight: 800;
   font-size: 46px;
-  font-variation-settings: 'opsz' 144;
   line-height: 1.05;
   letter-spacing: -0.025em;
   animation: aparecer 0.5s var(--ease) both;
@@ -133,8 +131,8 @@
   border-radius: 50%;
   object-fit: cover;
   color: #fff;
-  font-family: var(--serif);
-  font-weight: 500;
+  font-family: var(--titulo);
+  font-weight: 700;
   font-size: 26px;
   box-shadow: 0 0 0 3px var(--tarjeta), 0 0 0 4px var(--linea-2);
 }
@@ -603,10 +601,9 @@
 .confirmacion-texto {
   position: relative;
   margin: 0;
-  font-family: var(--serif);
-  font-style: italic;
+  font-family: var(--titulo);
   font-size: 34px;
-  font-variation-settings: 'opsz' 144;
+  font-weight: 800;
   letter-spacing: -0.02em;
 }
 
