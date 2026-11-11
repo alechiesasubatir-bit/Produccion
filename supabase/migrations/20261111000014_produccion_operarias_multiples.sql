@@ -688,5 +688,220 @@ grant execute on function produccion.set_vencimiento(uuid, date, uuid) to authen
 
 -- 3. Vistas ------------------------------------------------------------------
 
+-- minutos de un tramo [desde, hasta|now()] sin las pausas de la orden (pausar -> reanudar/finalizar/cancelar/now())
+create or replace function produccion._minutos_participacion(p_entidad text, p_id uuid, p_desde timestamptz, p_hasta timestamptz)
+returns numeric language sql stable security invoker set search_path = '' as $$
+  select greatest(0, extract(epoch from (coalesce(p_hasta, now()) - p_desde)) / 60.0
+    - coalesce((
+      select sum(greatest(0, extract(epoch from (
+        least(coalesce(p_hasta, now()), x.fin_pausa) - greatest(p_desde, x.ini_pausa))) / 60.0))
+      from (
+        select e.at as ini_pausa,
+          coalesce((select min(e2.at) from produccion.eventos e2
+                    where e2.entidad = e.entidad and e2.entidad_id = e.entidad_id
+                      and e2.accion in ('reanudar', 'finalizar', 'cancelar') and e2.at > e.at), now()) as fin_pausa
+        from produccion.eventos e
+        where e.entidad = p_entidad and e.entidad_id = p_id and e.accion = 'pausar'
+      ) x
+    ), 0));
+$$;
+revoke execute on function produccion._minutos_participacion(text, uuid, timestamptz, timestamptz) from public, anon;
+grant execute on function produccion._minutos_participacion(text, uuid, timestamptz, timestamptz) to authenticated;
+
+create or replace view produccion.v_flujo with (security_invoker = true) as
+with hoy as (
+  select (date_trunc('day', now() at time zone 'America/Montevideo') at time zone 'America/Montevideo') as desde
+),
+restantes as (
+  select f.id, greatest(0, f.litros - coalesce((
+    select sum(v.cantidad * pe.litros_equiv)
+    from produccion.envasados v
+    join produccion.presentaciones pe on pe.id = v.presentacion_id
+    where v.fabricacion_id = f.id and v.estado = 'finalizado'
+  ), 0)) as litros_restantes
+  from produccion.fabricaciones f
+)
+select
+  'fabricacion'::text as entidad, f.id, f.estado,
+  p.nombre as producto, p.color, t.codigo as tanque_codigo,
+  null::text as presentacion, null::int as cantidad, f.litros, f.lote, null::text as descripcion,
+  f.operaria_id as operaria_1, null::uuid as operaria_2,
+  true as listo, f.inicio, te.min_efectivos, f.estado = 'fabricando' as corriendo, f.created_at,
+  f.fin, null::uuid as fabricacion_id, r.litros_restantes, p.tipo as producto_tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fabricacion' and pa.entidad_id = f.id and pa.hasta is null) as operarias, null::text as etiqueta
+from produccion.fabricaciones f
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+join restantes r on r.id = f.id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fabricacion' and te.entidad_id = f.id
+where f.estado in ('cola', 'fabricando', 'pausada', 'para_envasar')
+   or (f.estado = 'finalizada' and f.fin >= (select desde from hoy))
+union all
+select
+  'envasado', v.id, v.estado,
+  p.nombre, p.color, t.codigo,
+  pe.nombre, v.cantidad, f.litros, f.lote, null::text,
+  v.operaria_1, v.operaria_2,
+  f.estado = 'para_envasar', v.inicio, te.min_efectivos, v.estado = 'activo', v.created_at,
+  v.fin, v.fabricacion_id, r.litros_restantes, p.tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.hasta is null), (select e.nombre from produccion.etiquetas e where e.id = v.etiqueta_id)
+from produccion.envasados v
+join produccion.fabricaciones f on f.id = v.fabricacion_id
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+join produccion.presentaciones pe on pe.id = v.presentacion_id
+join restantes r on r.id = f.id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'envasado' and te.entidad_id = v.id
+where v.estado in ('cola', 'activo', 'pausado')
+   or (v.estado = 'finalizado' and v.fin >= (select desde from hoy))
+union all
+select
+  'fraccionado', x.id, x.estado,
+  p.nombre, p.color, null::text,
+  pe.nombre, x.cantidad, null::numeric, x.lote, x.descripcion,
+  x.operaria_id, null::uuid,
+  true, x.inicio, te.min_efectivos, x.estado = 'activo', x.created_at,
+  x.fin, null::uuid, null::numeric, p.tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fraccionado' and pa.entidad_id = x.id and pa.hasta is null), (select e.nombre from produccion.etiquetas e where e.id = x.etiqueta_id)
+from produccion.fraccionados x
+left join produccion.productos p on p.id = x.producto_id
+left join produccion.presentaciones pe on pe.id = x.presentacion_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fraccionado' and te.entidad_id = x.id
+where x.estado in ('cola', 'activo', 'pausado')
+   or (x.estado = 'finalizado' and x.fin >= (select desde from hoy));
+
+create or replace view produccion.v_tareas with (security_invoker = true) as
+select
+  'fabricacion'::text as entidad, f.id, f.estado,
+  p.nombre as producto, p.color, t.codigo as tanque_codigo,
+  null::text as presentacion, null::int as cantidad, f.litros, f.lote, null::text as descripcion,
+  f.operaria_id as operaria_1, null::uuid as operaria_2,
+  true as listo, f.inicio, te.min_efectivos, f.estado = 'fabricando' as corriendo, f.created_at,
+  mp.mp_total, mp.mp_completas, p.tipo as producto_tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fabricacion' and pa.entidad_id = f.id and pa.hasta is null) as operarias, null::text as etiqueta, f.vencimiento
+from produccion.fabricaciones f
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fabricacion' and te.entidad_id = f.id
+cross join lateral (
+  select count(*)::int as mp_total,
+         (count(*) filter (where nullif(trim(m.lote), '') is not null and m.pesado))::int as mp_completas
+  from produccion.fabricacion_mp m
+  where m.fabricacion_id = f.id
+) mp
+where f.estado in ('cola', 'fabricando', 'pausada')
+union all
+select
+  'envasado', v.id, v.estado,
+  p.nombre, p.color, t.codigo,
+  pe.nombre, v.cantidad, f.litros, f.lote, null::text,
+  v.operaria_1, v.operaria_2,
+  f.estado = 'para_envasar', v.inicio, te.min_efectivos, v.estado = 'activo', v.created_at,
+  0, 0, p.tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.hasta is null), (select e.nombre from produccion.etiquetas e where e.id = v.etiqueta_id), f.vencimiento
+from produccion.envasados v
+join produccion.fabricaciones f on f.id = v.fabricacion_id
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+join produccion.presentaciones pe on pe.id = v.presentacion_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'envasado' and te.entidad_id = v.id
+where v.estado in ('cola', 'activo', 'pausado')
+union all
+select
+  'fraccionado', x.id, x.estado,
+  p.nombre, p.color, null::text,
+  pe.nombre, x.cantidad, null::numeric, x.lote, x.descripcion,
+  x.operaria_id, null::uuid,
+  true, x.inicio, te.min_efectivos, x.estado = 'activo', x.created_at,
+  0, 0, p.tipo,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fraccionado' and pa.entidad_id = x.id and pa.hasta is null), (select e.nombre from produccion.etiquetas e where e.id = x.etiqueta_id), null::date
+from produccion.fraccionados x
+left join produccion.productos p on p.id = x.producto_id
+left join produccion.presentaciones pe on pe.id = x.presentacion_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fraccionado' and te.entidad_id = x.id
+where x.estado in ('cola', 'activo', 'pausado');
+
+create or replace view produccion.v_historial with (security_invoker = true) as
+with nombres as (
+  select o.empleado_id, f.nombre
+  from produccion.operarias o
+  join core.funcionarios f on f.id = o.empleado_id
+)
+select
+  'fabricacion'::text as entidad, f.id, f.estado,
+  p.nombre as producto, p.color, t.codigo as tanque_codigo,
+  null::text as presentacion, null::int as cantidad, f.litros, null::numeric as litros_equiv,
+  f.lote, null::text as descripcion,
+  f.operaria_id as operaria_1, n1.nombre as operaria_1_nombre,
+  null::uuid as operaria_2, null::text as operaria_2_nombre,
+  f.inicio, coalesce(te.fin, f.fin) as fin, f.created_at,
+  te.min_brutos, te.min_pausa, te.min_efectivos,
+  (coalesce(te.fin, f.fin, f.inicio, f.created_at) at time zone 'America/Montevideo')::date as dia,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde, 'hasta', pa.hasta,
+      'cantidad', pa.cantidad, 'unidad', pa.unidad, 'cantidad_corregida', pa.cantidad_corregida,
+      'minutos', round(produccion._minutos_participacion('fabricacion', f.id, pa.desde, pa.hasta), 1)) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fabricacion' and pa.entidad_id = f.id) as participaciones, null::text as etiqueta
+from produccion.fabricaciones f
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+left join nombres n1 on n1.empleado_id = f.operaria_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fabricacion' and te.entidad_id = f.id
+union all
+select
+  'envasado', v.id, v.estado,
+  p.nombre, p.color, t.codigo,
+  pe.nombre, v.cantidad, v.cantidad * pe.litros_equiv, pe.litros_equiv,
+  f.lote, null::text,
+  v.operaria_1, n1.nombre, v.operaria_2, n2.nombre,
+  v.inicio, v.fin, v.created_at,
+  te.min_brutos, te.min_pausa, te.min_efectivos,
+  (coalesce(v.fin, v.inicio, v.created_at) at time zone 'America/Montevideo')::date,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde, 'hasta', pa.hasta,
+      'cantidad', pa.cantidad, 'unidad', pa.unidad, 'cantidad_corregida', pa.cantidad_corregida,
+      'minutos', round(produccion._minutos_participacion('envasado', v.id, pa.desde, pa.hasta), 1)) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'envasado' and pa.entidad_id = v.id), (select e.nombre from produccion.etiquetas e where e.id = v.etiqueta_id)
+from produccion.envasados v
+join produccion.fabricaciones f on f.id = v.fabricacion_id
+join produccion.productos p on p.id = f.producto_id
+join produccion.tanques t on t.id = f.tanque_id
+join produccion.presentaciones pe on pe.id = v.presentacion_id
+left join nombres n1 on n1.empleado_id = v.operaria_1
+left join nombres n2 on n2.empleado_id = v.operaria_2
+left join produccion.v_tiempos_efectivos te on te.entidad = 'envasado' and te.entidad_id = v.id
+union all
+select
+  'fraccionado', x.id, x.estado,
+  coalesce(p.nombre, x.descripcion), p.color, null::text,
+  pe.nombre, x.cantidad, x.cantidad * pe.litros_equiv, pe.litros_equiv,
+  x.lote, x.descripcion,
+  x.operaria_id, n1.nombre, null::uuid, null::text,
+  x.inicio, x.fin, x.created_at,
+  te.min_brutos, te.min_pausa, te.min_efectivos,
+  (coalesce(x.fin, x.inicio, x.created_at) at time zone 'America/Montevideo')::date,
+  (select coalesce(jsonb_agg(jsonb_build_object('empleado_id', pa.empleado_id, 'nombre', fu.nombre, 'desde', pa.desde, 'hasta', pa.hasta,
+      'cantidad', pa.cantidad, 'unidad', pa.unidad, 'cantidad_corregida', pa.cantidad_corregida,
+      'minutos', round(produccion._minutos_participacion('fraccionado', x.id, pa.desde, pa.hasta), 1)) order by pa.desde), '[]'::jsonb)
+    from produccion.participaciones pa join core.funcionarios fu on fu.id = pa.empleado_id
+    where pa.entidad = 'fraccionado' and pa.entidad_id = x.id), (select e.nombre from produccion.etiquetas e where e.id = x.etiqueta_id)
+from produccion.fraccionados x
+left join produccion.productos p on p.id = x.producto_id
+left join produccion.presentaciones pe on pe.id = x.presentacion_id
+left join nombres n1 on n1.empleado_id = x.operaria_id
+left join produccion.v_tiempos_efectivos te on te.entidad = 'fraccionado' and te.entidad_id = x.id;
+
 -- Migración de datos (siempre al final del archivo) ---------------------------
 select produccion._migrar_participaciones();
