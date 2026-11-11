@@ -35,7 +35,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","r
 
 -- 1. iniciar
 select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b1', 'iniciar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e1')::text, true);
 insert into _tap (l) select is(
   (select f.estado || '/' || f.operaria_id || '/' || (select count(*) from produccion.eventos e where e.entidad_id = f.id and e.accion = 'iniciar')
    from produccion.fabricaciones f where f.id = '00000000-0000-0000-0000-0000000000b1'),
@@ -45,7 +45,7 @@ insert into _tap (l) select is(
 -- 2. transición inválida
 insert into _tap (l) select is(
   produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b2', 'finalizar',
-    '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
+    '00000000-0000-0000-0000-0000000000e1')->>'codigo',
   'TRANSICION_INVALIDA', 'finalizar desde cola es inválido');
 
 -- 3. sin PIN: la tablet acciona solo con la operaria (migración 013)
@@ -67,12 +67,12 @@ set local role authenticated;
 -- 5. operaria dada de baja en core
 insert into _tap (l) select is(
   produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b3', 'iniciar',
-    '00000000-0000-0000-0000-0000000000e3', '1234')->>'codigo',
+    '00000000-0000-0000-0000-0000000000e3')->>'codigo',
   'OPERARIA_INACTIVA', 'operaria inactiva rechazada');
 
 -- 6. cancelar: tablet no, panel sí (sin PIN)
 select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b3', 'cancelar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e1')::text, true);
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'codigo') || '/' ||
@@ -82,9 +82,9 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","r
 
 -- 7. doble finalización: la segunda ve quién lo hizo
 select produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b4', 'finalizar',
-  '00000000-0000-0000-0000-0000000000e1', '1234');
+  '00000000-0000-0000-0000-0000000000e1');
 select set_config('t.r', produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b4', 'finalizar',
-  '00000000-0000-0000-0000-0000000000e2', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e2')::text, true);
 insert into _tap (l) select ok(
   current_setting('t.r')::jsonb->>'codigo' = 'TRANSICION_INVALIDA'
   and current_setting('t.r')::jsonb->>'detalle' like 'ya la finalizó Laura Paz a las __:__',
@@ -93,20 +93,21 @@ insert into _tap (l) select ok(
 -- 8. envasar con el tanque todavía fabricando
 insert into _tap (l) select is(
   produccion.accion('envasado', '00000000-0000-0000-0000-0000000000a0', 'iniciar',
-    '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
+    '00000000-0000-0000-0000-0000000000e1')->>'codigo',
   'TANQUE_NO_LISTO', 'envasado no inicia si la fabricación no está para_envasar');
 
 -- 9. operaria ya envasando
 select produccion.accion('envasado', '00000000-0000-0000-0000-0000000000aa', 'iniciar',
-  '00000000-0000-0000-0000-0000000000e1', '1234');
+  '00000000-0000-0000-0000-0000000000e1');
 insert into _tap (l) select is(
   produccion.accion('envasado', '00000000-0000-0000-0000-0000000000ab', 'iniciar',
-    '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
+    '00000000-0000-0000-0000-0000000000e1')->>'codigo',
   'OPERARIA_OCUPADA', 'una operaria no puede estar en dos envasados activos');
 
 -- 10. sobre-envasado cierra la fabricación (10 L, 3 × 5L)
 select set_config('t.r', produccion.accion('envasado', '00000000-0000-0000-0000-0000000000ac', 'finalizar',
-  '00000000-0000-0000-0000-0000000000e2', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e2', null,
+  '[{"empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":15,"unidad":"L"}]')::text, true);
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'fabricacion_cerrada') || '/' ||
   (select estado from produccion.fabricaciones where id = '00000000-0000-0000-0000-0000000000b7'),

@@ -20,8 +20,8 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","r
 -- 1-4. el panel crea una orden con 2 MP
 select set_config('t.r', produccion.crear_fabricacion_formula(
   '{"tanque_id":"00000000-0000-0000-0000-0000000000c1","producto_id":"00000000-0000-0000-0000-0000000000d1",
-    "litros":1000,"lote":"17702","vencimiento":"2028-10-21","fecha_formula":"2026-10-21",
-    "operaria_id":"00000000-0000-0000-0000-0000000000e1","codigo_producto":"F8"}',
+    "litros":1000,"lote":"TEST-17702","vencimiento":"2028-10-21","fecha_formula":"2026-10-21",
+    "operaria_id":"00000000-0000-0000-0000-0000000000e1","codigo_producto":"FTEST8"}',
   '[{"codigo":"MP-A","descripcion":"Agua","cantidad":967},{"codigo":"MP-B","descripcion":"Perfume","cantidad":0.4}]'
 )::text, true);
 select set_config('t.f1', current_setting('t.r')::jsonb->>'id', true);
@@ -33,22 +33,22 @@ insert into _tap (l) select is(
 insert into _tap (l) select is(
   (select vencimiento || '/' || fecha_formula || '/' || estado || '/' || lote
    from produccion.fabricaciones where id = current_setting('t.f1')::uuid),
-  '2028-10-21/2026-10-21/cola/17702', 'vencimiento y fecha de fórmula guardados, en cola');
+  '2028-10-21/2026-10-21/cola/TEST-17702', 'vencimiento y fecha de fórmula guardados, en cola');
 insert into _tap (l) select is(
   (select codigo from produccion.productos where id = '00000000-0000-0000-0000-0000000000d1'),
-  'F8', 'el producto sin código adopta el de la fórmula');
+  'FTEST8', 'el producto sin código adopta el de la fórmula');
 
 -- 5. mismo lote en otro tanque
 insert into _tap (l) select is(
   produccion.crear_fabricacion_formula(
     '{"tanque_id":"00000000-0000-0000-0000-0000000000c2","producto_id":"00000000-0000-0000-0000-0000000000d1",
-      "litros":500,"lote":" 17702 "}', '[]')->>'codigo',
+      "litros":500,"lote":" TEST-17702 "}', '[]')->>'codigo',
   'LOTE_DUPLICADO', 'lote repetido en una fabricación no cancelada');
 
 -- 6. código ya usado por otro producto: se crea igual y no se toca ningún código
 select set_config('t.r', produccion.crear_fabricacion_formula(
   '{"tanque_id":"00000000-0000-0000-0000-0000000000c2","producto_id":"00000000-0000-0000-0000-0000000000d2",
-    "litros":500,"lote":"17703","operaria_id":"00000000-0000-0000-0000-0000000000e1","codigo_producto":"F8"}',
+    "litros":500,"lote":"TEST-17703","operaria_id":"00000000-0000-0000-0000-0000000000e1","codigo_producto":"FTEST8"}',
   '[{"codigo":"MP-C","descripcion":"Base","cantidad":500}]'
 )::text, true);
 select set_config('t.f2', current_setting('t.r')::jsonb->>'id', true);
@@ -56,13 +56,13 @@ insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'ok') || '/' ||
   (select codigo from produccion.productos where id = '00000000-0000-0000-0000-0000000000d1') || '/' ||
   coalesce((select codigo from produccion.productos where id = '00000000-0000-0000-0000-0000000000d2'), 'null'),
-  'true/F8/null', 'código ya usado por otro producto: ok y no cambia nada');
+  'true/FTEST8/null', 'código ya usado por otro producto: ok y no cambia nada');
 
 -- 7. tanque con fabricación abierta
 insert into _tap (l) select is(
   produccion.crear_fabricacion_formula(
     '{"tanque_id":"00000000-0000-0000-0000-0000000000c1","producto_id":"00000000-0000-0000-0000-0000000000d1",
-      "litros":500,"lote":"17704"}', '[]')->>'codigo',
+      "litros":500,"lote":"TEST-17704"}', '[]')->>'codigo',
   'TANQUE_OCUPADO', 'tanque ocupado');
 
 -- el panel inicia la orden 1 (queda con la operaria de la fórmula, E1)
@@ -77,7 +77,7 @@ select set_config('t.mp3', (select id::text from produccion.fabricacion_mp
 -- orden 3 sin operaria, iniciada desde el panel (operaria_id queda null)
 select set_config('t.f3', produccion.crear_fabricacion_formula(
   '{"tanque_id":"00000000-0000-0000-0000-0000000000c4","producto_id":"00000000-0000-0000-0000-0000000000d1",
-    "litros":200,"lote":"17706"}',
+    "litros":200,"lote":"TEST-17706"}',
   '[{"codigo":"MP-D","descripcion":"Agua","cantidad":200}]')->>'id', true);
 select produccion.accion('fabricacion', current_setting('t.f3')::uuid, 'iniciar');
 select set_config('t.mp4', (select id::text from produccion.fabricacion_mp
@@ -90,7 +90,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","r
 insert into _tap (l) select is(
   produccion.crear_fabricacion_formula(
     '{"tanque_id":"00000000-0000-0000-0000-0000000000c3","producto_id":"00000000-0000-0000-0000-0000000000d1",
-      "litros":500,"lote":"17705"}', '[]')->>'codigo',
+      "litros":500,"lote":"TEST-17705"}', '[]')->>'codigo',
   'NO_AUTORIZADO', 'la tablet no puede crear órdenes');
 
 -- 9-11. cargar_mp rechazos
@@ -98,10 +98,10 @@ insert into _tap (l) select is(
   produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true)->>'codigo',
   'NO_AUTORIZADO', 'cargar_mp desde la tablet sin operaria');
 insert into _tap (l) select is(
-  produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e2', '1234')->>'codigo',
-  'NO_AUTORIZADO', 'cargar_mp con una operaria que no es la de la fabricación');
+  produccion.cargar_mp(current_setting('t.mp1')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e2')->>'codigo',
+  'NO_PARTICIPA', 'cargar_mp con una operaria que no participa de la fabricación');
 insert into _tap (l) select is(
-  produccion.cargar_mp(current_setting('t.mp3')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e1', '1234')->>'codigo',
+  produccion.cargar_mp(current_setting('t.mp3')::uuid, 'L-1', true, '00000000-0000-0000-0000-0000000000e1')->>'codigo',
   'TRANSICION_INVALIDA', 'cargar_mp en una fabricación en cola');
 
 -- 11b. fabricación sin operaria asignada: cualquier operaria activa carga, a su nombre (sin PIN)
@@ -113,7 +113,7 @@ insert into _tap (l) select is(
   'true/L-77/00000000-0000-0000-0000-0000000000e2', 'sin operaria asignada: carga la operaria elegida');
 
 -- 12. carga OK (recorta el lote)
-select produccion.cargar_mp(current_setting('t.mp1')::uuid, ' L-55 ', true, '00000000-0000-0000-0000-0000000000e1', '1234');
+select produccion.cargar_mp(current_setting('t.mp1')::uuid, ' L-55 ', true, '00000000-0000-0000-0000-0000000000e1');
 insert into _tap (l) select is(
   (select lote || '/' || pesado || '/' || cargado_por || '/' || (cargado_at is not null)
    from produccion.fabricacion_mp where id = current_setting('t.mp1')::uuid),
@@ -127,7 +127,7 @@ insert into _tap (l) select is(
 
 -- 14. finalizar con 1 MP incompleta
 select set_config('t.r', produccion.accion('fabricacion', current_setting('t.f1')::uuid, 'finalizar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e1')::text, true);
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'ok') || '/' || (current_setting('t.r')::jsonb->>'codigo') || '/' ||
   (current_setting('t.r')::jsonb->>'detalle') || '/' ||
@@ -140,7 +140,7 @@ update produccion.fabricacion_mp set lote = '   ', pesado = true where id = curr
 set local role authenticated;
 insert into _tap (l) select is(
   produccion.accion('fabricacion', current_setting('t.f1')::uuid, 'finalizar',
-    '00000000-0000-0000-0000-0000000000e1', '1234')->>'detalle',
+    '00000000-0000-0000-0000-0000000000e1')->>'detalle',
   '1', 'lote en blanco cuenta como incompleta');
 
 -- 16. el panel completa la MP sin PIN; cargado_por = operaria de la fabricación
@@ -154,7 +154,7 @@ insert into _tap (l) select is(
 -- 17. todas completas: finaliza
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
 select set_config('t.r', produccion.accion('fabricacion', current_setting('t.f1')::uuid, 'finalizar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e1')::text, true);
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'ok') || '/' ||
   (select estado from produccion.fabricaciones where id = current_setting('t.f1')::uuid),
@@ -168,7 +168,7 @@ insert into produccion.fabricaciones (id, tanque_id, producto_id, litros, estado
 set local role authenticated;
 insert into _tap (l) select is(
   (produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b9', 'finalizar',
-    '00000000-0000-0000-0000-0000000000e1', '1234')->>'estado'),
+    '00000000-0000-0000-0000-0000000000e1')->>'estado'),
   'para_envasar', 'fabricación sin MP finaliza normal');
 
 reset role;

@@ -44,7 +44,8 @@ insert into _tap (l) select is(
 
 -- 5. terminar un envasado no cierra la fabricación si quedan hermanos pendientes
 select set_config('t.r', produccion.accion('envasado', '00000000-0000-0000-0000-0000000000aa', 'finalizar',
-  '00000000-0000-0000-0000-0000000000e1', '1234')::text, true);
+  '00000000-0000-0000-0000-0000000000e1', null,
+  '[{"empleado_id":"00000000-0000-0000-0000-0000000000e1","cantidad":15,"unidad":"L"}]')::text, true);
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'fabricacion_cerrada') || '/' ||
   (select estado from produccion.fabricaciones where id = '00000000-0000-0000-0000-0000000000b1'),
