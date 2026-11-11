@@ -28,6 +28,9 @@ insert into produccion.productos (id, nombre, color, tipo) values
   ('00000000-0000-0000-0000-0000000000d1', 'Lavandina-test', '#0284c7', 'liquido');
 insert into produccion.presentaciones (id, nombre, litros_equiv) values
   ('00000000-0000-0000-0000-0000000000f1', '5L-test', 5);
+insert into produccion.etiquetas (id, nombre, activo) values
+  ('00000000-0000-0000-0000-0000000000e7', 'Etiqueta-test', true),
+  ('00000000-0000-0000-0000-0000000000e8', 'Etiqueta-inactiva-test', false);
 
 -- Salida TAP: execute_sql solo devuelve el último resultado, así que cada aserción
 -- se inserta en _tap y el test termina con `select l from _tap order by n`.
