@@ -48,10 +48,10 @@ El check suma `sumarse`, `salir`, `corregir`. `datos` lleva `{cantidad, unidad}`
 | acción | estados válidos | efecto en participaciones |
 |---|---|---|
 | iniciar | cola | abre la de `p_empleado_id` (si viene) |
-| sumarse | en curso / pausada (`fabricando`, `pausada`, `activo`, `pausado`) | abre la de `p_empleado_id`; error `YA_PARTICIPA` si ya está abierta |
+| sumarse | en curso / pausada (`fabricando`, `pausada`, `activo`, `pausado`) | abre la de `p_empleado_id`; error `YA_PARTICIPA` si ya está abierta; en envasado, `OPERARIA_OCUPADA` si ya está en otro envasado abierto (misma regla que iniciar) |
 | salir | en curso / pausada | cierra la de `p_empleado_id`. Envasado/fraccionado: exige cantidad > 0 (`CANTIDAD_REQUERIDA`). Error `ULTIMA_OPERARIA` si es la única abierta. Error `NO_PARTICIPA` si no estaba |
 | pausar / reanudar | como hoy | ninguno (pausa la orden entera) |
-| finalizar | como hoy | cierra todas las abiertas. Envasado/fraccionado: exige una cantidad por cada abierta (`CANTIDAD_REQUERIDA`) |
+| finalizar | como hoy | cierra todas las abiertas. Envasado/fraccionado desde planta: exige una cantidad por cada abierta (`CANTIDAD_REQUERIDA`). Desde el panel puede finalizar sin cantidades: quedan cerradas con `cantidad null` («Falta declarar») y la encargada las carga con `corregir_cantidad` |
 | cancelar | como hoy (solo panel) | cierra todas las abiertas sin cantidad |
 
 - Desde planta, pausar/reanudar/finalizar exigen que `p_empleado_id` tenga participación abierta (`NO_PARTICIPA`), salvo órdenes sin ninguna participación abierta (migradas sin operaria o iniciadas desde el panel), donde vale cualquier operaria activa y se le abre la participación.
@@ -65,7 +65,7 @@ Desde planta acepta a cualquier operaria con participación abierta en la fabric
 
 ### `corregir_cantidad(p_participacion_id, p_cantidad)`
 
-Solo panel. Guarda `cantidad_corregida`, `corregida_por = auth.uid()`, `corregida_at`; evento `corregir`. Solo participaciones cerradas con cantidad.
+Solo panel. Guarda `cantidad_corregida`, `corregida_por = auth.uid()`, `corregida_at`; evento `corregir`. Solo participaciones cerradas (con cantidad declarada o con `cantidad null`, para completar lo que faltó declarar).
 
 ### `set_vencimiento(p_fab_id, p_fecha, p_empleado_id)`
 
