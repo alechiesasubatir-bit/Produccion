@@ -536,6 +536,156 @@ $$;
 revoke execute on function produccion.accion(text, uuid, text, uuid, text, jsonb) from public, anon;
 grant execute on function produccion.accion(text, uuid, text, uuid, text, jsonb) to authenticated;
 
+-- Trigger de 007: no registra el 'editar' automático cuando una RPC ya deja su propio evento
+-- (set_vencimiento marca produccion.evento_manual con set_config local a la transacción).
+create or replace function produccion._registrar_evento() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare v_cambios jsonb;
+begin
+  if tg_op = 'INSERT' then
+    insert into produccion.eventos (entidad, entidad_id, accion, usuario_id)
+    values (tg_argv[0], new.id, 'crear', auth.uid());
+  elsif old.estado = new.estado then
+    if coalesce(current_setting('produccion.evento_manual', true), '') = '1' then
+      return null;
+    end if;
+    select jsonb_object_agg(n.key, n.value) into v_cambios
+    from jsonb_each(to_jsonb(new)) n
+    where n.value is distinct from (to_jsonb(old) -> n.key);
+    if v_cambios is not null then
+      insert into produccion.eventos (entidad, entidad_id, accion, usuario_id, datos)
+      values (tg_argv[0], new.id, 'editar', auth.uid(), v_cambios);
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+-- corregir_cantidad: solo el panel corrige lo declarado (o completa lo que faltó declarar).
+create function produccion.corregir_cantidad(
+  p_participacion_id uuid,
+  p_cantidad numeric,
+  p_unidad text default null
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_p    record;
+  v_tipo text;
+  v_uni  text;
+begin
+  if not produccion.es_panel() then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_AUTORIZADO', 'detalle', null);
+  end if;
+  if p_cantidad is null or p_cantidad <= 0 or (p_unidad is not null and p_unidad not in ('L', 'kg')) then
+    return jsonb_build_object('ok', false, 'codigo', 'CANTIDAD_REQUERIDA', 'detalle', null);
+  end if;
+
+  select * into v_p from produccion.participaciones where id = p_participacion_id for update;
+  if not found then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_ENCONTRADO', 'detalle', null);
+  end if;
+  if v_p.hasta is null then
+    return jsonb_build_object('ok', false, 'codigo', 'TRANSICION_INVALIDA',
+      'detalle', 'la participación sigue abierta');
+  end if;
+
+  v_uni := coalesce(p_unidad, v_p.unidad);
+  if v_uni is null then
+    select pr.tipo into v_tipo
+    from produccion.productos pr
+    where pr.id = case v_p.entidad
+      when 'fabricacion' then (select f.producto_id from produccion.fabricaciones f where f.id = v_p.entidad_id)
+      when 'envasado' then (select f.producto_id from produccion.envasados e
+                            join produccion.fabricaciones f on f.id = e.fabricacion_id where e.id = v_p.entidad_id)
+      else (select x.producto_id from produccion.fraccionados x where x.id = v_p.entidad_id)
+    end;
+    v_uni := case when v_tipo = 'polvo' then 'kg' else 'L' end;
+  end if;
+
+  update produccion.participaciones set
+    cantidad_corregida = p_cantidad,
+    unidad             = v_uni,
+    corregida_por      = auth.uid(),
+    corregida_at       = now()
+  where id = v_p.id;
+
+  insert into produccion.eventos (entidad, entidad_id, accion, usuario_id, datos)
+  values (v_p.entidad, v_p.entidad_id, 'corregir', auth.uid(),
+    jsonb_build_object('participacion_id', v_p.id, 'empleado_id', v_p.empleado_id,
+      'antes', coalesce(v_p.cantidad_corregida, v_p.cantidad), 'despues', p_cantidad, 'unidad', v_uni));
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function produccion.corregir_cantidad(uuid, numeric, text) from public, anon;
+grant execute on function produccion.corregir_cantidad(uuid, numeric, text) to authenticated;
+
+-- set_vencimiento: panel o planta (operaria de la fabricación). Deja un único evento 'editar'.
+create function produccion.set_vencimiento(
+  p_fab_id uuid,
+  p_fecha date,
+  p_empleado_id uuid default null
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_panel  boolean := produccion.es_panel();
+  v_planta boolean := produccion.es_planta();
+  v_disp   text;
+  v_fab    record;
+begin
+  if not (v_panel or v_planta) then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_AUTORIZADO', 'detalle', null);
+  end if;
+  if p_fecha is null then
+    return jsonb_build_object('ok', false, 'codigo', 'DATOS_INVALIDOS', 'detalle', null);
+  end if;
+  if not v_panel then
+    if p_empleado_id is null then
+      return jsonb_build_object('ok', false, 'codigo', 'NO_AUTORIZADO', 'detalle', null);
+    end if;
+    if not exists (
+      select 1 from produccion.operarias o
+      join core.funcionarios f on f.id = o.empleado_id
+      where o.empleado_id = p_empleado_id and o.activo and f.estado <> 'baja'
+    ) then
+      return jsonb_build_object('ok', false, 'codigo', 'OPERARIA_INACTIVA', 'detalle', null);
+    end if;
+    select email into v_disp from public.perfiles where id = auth.uid();
+  end if;
+
+  select f.id, f.estado, f.vencimiento into v_fab
+  from produccion.fabricaciones f where f.id = p_fab_id for update;
+  if not found then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_ENCONTRADO', 'detalle', null);
+  end if;
+  if v_fab.estado in ('finalizada', 'cancelada') then
+    return jsonb_build_object('ok', false, 'codigo', 'TRANSICION_INVALIDA',
+      'detalle', format('está en estado %s', v_fab.estado));
+  end if;
+  if not v_panel
+     and exists (select 1 from produccion.participaciones pa
+                 where pa.entidad = 'fabricacion' and pa.entidad_id = p_fab_id and pa.hasta is null)
+     and not exists (select 1 from produccion.participaciones pa
+                     where pa.entidad = 'fabricacion' and pa.entidad_id = p_fab_id and pa.hasta is null
+                       and pa.empleado_id = p_empleado_id) then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_PARTICIPA', 'detalle', null);
+  end if;
+
+  -- el evento lo deja esta función (con empleado y antes/después): el trigger de 007 no duplica
+  perform set_config('produccion.evento_manual', '1', true);
+  update produccion.fabricaciones set vencimiento = p_fecha where id = p_fab_id;
+  perform set_config('produccion.evento_manual', '', true);
+
+  insert into produccion.eventos (entidad, entidad_id, accion, empleado_id, usuario_id, dispositivo, datos)
+  values ('fabricacion', p_fab_id, 'editar', p_empleado_id, auth.uid(), v_disp,
+    jsonb_build_object('vencimiento', jsonb_build_object('antes', v_fab.vencimiento, 'despues', p_fecha)));
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function produccion.set_vencimiento(uuid, date, uuid) from public, anon;
+grant execute on function produccion.set_vencimiento(uuid, date, uuid) to authenticated;
+
 -- 3. Vistas ------------------------------------------------------------------
 
 -- Migración de datos (siempre al final del archivo) ---------------------------

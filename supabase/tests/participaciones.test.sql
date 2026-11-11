@@ -1,5 +1,5 @@
 -- Ejecutar: begin; + 013 + 014 + _fixtures.sql + este archivo (execute_sql no soporta \i).
-insert into _tap (l) select plan(29);
+insert into _tap (l) select plan(43);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -271,6 +271,104 @@ insert into _tap (l) select is(
   (produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'reanudar')->>'codigo') || '/' ||
   (select estado from produccion.envasados where id = '00000000-0000-0000-0000-000000000307'),
   'OPERARIA_OCUPADA/pausado', 'panel: reanudar revisa a las participantes abiertas → OPERARIA_OCUPADA');
+
+
+-- 29+. corregir_cantidad y set_vencimiento
+-- F6 …209 fabricando (T-TEST6, vencimiento 2027-01-01) con E1 abierta; participaciones cerradas en envasados …301 (120 L de E2) y …303 (E4, sin cantidad)
+reset role;
+insert into produccion.tanques (id, codigo, capacidad_l, orden) values
+  ('00000000-0000-0000-0000-0000000000c6', 'T-TEST6', 2000, 6);
+insert into produccion.fabricaciones (id, tanque_id, producto_id, litros, estado, inicio, vencimiento) values
+  ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-0000000000c6', '00000000-0000-0000-0000-0000000000d1', 500, 'fabricando', now(), '2027-01-01');
+insert into produccion.participaciones (id, entidad, entidad_id, empleado_id, hasta, cantidad, unidad) values
+  ('00000000-0000-0000-0000-000000000501', 'envasado', '00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-0000000000e2', now(), 120, 'L');
+insert into produccion.participaciones (id, entidad, entidad_id, empleado_id, hasta) values
+  ('00000000-0000-0000-0000-000000000502', 'envasado', '00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-0000000000e4', now());
+insert into produccion.participaciones (id, entidad, entidad_id, empleado_id) values
+  ('00000000-0000-0000-0000-000000000503', 'fabricacion', '00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-0000000000e1');
+-- eventos previos sobre la fabricación (la creación con vencimiento no cuenta como 'editar')
+create temp table _ed0 as select count(*) as n from produccion.eventos
+  where entidad_id = '00000000-0000-0000-0000-000000000209' and accion = 'editar';
+grant all on pg_temp._ed0 to public;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+insert into _tap (l) select is(
+  produccion.corregir_cantidad('00000000-0000-0000-0000-000000000501', 115)->>'codigo',
+  'NO_AUTORIZADO', 'corregir_cantidad desde planta: NO_AUTORIZADO');
+
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+insert into _tap (l) select is(
+  produccion.corregir_cantidad('00000000-0000-0000-0000-000000000503', 10)->>'codigo',
+  'TRANSICION_INVALIDA', 'corregir una participación abierta: TRANSICION_INVALIDA');
+insert into _tap (l) select is(
+  (produccion.corregir_cantidad('00000000-0000-0000-0000-000000000501', 0)->>'codigo') || '/' ||
+  (produccion.corregir_cantidad('00000000-0000-0000-0000-000000000501', 5, 'ml')->>'codigo'),
+  'CANTIDAD_REQUERIDA/CANTIDAD_REQUERIDA', 'corregir con cantidad <= 0 o unidad inválida: CANTIDAD_REQUERIDA');
+
+select set_config('t.r', produccion.corregir_cantidad('00000000-0000-0000-0000-000000000501', 115)::text, true);
+insert into _tap (l) select is(
+  (current_setting('t.r')::jsonb->>'ok') || '/' ||
+  (select cantidad_corregida || '/' || cantidad || '/' || (corregida_por = '00000000-0000-0000-0000-0000000000a1')::text
+   from produccion.participaciones where id = '00000000-0000-0000-0000-000000000501'),
+  'true/115/120/true', 'corregir desde panel: guarda cantidad_corregida y corregida_por, conserva cantidad');
+insert into _tap (l) select is(
+  (select (datos->>'antes') || '>' || (datos->>'despues') || '/' || (datos->>'participacion_id') || '/' || (datos->>'empleado_id')
+   from produccion.eventos where entidad_id = '00000000-0000-0000-0000-000000000301' and accion = 'corregir'),
+  '120>115/00000000-0000-0000-0000-000000000501/00000000-0000-0000-0000-0000000000e2', 'evento corregir con participacion_id, antes y despues');
+
+-- segunda corrección: antes = la corregida anterior
+select produccion.corregir_cantidad('00000000-0000-0000-0000-000000000501', 110);
+insert into _tap (l) select is(
+  (select string_agg(datos->>'antes', ',' order by at, id) from produccion.eventos
+   where entidad_id = '00000000-0000-0000-0000-000000000301' and accion = 'corregir'),
+  '120,115', 'segunda corrección: antes = corregida anterior');
+
+-- cerrada con cantidad null (panel finalizó sin cantidades): se completa; unidad por defecto L (producto no polvo)
+select set_config('t.r', produccion.corregir_cantidad('00000000-0000-0000-0000-000000000502', 40)::text, true);
+insert into _tap (l) select is(
+  (current_setting('t.r')::jsonb->>'ok') || '/' ||
+  (select cantidad_corregida || '/' || coalesce(cantidad::text, 'null') || '/' || unidad
+   from produccion.participaciones where id = '00000000-0000-0000-0000-000000000502'),
+  'true/40/null/L', 'corregir sobre cantidad null: guarda y asigna unidad por defecto');
+select produccion.corregir_cantidad('00000000-0000-0000-0000-000000000502', 41, 'kg');
+insert into _tap (l) select is(
+  (select unidad from produccion.participaciones where id = '00000000-0000-0000-0000-000000000502'),
+  'kg', 'corregir con unidad explícita la guarda');
+
+-- set_vencimiento
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+insert into _tap (l) select is(
+  produccion.set_vencimiento('00000000-0000-0000-0000-000000000209', '2027-03-01', '00000000-0000-0000-0000-0000000000e4')->>'codigo',
+  'NO_PARTICIPA', 'set_vencimiento desde planta sin participar: NO_PARTICIPA');
+select set_config('t.r', produccion.set_vencimiento('00000000-0000-0000-0000-000000000209', '2027-03-01',
+  '00000000-0000-0000-0000-0000000000e1')::text, true);
+insert into _tap (l) select is(
+  (current_setting('t.r')::jsonb->>'ok') || '/' ||
+  (select vencimiento::text from produccion.fabricaciones where id = '00000000-0000-0000-0000-000000000209') || '/' ||
+  (select count(*) - (select n from _ed0) from produccion.eventos where entidad_id = '00000000-0000-0000-0000-000000000209' and accion = 'editar') || '/' ||
+  (select empleado_id::text || '/' || (datos->'vencimiento')::text from produccion.eventos
+   where entidad_id = '00000000-0000-0000-0000-000000000209' and accion = 'editar' order by at desc, id desc limit 1),
+  'true/2027-03-01/1/00000000-0000-0000-0000-0000000000e1/{"antes": "2027-01-01", "despues": "2027-03-01"}',
+  'set_vencimiento desde planta: un solo evento editar con empleado y antes/despues');
+insert into _tap (l) select is(
+  produccion.set_vencimiento('00000000-0000-0000-0000-000000000209', null, '00000000-0000-0000-0000-0000000000e1')->>'codigo',
+  'DATOS_INVALIDOS', 'set_vencimiento con fecha null: DATOS_INVALIDOS');
+insert into _tap (l) select is(
+  produccion.set_vencimiento('00000000-0000-0000-0000-0000000000ff', '2027-03-01', '00000000-0000-0000-0000-0000000000e1')->>'codigo',
+  'NO_ENCONTRADO', 'set_vencimiento sobre fabricación inexistente: NO_ENCONTRADO');
+-- F5 …204 quedó finalizada por el cierre automático (test 26)
+insert into _tap (l) select is(
+  produccion.set_vencimiento('00000000-0000-0000-0000-000000000204', '2027-03-01', '00000000-0000-0000-0000-0000000000e1')->>'codigo',
+  'TRANSICION_INVALIDA', 'set_vencimiento sobre fabricación finalizada: TRANSICION_INVALIDA');
+
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+select set_config('t.r', produccion.set_vencimiento('00000000-0000-0000-0000-000000000209', '2027-06-01')::text, true);
+insert into _tap (l) select is(
+  (current_setting('t.r')::jsonb->>'ok') || '/' ||
+  (select vencimiento::text from produccion.fabricaciones where id = '00000000-0000-0000-0000-000000000209') || '/' ||
+  (select count(*) - (select n from _ed0) from produccion.eventos where entidad_id = '00000000-0000-0000-0000-000000000209' and accion = 'editar'),
+  'true/2027-06-01/2', 'set_vencimiento desde panel: ok y un solo evento editar más');
 
 reset role;
 insert into _tap (l) select * from finish();
