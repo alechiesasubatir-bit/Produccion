@@ -363,34 +363,47 @@ begin
         raise exception using errcode = 'PC001', message = 'TANQUE_NO_LISTO';
       end if;
     end if;
-    -- una operaria en un solo envasado abierto a la vez (reanudar sin operaria: la asignada, solo en órdenes de legado)
-    v_emp := case
-      when p_accion in ('iniciar', 'sumarse') then coalesce(p_empleado_id, v_op)
-      when p_accion = 'reanudar' then coalesce(p_empleado_id, case when v_abiertas = 0 then v_op end)
-    end;
-    if p_entidad = 'envasado' and v_emp is not null then
-      -- lock por operaria: serializa dos inicios simultáneos de la misma persona
-      perform 1 from produccion.operarias where empleado_id = v_emp for update;
-      select pr.nombre || ' ' || pe.nombre into v_det
-      from produccion.envasados v
-      join produccion.fabricaciones f on f.id = v.fabricacion_id
-      join produccion.productos pr on pr.id = f.producto_id
-      join produccion.presentaciones pe on pe.id = v.presentacion_id
-      where v.id <> p_id
-        and (
-          -- participación abierta en otro envasado activo (los pausados no bloquean, como en 013)
-          (v.estado = 'activo' and exists (
-            select 1 from produccion.participaciones pa
-            where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.empleado_id = v_emp and pa.hasta is null))
-          -- legado: envasado activo sin participaciones, con la operaria en operaria_1/operaria_2
-          or (v.estado = 'activo' and v_emp in (v.operaria_1, v.operaria_2) and not exists (
-            select 1 from produccion.participaciones pa
-            where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.hasta is null))
-        )
-      limit 1;
-      if found then
-        raise exception using errcode = 'PC001', message = 'OPERARIA_OCUPADA', detail = v_det;
-      end if;
+    -- una operaria en un solo envasado activo a la vez (los pausados no bloquean, como en 013).
+    -- iniciar/sumarse: quien entra. reanudar: todas las que siguen abiertas en la orden (incluida
+    -- quien acciona; si no hay ninguna abierta, la asignada de legado). Locks por operaria en orden
+    -- de empleado_id para no generar deadlocks entre reanudaciones simultáneas.
+    if p_entidad = 'envasado' and p_accion in ('iniciar', 'sumarse', 'reanudar') then
+      for v_emp in
+        select x.empleado_id from (
+          select coalesce(p_empleado_id, v_op) as empleado_id where p_accion in ('iniciar', 'sumarse')
+          union
+          select pa.empleado_id from produccion.participaciones pa
+          where p_accion = 'reanudar' and pa.entidad = 'envasado' and pa.entidad_id = p_id and pa.hasta is null
+          union
+          select p_empleado_id where p_accion = 'reanudar'
+          union
+          select v_op where p_accion = 'reanudar' and v_abiertas = 0
+        ) x
+        where x.empleado_id is not null
+        order by x.empleado_id
+      loop
+        perform 1 from produccion.operarias where empleado_id = v_emp for update;
+        select pr.nombre || ' ' || pe.nombre into v_det
+        from produccion.envasados v
+        join produccion.fabricaciones f on f.id = v.fabricacion_id
+        join produccion.productos pr on pr.id = f.producto_id
+        join produccion.presentaciones pe on pe.id = v.presentacion_id
+        where v.id <> p_id and v.estado = 'activo'
+          and (
+            -- participación abierta en otro envasado activo
+            exists (
+              select 1 from produccion.participaciones pa
+              where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.empleado_id = v_emp and pa.hasta is null)
+            -- legado: envasado activo sin participaciones, con la operaria en operaria_1/operaria_2
+            or (v_emp in (v.operaria_1, v.operaria_2) and not exists (
+              select 1 from produccion.participaciones pa
+              where pa.entidad = 'envasado' and pa.entidad_id = v.id and pa.hasta is null))
+          )
+        limit 1;
+        if found then
+          raise exception using errcode = 'PC001', message = 'OPERARIA_OCUPADA', detail = v_det;
+        end if;
+      end loop;
     end if;
 
     -- 7. Efectos en la orden

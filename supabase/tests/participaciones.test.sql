@@ -1,5 +1,5 @@
 -- Ejecutar: begin; + 013 + 014 + _fixtures.sql + este archivo (execute_sql no soporta \i).
-insert into _tap (l) select plan(27);
+insert into _tap (l) select plan(29);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -77,6 +77,8 @@ insert into produccion.envasados (id, fabricacion_id, presentacion_id, cantidad,
   ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-0000000000f1', 10, 'cola', null),
   ('00000000-0000-0000-0000-000000000303', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-0000000000f1', 10, 'cola', null),
   ('00000000-0000-0000-0000-000000000306', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-0000000000f1', 1, 'cola', null),
+  ('00000000-0000-0000-0000-000000000307', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-0000000000f1', 1, 'cola', null),
+  ('00000000-0000-0000-0000-000000000308', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-0000000000f1', 1, 'cola', null),
   ('00000000-0000-0000-0000-000000000305', '00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-0000000000f1', 3, 'activo', now());
 insert into produccion.fabricacion_mp (id, fabricacion_id, orden, codigo, descripcion, cantidad) values
   ('00000000-0000-0000-0000-000000000401', '00000000-0000-0000-0000-000000000202', 1, 'MP-T', 'Agua-test', 500);
@@ -253,6 +255,22 @@ insert into _tap (l) select is(
   (select count(*) from produccion.participaciones
    where entidad = 'fabricacion' and entidad_id = '00000000-0000-0000-0000-000000000204' and hasta is null),
   'true/0', 'cierre automático de la fabricación: 0 participaciones abiertas');
+
+
+-- 27-28. reanudar revisa a todas las abiertas: E1 y E2 en …307 pausado; E2 inicia …308; reanudar …307 → OPERARIA_OCUPADA
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+select produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'iniciar', '00000000-0000-0000-0000-0000000000e1');
+select produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'sumarse', '00000000-0000-0000-0000-0000000000e2');
+select produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'pausar', '00000000-0000-0000-0000-0000000000e1');
+select produccion.accion('envasado', '00000000-0000-0000-0000-000000000308', 'iniciar', '00000000-0000-0000-0000-0000000000e2');
+insert into _tap (l) select is(
+  produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'reanudar', '00000000-0000-0000-0000-0000000000e1')->>'codigo',
+  'OPERARIA_OCUPADA', 'planta: reanudar con otra participante ya en un envasado activo → OPERARIA_OCUPADA');
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+insert into _tap (l) select is(
+  (produccion.accion('envasado', '00000000-0000-0000-0000-000000000307', 'reanudar')->>'codigo') || '/' ||
+  (select estado from produccion.envasados where id = '00000000-0000-0000-0000-000000000307'),
+  'OPERARIA_OCUPADA/pausado', 'panel: reanudar revisa a las participantes abiertas → OPERARIA_OCUPADA');
 
 reset role;
 insert into _tap (l) select * from finish();
