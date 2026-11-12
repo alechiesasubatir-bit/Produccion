@@ -322,7 +322,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     if (!m) return { ok: false, codigo: 'NO_ENCONTRADO', detalle: null }
     const f = fabDe(m.fabricacion_id)
     if (f.estado !== 'fabricando' && f.estado !== 'pausada') {
-      return { ok: false, codigo: 'TRANSICION_INVALIDA', detalle: `está en estado ${f.estado.replace('_', ' ')}` }
+      return { ok: false, codigo: 'TRANSICION_INVALIDA', detalle: `está en estado ${f.estado.replaceAll('_', ' ')}` }
     }
     m.lote = lote?.trim() || null
     m.pesado = !!pesado
@@ -539,7 +539,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     const origen = d.firmante ? 'tablet' : 'panel'
     const f = fabs.find((y) => y.id === d.fabricacionId)
     if (!f) return no('NO_ENCONTRADO')
-    if (f.estado !== 'en_control') return no('TRANSICION_INVALIDA', `está en estado ${f.estado.replace('_', ' ')}`)
+    if (f.estado !== 'en_control') return no('TRANSICION_INVALIDA', `está en estado ${f.estado.replaceAll('_', ' ')}`)
     const polvo = producto(f.producto_id)?.tipo === 'polvo'
     const ph = polvo ? null : d.ph
     const densidad = polvo ? null : d.densidad
@@ -1006,6 +1006,14 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       }
     })
     avanzar(calentar)
+    // Siempre arranca con alguna fabricación esperando control (para que se vea el estado desde el primer cuadro).
+    if (!fabs.some((f) => f.estado === 'en_control')) {
+      const f = fabs.find((x) => x.estado === 'fabricando' && mpFaltan(x.id) === 0) ?? fabs.find((x) => x.estado === 'cola')
+      if (f) {
+        if (f.estado === 'cola') accion('fabricacion', f.id, 'iniciar')
+        accion('fabricacion', f.id, 'finalizar')
+      }
+    }
   }
 
   return {

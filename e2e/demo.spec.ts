@@ -92,8 +92,9 @@ test('demo: una operaria se suma a una orden en curso y el flujo muestra a las d
 
 test('demo: una fabricación «En control» aparece en el flujo', async ({ page }) => {
   await page.goto('demo')
-  await page.getByRole('button', { name: '300×' }).click()
+  // en pausa: el estado inicial de la demo ya trae una fabricación esperando control
+  await page.getByRole('button', { name: 'Pausa', exact: true }).click()
   const enControl = page.getByRole('region', { name: 'Fabricando' }).getByRole('article').filter({ hasText: 'En control' })
-  await expect(enControl.first()).toBeVisible({ timeout: 30_000 })
+  await expect(enControl.first()).toBeVisible()
   await page.screenshot({ path: 'test-results/demo-en-control-1440.png' })
 })

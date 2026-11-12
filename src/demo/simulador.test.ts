@@ -355,6 +355,13 @@ describe('simulador de la demo', () => {
       expect(h.controles.map((c) => [c.intento, c.resultado])).toEqual([[1, 'rechazado'], [2, 'aprobado']])
     })
 
+    it('cualquier semilla arranca con al menos una fabricación en control', () => {
+      for (let semilla = 1; semilla <= 40; semilla++) {
+        const s = crearSimulador({ inicio: INICIO, semilla })
+        expect(flujo(s).some((f) => f.estado === 'en_control'), `semilla ${semilla}`).toBe(true)
+      }
+    })
+
     it('autónoma: la encargada demo controla sola, aprueba la mayoría y rechaza con motivo (determinista)', () => {
       const correr = () => {
         const s = crearSimulador({ inicio: INICIO, semilla: 21 })
