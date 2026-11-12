@@ -158,7 +158,7 @@ select set_config('t.r', produccion.accion('fabricacion', current_setting('t.f1'
 insert into _tap (l) select is(
   (current_setting('t.r')::jsonb->>'ok') || '/' ||
   (select estado from produccion.fabricaciones where id = current_setting('t.f1')::uuid),
-  'true/para_envasar', 'con todas las MP completas finaliza');
+  'true/en_control', 'con todas las MP completas finaliza (pasa a control)');
 
 -- 18. fabricación sin MP (manual) finaliza normal
 reset role;
@@ -169,7 +169,7 @@ set local role authenticated;
 insert into _tap (l) select is(
   (produccion.accion('fabricacion', '00000000-0000-0000-0000-0000000000b9', 'finalizar',
     '00000000-0000-0000-0000-0000000000e1')->>'estado'),
-  'para_envasar', 'fabricación sin MP finaliza normal');
+  'en_control', 'fabricación sin MP finaliza normal (pasa a control)');
 
 reset role;
 insert into _tap (l) select * from finish();
