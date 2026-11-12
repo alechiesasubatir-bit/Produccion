@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import type { Accion } from '../domain/acciones'
 import type { Cantidad, OperariaEnOrden } from '../domain/participaciones'
-import { clasificarTareas, pideCantidad, tituloTarea, unidadPorDefecto, type Tarea } from '../domain/tareas'
+import { clasificarTareas, parsearCantidad, pideCantidad, tituloTarea, unidadPorDefecto, type Tarea } from '../domain/tareas'
+import { parsearPh, type FormControl } from '../domain/control'
+import { registrarControl } from '../lib/acciones'
+import { FormularioControl } from '../ui/FormularioControl'
 import { mensajeError } from '../lib/errores'
 import type { OperariaFila } from './QuienTrabaja'
 import { ChecklistMp } from './ChecklistMp'
 import { DeclararCantidad } from './DeclararCantidad'
+import { QuienControla } from './QuienControla'
 import { TarjetaTarea } from './TarjetaTarea'
 
 // Fabricación propia en curso con fórmula: lleva checklist de materias primas.
@@ -16,6 +20,8 @@ const llevaChecklist = (t: Tarea) =>
 type Paso =
   | { tipo: 'confirmar'; t: Tarea; accion: Accion; texto: string }
   | { tipo: 'cantidad'; t: Tarea; accion: Accion }
+  | { tipo: 'controla'; t: Tarea }
+  | { tipo: 'control'; t: Tarea; firmante: string }
 
 export function MisTareas({
   nombre,
@@ -28,6 +34,7 @@ export function MisTareas({
   recargaMp = 0,
   operarias = [],
   onAccion,
+  onControlado,
   onSalir,
 }: {
   nombre: string
@@ -41,9 +48,10 @@ export function MisTareas({
   // Todas las operarias (para nombrar a quien marcó cada MP, aunque ya haya salido de la orden).
   operarias?: OperariaFila[]
   onAccion: (t: Tarea, a: Accion, cantidades?: Cantidad[]) => void
+  onControlado?: (t: Tarea, resultado: 'aprobado' | 'rechazado') => void
   onSalir: () => void
 }) {
-  const { mias, enCurso, disponibles } = clasificarTareas(tareas, empleadoId, tanque)
+  const { mias, enControl, enCurso, disponibles } = clasificarTareas(tareas, empleadoId, tanque)
   // MP completas según el checklist: manda sobre v_tareas hasta que Realtime la actualice.
   const [completasLocal, setCompletasLocal] = useState<Record<string, number>>({})
   const [paso, setPaso] = useState<Paso | null>(null)
@@ -53,6 +61,26 @@ export function MisTareas({
     if (!llevaChecklist(t)) return null
     const faltan = t.mp_total - (completasLocal[t.id] ?? t.mp_completas)
     return faltan > 0 ? mensajeError({ codigo: 'MP_INCOMPLETA', detalle: String(faltan) }).texto : null
+  }
+
+  const controlar = async (p: { t: Tarea; firmante: string }, f: FormControl, resultado: 'aprobado' | 'rechazado') => {
+    const r = await registrarControl({
+      fabricacionId: p.t.id,
+      ph: f.ph.trim() === '' ? null : parsearPh(f.ph),
+      densidad: f.densidad.trim() === '' ? null : parsearCantidad(f.densidad),
+      perfumeOk: f.perfumeOk === true,
+      perfumeComentario: f.perfumeComentario,
+      visualOk: f.visualOk === true,
+      visualComentario: f.visualComentario,
+      observaciones: f.observaciones,
+      resultado,
+      firmante: p.firmante,
+    })
+    if (r.ok) {
+      setPaso(null)
+      onControlado?.(p.t, resultado)
+    }
+    return r
   }
 
   const accionar = (t: Tarea, a: Accion) => {
@@ -126,6 +154,23 @@ export function MisTareas({
           ))
         )}
       </section>
+      {enControl.length > 0 && (
+        <section className="lista-tareas" aria-label="En control">
+          <h2>En control</h2>
+          {enControl.map((t) => (
+            <TarjetaTarea
+              key={t.id}
+              tarea={t}
+              disponible={false}
+              empleadoId={empleadoId}
+              habilitado={conectado}
+              cargadoEn={cargadoEn}
+              onAccion={() => {}}
+              onControlar={() => setPaso({ tipo: 'controla', t })}
+            />
+          ))}
+        </section>
+      )}
       {enCurso.length > 0 && (
         <section className="lista-tareas" aria-label="En curso para sumarme">
           <h2>En curso — sumarme</h2>
@@ -169,6 +214,22 @@ export function MisTareas({
             setPaso(null)
             onAccion(paso.t, paso.accion, c)
           }}
+          onCancelar={() => setPaso(null)}
+        />
+      )}
+      {paso?.tipo === 'controla' && (
+        <QuienControla
+          onElegir={(id) => setPaso({ tipo: 'control', t: paso.t, firmante: id })}
+          onCancelar={() => setPaso(null)}
+        />
+      )}
+      {paso?.tipo === 'control' && (
+        <FormularioControl
+          esPolvo={paso.t.producto_tipo === 'polvo'}
+          intento={paso.t.control_intento ?? 1}
+          producto={paso.t.producto ?? undefined}
+          onAprobar={(f) => controlar(paso, f, 'aprobado')}
+          onRechazar={(f) => controlar(paso, f, 'rechazado')}
           onCancelar={() => setPaso(null)}
         />
       )}

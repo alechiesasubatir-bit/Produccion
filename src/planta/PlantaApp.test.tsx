@@ -91,6 +91,11 @@ describe('PlantaApp', () => {
     expect(m.canales.v_tareas).toContain('participaciones')
   })
 
+  it('escucha los cambios de controles para ver el estado en control al día', () => {
+    montar()
+    expect(m.canales.v_tareas).toContain('controles')
+  })
+
   it('flujo feliz: persona → finalizar → confirmación, sin PIN', async () => {
     montar()
     await entrarComoLaura()

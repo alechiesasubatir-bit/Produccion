@@ -699,3 +699,6 @@
   font-size: 0.85rem;
   color: var(--texto-suave, #64748b);
 }
+
+.tarea-intento { font-weight: 600; }
+.tarea-rechazo { color: var(--error, #b91c1c); font-weight: 600; }

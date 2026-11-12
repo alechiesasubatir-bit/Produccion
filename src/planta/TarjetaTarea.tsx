@@ -93,6 +93,7 @@ export function TarjetaTarea({
   bloqueoFinalizar,
   enCurso = false,
   empleadoId,
+  onControlar,
 }: {
   tarea: Tarea
   disponible: boolean
@@ -107,10 +108,15 @@ export function TarjetaTarea({
   enCurso?: boolean
   // Operaria de la sesión: para «Con: …» y para saber si es la última.
   empleadoId?: string
+  // Fabricación en control: la única acción es Controlar.
+  onControlar?: () => void
 }) {
-  const propia = !disponible && !enCurso
+  const enControl = tarea.estado === 'en_control'
+  const propia = !disponible && !enCurso && !enControl
   const ultima = propia && !!empleadoId && esUltima(tarea, empleadoId)
-  const acciones: Accion[] = disponible
+  const acciones: Accion[] = enControl
+    ? []
+    : disponible
     ? ['iniciar']
     : enCurso
       ? ['sumarse']
@@ -142,10 +148,12 @@ export function TarjetaTarea({
           {tarea.tanque_codigo && <span className="tarea-tanque">{tarea.tanque_codigo}</span>}
           <Chip estado={tarea.entidad === 'fraccionado' && tarea.estado === 'activo' ? 'fraccionado' : tarea.estado} />
           {tarea.lote && <span className="tarea-lote">Lote {tarea.lote}</span>}
+          {enControl && tarea.control_intento !== null && <span className="tarea-intento">Intento {tarea.control_intento}</span>}
           {otras.length > 0 && <span className="tarea-con">Con: {otras.join(' · ')}</span>}
         </span>
       </div>
-      <Cronometro tarea={tarea} cargadoEn={cargadoEn} />
+      {tarea.control_rechazo && <span className="tarea-rechazo">Rechazado: {tarea.control_rechazo}</span>}
+      {!enControl && <Cronometro tarea={tarea} cargadoEn={cargadoEn} />}
       {tarea.entidad !== 'fabricacion' && (
         <span className="tarea-etiqueta">{tarea.etiqueta ? `Etiqueta: ${tarea.etiqueta}` : 'Sin etiquetar'}</span>
       )}
@@ -153,6 +161,11 @@ export function TarjetaTarea({
         <Vencimiento fabricacionId={tarea.id} vencimiento={tarea.vencimiento} empleadoId={empleadoId} habilitado={habilitado} />
       )}
       <div className="tarea-acciones">
+        {enControl && (
+          <button type="button" className="accion accion-controlar" disabled={!habilitado} onClick={onControlar}>
+            Controlar
+          </button>
+        )}
         {acciones.map((a) => {
           const salirUltima = a === 'salir' && ultima
           const bloqueada = (a === 'finalizar' && !!bloqueoFinalizar) || salirUltima

@@ -51,10 +51,15 @@ export function clasificarTareas(
   tareas: Tarea[],
   empleadoId: string,
   tanque?: string | null,
-): { mias: Tarea[]; enCurso: Tarea[]; disponibles: Tarea[] } {
+): { mias: Tarea[]; enControl: Tarea[]; enCurso: Tarea[]; disponibles: Tarea[] } {
   return {
     mias: ordenar(
-      tareas.filter((t) => esMia(t, empleadoId)),
+      tareas.filter((t) => esMia(t, empleadoId) && t.estado !== 'en_control'),
+      tanque,
+    ),
+    // En control: de todas, sin importar quién la fabricó.
+    enControl: ordenar(
+      tareas.filter((t) => t.entidad === 'fabricacion' && t.estado === 'en_control'),
       tanque,
     ),
     enCurso: ordenar(

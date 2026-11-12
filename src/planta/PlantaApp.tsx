@@ -40,7 +40,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
   const tanque = params.get('tanque')
 
   const operarias = useRealtime('v_operarias', cargarOperarias, [])
-  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones'])
+  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles'])
   // El cronómetro suma desde el momento en que llegaron los datos.
   const cargadoEn = useMemo(() => Date.now(), [tareas.datos])
 
@@ -94,6 +94,12 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
     tareas.recargar()
     if (r.codigo === 'MP_INCOMPLETA') setRecargaMp((n) => n + 1)
     setAviso(r.texto)
+  }
+
+  const controlado = (t: Tarea, resultado: 'aprobado' | 'rechazado') => {
+    setAviso(null)
+    setConfirmacion({ color: t.color ?? '#0f172a', texto: resultado === 'aprobado' ? 'Control aprobado' : 'Control rechazado' })
+    setPantalla('confirmacion')
   }
 
   const terminarConfirmacion = () => {
@@ -162,6 +168,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
             recargaMp={recargaMp}
             operarias={operarias.datos}
             onAccion={(t, a, c) => void accionar(t, a, c)}
+            onControlado={controlado}
             onSalir={volverAlInicio}
           />
         )}

@@ -36,7 +36,7 @@ export const FORM_CONTROL_VACIO: FormControl = {
 }
 
 // El pH admite 0, que parsearCantidad rechaza (pide > 0).
-const parsearPh = (texto: string): number | null => (/^0([.,]0*)?$/.test(texto.trim()) ? 0 : parsearCantidad(texto))
+export const parsearPh = (texto: string): number | null => (/^0([.,]0*)?$/.test(texto.trim()) ? 0 : parsearCantidad(texto))
 
 export function validarControl(f: FormControl, esPolvo: boolean): Partial<Record<keyof FormControl, string>> {
   const e: Partial<Record<keyof FormControl, string>> = {}
