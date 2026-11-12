@@ -71,6 +71,77 @@ describe('MisTareas', () => {
   })
 })
 
+describe('operarias múltiples', () => {
+  const ana = { empleado_id: 'E2', nombre: 'Ana', desde: '2026-10-21T10:00:00Z' }
+  const laura = { empleado_id: 'E1', nombre: 'Laura Paz', desde: '2026-10-21T10:00:00Z' }
+  const rosa = { empleado_id: 'E3', nombre: 'Rosa', desde: '2026-10-21T10:00:00Z' }
+
+  it('secciones Mías, En curso — sumarme y Disponibles; «Con: Ana» en compartidas', () => {
+    const tareas = [
+      tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E1', operarias: [laura, ana] }),
+      tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E2', operarias: [ana], producto: 'Detergente' }),
+      tarea({ producto: 'Suavizante' }),
+    ]
+    render(<MisTareas {...base} tareas={tareas} />)
+    expect(screen.getByRole('heading', { name: 'Mías' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'En curso — sumarme' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Disponibles' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Mis tareas' })).getByText('Con: Ana')).toBeInTheDocument()
+    const en = screen.getByRole('region', { name: 'En curso para sumarme' })
+    expect(within(en).getByRole('article')).toHaveTextContent('Detergente')
+  })
+
+  it('Sumarme pide confirmación y manda sumarse', () => {
+    const onAccion = vi.fn()
+    const t = tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E2', operarias: [ana] })
+    render(<MisTareas {...base} tareas={[t]} onAccion={onAccion} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sumarme' }))
+    expect(onAccion).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    expect(onAccion).toHaveBeenCalledWith(t, 'sumarse')
+  })
+
+  it('Salir en envasado abre un campo y manda cantidades', () => {
+    const onAccion = vi.fn()
+    const t = tarea({ entidad: 'envasado', estado: 'activo', corriendo: true, operaria_1: 'E1', operarias: [laura, ana] })
+    render(<MisTareas {...base} tareas={[t]} onAccion={onAccion} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Salir de la orden' }))
+    const d = screen.getByRole('dialog', { name: '¿Cuánto envasaste?' })
+    expect(within(d).getAllByRole('textbox')).toHaveLength(1)
+    expect(d).toHaveTextContent('Laura Paz')
+    fireEvent.change(within(d).getByRole('textbox'), { target: { value: '12' } })
+    fireEvent.click(within(d).getByRole('button', { name: /Confirmar|Listo|Aceptar/ }))
+    expect(onAccion).toHaveBeenCalledWith(t, 'salir', [{ empleadoId: 'E1', cantidad: 12, unidad: 'L' }])
+  })
+
+  it('Salir en fabricación confirma y manda sin cantidades', () => {
+    const onAccion = vi.fn()
+    const t = tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E1', operarias: [laura, ana] })
+    render(<MisTareas {...base} tareas={[t]} onAccion={onAccion} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Salir de la orden' }))
+    expect(screen.getByText('Tus MP cargadas quedan registradas a tu nombre')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    expect(onAccion).toHaveBeenCalledWith(t, 'salir')
+  })
+
+  it('siendo la última, Salir está deshabilitado con el motivo', () => {
+    const t = tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E1', operarias: [laura] })
+    render(<MisTareas {...base} tareas={[t]} />)
+    expect(screen.getByRole('button', { name: 'Salir de la orden' })).toBeDisabled()
+    expect(screen.getByText('Sos la última: pausá o finalizá')).toBeInTheDocument()
+  })
+
+  it('Finalizar envasado con 2 operarias abre 2 campos con sus nombres', () => {
+    const t = tarea({ entidad: 'envasado', estado: 'activo', corriendo: true, operaria_1: 'E1', operarias: [laura, rosa] })
+    render(<MisTareas {...base} tareas={[t]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+    const d = screen.getByRole('dialog', { name: '¿Cuánto envasó cada una?' })
+    expect(within(d).getAllByRole('textbox')).toHaveLength(2)
+    expect(d).toHaveTextContent('Laura Paz')
+    expect(d).toHaveTextContent('Rosa')
+  })
+})
+
 describe('TarjetaTarea', () => {
   it('disponible: botón Tomar que inicia', () => {
     const onAccion = vi.fn()

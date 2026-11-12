@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { salir as salirDispositivo } from '../auth/useSesion'
 import type { Accion } from '../domain/acciones'
+import type { Cantidad } from '../domain/participaciones'
 import { pasadoAccion, tituloTarea, type Tarea } from '../domain/tareas'
 import { ejecutarAccion } from '../lib/acciones'
 import { db, fetchAll } from '../lib/supabase'
@@ -77,11 +78,11 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
     setPantalla('tareas')
   }
 
-  const accionar = async (t: Tarea, a: Accion) => {
+  const accionar = async (t: Tarea, a: Accion, cantidades?: Cantidad[]) => {
     if (!operaria || enviando.current) return
     const mia = sesion.current
     enviando.current = true
-    const r = await ejecutarAccion({ entidad: t.entidad, id: t.id, accion: a, empleadoId: operaria.empleado_id })
+    const r = await ejecutarAccion({ entidad: t.entidad, id: t.id, accion: a, empleadoId: operaria.empleado_id, ...(cantidades ? { cantidades } : {}) })
     if (mia !== sesion.current) return
     enviando.current = false
     if (r.ok) {
@@ -159,7 +160,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
             cargadoEn={cargadoEn}
             aviso={aviso}
             recargaMp={recargaMp}
-            onAccion={(t, a) => void accionar(t, a)}
+            onAccion={(t, a, c) => void accionar(t, a, c)}
             onSalir={volverAlInicio}
           />
         )}

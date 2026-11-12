@@ -680,3 +680,9 @@
   outline: 3px solid var(--tinta);
   outline-offset: 2px;
 }
+
+.tarea-con {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted, #475569);
+}

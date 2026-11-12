@@ -186,4 +186,12 @@ describe('PlantaApp', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No tenés permiso para esta acción.')
     m.error = null
   })
+
+  it('error ULTIMA_OPERARIA del servidor muestra su texto', async () => {
+    montar()
+    await entrarComoLaura()
+    m.ejecutarAccion.mockResolvedValue({ ok: false, codigo: 'ULTIMA_OPERARIA', texto: 'Sos la última: pausá o finalizá.' })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Finalizar' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('Sos la última: pausá o finalizá.')
+  })
 })
