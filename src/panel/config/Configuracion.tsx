@@ -4,11 +4,12 @@ import { EditorCatalogo, type Campo } from './EditorCatalogo'
 import { Operarias } from './Operarias'
 import { Usuarios } from './Usuarios'
 
-type Seccion = 'productos' | 'presentaciones' | 'tanques' | 'operarias' | 'usuarios'
+type Seccion = 'productos' | 'presentaciones' | 'etiquetas' | 'tanques' | 'operarias' | 'usuarios'
 
 const SECCIONES: { id: Seccion; texto: string }[] = [
   { id: 'productos', texto: 'Productos' },
   { id: 'presentaciones', texto: 'Presentaciones' },
+  { id: 'etiquetas', texto: 'Etiquetas' },
   { id: 'tanques', texto: 'Tanques' },
   { id: 'operarias', texto: 'Operarias' },
   { id: 'usuarios', texto: 'Usuarios' },
@@ -24,6 +25,7 @@ const CAMPOS_PRESENTACION: Campo[] = [
   { clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', requerido: true },
   { clave: 'litros_equiv', etiqueta: 'Litros equivalentes', tipo: 'numero', requerido: true, min: 0 },
 ]
+const CAMPOS_ETIQUETA: Campo[] = [{ clave: 'nombre', etiqueta: 'Nombre', tipo: 'texto', requerido: true }]
 const CAMPOS_TANQUE: Campo[] = [
   { clave: 'codigo', etiqueta: 'Código', tipo: 'texto', requerido: true },
   { clave: 'capacidad_l', etiqueta: 'Capacidad (L)', tipo: 'numero', requerido: true, min: 0 },
@@ -66,6 +68,7 @@ export function Configuracion() {
       {seccion === 'presentaciones' && (
         <EditorCatalogo tabla="presentaciones" campos={CAMPOS_PRESENTACION} orden="nombre" nuevo={{ nombre: '', litros_equiv: null }} />
       )}
+      {seccion === 'etiquetas' && <EditorCatalogo tabla="etiquetas" campos={CAMPOS_ETIQUETA} orden="nombre" nuevo={{ nombre: '' }} />}
       {seccion === 'tanques' && (
         <EditorCatalogo tabla="tanques" campos={CAMPOS_TANQUE} orden="orden" nuevo={{ codigo: '', capacidad_l: null, orden: 0 }} />
       )}

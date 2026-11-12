@@ -19,7 +19,9 @@ export type NuevoEnvasado = {
   fabricacion_id: string
   presentacion_id: string
   cantidad: number
-  etiquetado: string
+  /** Solo del formulario: no se inserta. */
+  etiquetar: boolean
+  etiqueta_id: string | null
   operaria_1: string | null
   operaria_2: string | null
 }
@@ -30,13 +32,16 @@ export type NuevoFraccionado = {
   presentacion_id: string | null
   cantidad: number
   lote: string
-  etiquetado: string
+  /** Solo del formulario: no se inserta. */
+  etiquetar: boolean
+  etiqueta_id: string | null
   operaria_id: string | null
 }
 
 type Errores<T> = Partial<Record<keyof T, string>>
 
 const ENTERO = 'Tiene que ser un número entero mayor a 0.'
+const ETIQUETA = 'Elegí una etiqueta.'
 const entero = (n: number) => Number.isInteger(n) && n > 0
 
 const litros = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
@@ -80,6 +85,7 @@ export function validarEnvasado(
   if (!d.presentacion_id) e.presentacion_id = 'Elegí una presentación.'
   if (!entero(d.cantidad)) e.cantidad = ENTERO
   if (d.operaria_2 && d.operaria_2 === d.operaria_1) e.operaria_2 = 'Elegí otra operaria.'
+  if (d.etiquetar && !d.etiqueta_id) e.etiqueta_id = ETIQUETA
 
   let advertencia: string | null = null
   if (entero(d.cantidad) && ctx.litrosRestantes !== null && ctx.litrosEquiv !== null) {
@@ -95,5 +101,6 @@ export function validarFraccionado(d: NuevoFraccionado): Errores<NuevoFraccionad
   const e: Errores<NuevoFraccionado> = {}
   if (!d.tipo.trim()) e.tipo = 'Indicá el tipo.'
   if (!entero(d.cantidad)) e.cantidad = ENTERO
+  if (d.etiquetar && !d.etiqueta_id) e.etiqueta_id = ETIQUETA
   return e
 }

@@ -56,6 +56,7 @@ const base: DatosOrden = {
     { id: 'p2', nombre: 'Lavandina', color: '#16a34a', codigo: null },
   ],
   presentaciones: [],
+  etiquetas: [],
   operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
   asignados: {},
   estandares: [],

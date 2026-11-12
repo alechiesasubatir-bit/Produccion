@@ -20,6 +20,7 @@ export type DatosOrden = {
   tanques: TanqueOrden[]
   productos: { id: string; nombre: string; color: string; codigo: string | null }[]
   presentaciones: { id: string; nombre: string; litros_equiv: number }[]
+  etiquetas: { id: string; nombre: string }[]
   operarias: { empleado_id: string; nombre: string }[]
   /** Litros ya comprometidos por envasados en cola/activos/pausados, por fabricación. */
   asignados: Record<string, number>
@@ -37,7 +38,7 @@ async function filas<T>(consulta: PromiseLike<{ data: T[] | null; error: unknown
 
 // Catálogos activos para armar una orden (pocas filas: no hace falta paginar).
 export async function cargarDatosOrden(): Promise<DatosOrden> {
-  const [tanques, productos, presentaciones, operarias, abiertos, estandares, lotes] = await Promise.all([
+  const [tanques, productos, presentaciones, etiquetas, operarias, abiertos, estandares, lotes] = await Promise.all([
     filas<TanqueOrden>(
       db.from('v_tanque_estado').select('tanque_id, codigo, capacidad_l, estado, fabricacion_id, producto, litros_restantes').order('orden'),
     ),
@@ -45,6 +46,7 @@ export async function cargarDatosOrden(): Promise<DatosOrden> {
     filas<DatosOrden['presentaciones'][number]>(
       db.from('presentaciones').select('id, nombre, litros_equiv').eq('activo', true).order('nombre'),
     ),
+    filas<DatosOrden['etiquetas'][number]>(db.from('etiquetas').select('id, nombre').eq('activo', true).order('nombre')),
     filas<DatosOrden['operarias'][number]>(db.from('v_operarias').select('empleado_id, nombre').order('nombre')),
     filas<{ fabricacion_id: string; cantidad: number; presentaciones: { litros_equiv: number } | null }>(
       db.from('envasados').select('fabricacion_id, cantidad, presentaciones(litros_equiv)').in('estado', ['cola', 'activo', 'pausado']),
@@ -57,14 +59,14 @@ export async function cargarDatosOrden(): Promise<DatosOrden> {
     asignados[e.fabricacion_id] = (asignados[e.fabricacion_id] ?? 0) + e.cantidad * (e.presentaciones?.litros_equiv ?? 0)
   }
   const lotesAbiertos = [...new Set(lotes.map((f) => (f.lote ?? '').trim()).filter(Boolean))]
-  return { tanques, productos, presentaciones, operarias, asignados, estandares, lotesAbiertos }
+  return { tanques, productos, presentaciones, etiquetas, operarias, asignados, estandares, lotesAbiertos }
 }
 
 const TABLA = { fabricacion: 'fabricaciones', envasado: 'envasados', fraccionado: 'fraccionados' } as const
 
 export async function crearOrden(
   tipo: keyof typeof TABLA,
-  datos: NuevaFabricacion | NuevoEnvasado | NuevoFraccionado,
+  datos: NuevaFabricacion | Omit<NuevoEnvasado, 'etiquetar'> | Omit<NuevoFraccionado, 'etiquetar'>,
 ): Promise<{ error: unknown }> {
   const { error } = await db.from(TABLA[tipo]).insert(datos as never)
   return { error }

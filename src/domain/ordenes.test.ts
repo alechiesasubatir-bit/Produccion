@@ -20,7 +20,7 @@ describe('validarFabricacion', () => {
   })
 })
 
-const env = { fabricacion_id: 'f1', presentacion_id: 'pr1', cantidad: 100, etiquetado: '', operaria_1: null, operaria_2: null }
+const env = { fabricacion_id: 'f1', presentacion_id: 'pr1', cantidad: 100, etiquetar: false, etiqueta_id: null, operaria_1: null, operaria_2: null }
 
 describe('validarEnvasado', () => {
   it('avisa si usa más litros de los que quedan, sin bloquear', () => {
@@ -49,11 +49,26 @@ describe('validarFraccionado', () => {
       presentacion_id: null,
       cantidad: 0,
       lote: '',
-      etiquetado: '',
+      etiquetar: false,
+      etiqueta_id: null,
       operaria_id: null,
     })
     expect(e.tipo).toBe('Indicá el tipo.')
     expect(e.cantidad).toBe('Tiene que ser un número entero mayor a 0.')
+  })
+})
+
+describe('etiquetado Sí/No', () => {
+  const ctx = { litrosRestantes: null, litrosEquiv: null }
+  it('envasado: con Sí hay que elegir etiqueta', () => {
+    expect(validarEnvasado({ ...env, etiquetar: true }, ctx).errores.etiqueta_id).toBe('Elegí una etiqueta.')
+    expect(validarEnvasado({ ...env, etiquetar: true, etiqueta_id: 'e1' }, ctx).errores.etiqueta_id).toBeUndefined()
+    expect(validarEnvasado(env, ctx).errores.etiqueta_id).toBeUndefined()
+  })
+  it('fraccionado: con Sí hay que elegir etiqueta', () => {
+    const f = { tipo: 'x', descripcion: '', producto_id: null, presentacion_id: null, cantidad: 1, lote: '', etiquetar: true, etiqueta_id: null, operaria_id: null }
+    expect(validarFraccionado(f).etiqueta_id).toBe('Elegí una etiqueta.')
+    expect(validarFraccionado({ ...f, etiqueta_id: 'e1' }).etiqueta_id).toBeUndefined()
   })
 })
 

@@ -16,6 +16,7 @@ const datos: DatosOrden = {
   ],
   productos: [{ id: 'p1', nombre: 'Lavandina', color: '#0284c7', codigo: null }],
   presentaciones: [{ id: 'pr1', nombre: '5L', litros_equiv: 5 }],
+  etiquetas: [{ id: 'et1', nombre: 'Etiqueta test' }],
   operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
   asignados: { fab3: 200 },
   estandares: [{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 7.5, muestras: 2, litros_hora_std: null }],
@@ -167,5 +168,58 @@ describe('NuevaOrden · abierta desde un tanque listo', () => {
     await abrir({ tipoInicial: 'envasado', fabricacionInicial: 'fab3' })
     expect(screen.getByRole('button', { name: 'Envasado' })).toHaveAttribute('aria-pressed', 'true')
     expect(campo('Tanque a envasar')).toHaveValue('fab3')
+  })
+})
+
+describe('NuevaOrden · etiquetado Sí/No', () => {
+  for (const [tipo, extra] of [['envasado', 'Tanque a envasar'], ['fraccionado', 'Tipo']] as const) {
+    it(`${tipo}: No por defecto, Sí pide etiqueta activa`, async () => {
+      await abrir({ tipoInicial: tipo })
+      const grupo = screen.getByRole('group', { name: 'Etiquetado' })
+      expect(within(grupo).getByRole('radio', { name: 'No' })).toBeChecked()
+      expect(screen.queryByLabelText('Etiqueta')).not.toBeInTheDocument()
+      fireEvent.click(within(grupo).getByRole('radio', { name: 'Sí' }))
+      const opciones = within(campo('Etiqueta')).getAllByRole('option').map((o) => o.textContent)
+      expect(opciones).toEqual(['Elegí una etiqueta', 'Etiqueta test'])
+      expect(screen.getByText('Elegí una etiqueta.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Crear orden' })).toBeDisabled()
+      expect(extra).toBeTruthy()
+    })
+  }
+
+  it('envasado con etiqueta inserta etiqueta_id y no etiquetar', async () => {
+    m.crearOrden.mockResolvedValue({ error: null })
+    await abrir({ tipoInicial: 'envasado' })
+    cambiar('Tanque a envasar', 'fab3')
+    cambiar('Presentación', 'pr1')
+    cambiar('Cantidad', '10')
+    fireEvent.click(screen.getByRole('radio', { name: 'Sí' }))
+    cambiar('Etiqueta', 'et1')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Crear orden' })))
+    const [, datosIns] = m.crearOrden.mock.lastCall as [string, Record<string, unknown>]
+    expect(datosIns.etiqueta_id).toBe('et1')
+    expect(datosIns).not.toHaveProperty('etiquetar')
+    expect(datosIns).not.toHaveProperty('etiquetado')
+  })
+
+  it('sin etiquetado manda etiqueta_id null', async () => {
+    m.crearOrden.mockResolvedValue({ error: null })
+    await abrir({ tipoInicial: 'fraccionado' })
+    cambiar('Tipo', 'Sachet')
+    cambiar('Cantidad', '5')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Crear orden' })))
+    const [, datosIns] = m.crearOrden.mock.lastCall as [string, Record<string, unknown>]
+    expect(datosIns.etiqueta_id).toBeNull()
+  })
+
+  it('ETIQUETA_INACTIVA del servidor se muestra', async () => {
+    m.crearOrden.mockResolvedValue({ error: { code: 'PC001', message: 'ETIQUETA_INACTIVA' } })
+    await abrir({ tipoInicial: 'fraccionado' })
+    cambiar('Tipo', 'Sachet')
+    cambiar('Cantidad', '5')
+    fireEvent.click(screen.getByRole('radio', { name: 'Sí' }))
+    cambiar('Etiqueta', 'et1')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Crear orden' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('Esa etiqueta está desactivada.')
   })
 })

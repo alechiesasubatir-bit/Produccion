@@ -81,3 +81,21 @@ describe('Configuración · tanques', () => {
     expect(m.actualizar).toHaveBeenCalledWith('tanques', 't1', { activo: false })
   })
 })
+
+describe('Configuración · etiquetas', () => {
+  it('lista, da de alta y desactiva', async () => {
+    m.filas = { etiquetas: [{ id: 'e1', nombre: 'Etiqueta test', activo: true }] }
+    m.insertar.mockReset()
+    m.actualizar.mockReset()
+    m.insertar.mockResolvedValue({ error: null })
+    m.actualizar.mockResolvedValue({ error: null })
+    await montar('Etiquetas')
+    const fila = screen.getByRole('row', { name: /Etiqueta test/ })
+    await act(async () => fireEvent.click(within(fila).getByRole('button', { name: 'Desactivar' })))
+    expect(m.actualizar).toHaveBeenCalledWith('etiquetas', 'e1', { activo: false })
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar' }))
+    cambiar('Nombre', 'Otra')
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Guardar' })))
+    expect(m.insertar).toHaveBeenCalledWith('etiquetas', { nombre: 'Otra', activo: true })
+  })
+})

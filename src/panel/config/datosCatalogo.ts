@@ -1,6 +1,6 @@
 import { db } from '../../lib/supabase'
 
-export type TablaCatalogo = 'productos' | 'presentaciones' | 'tanques'
+export type TablaCatalogo = 'productos' | 'presentaciones' | 'tanques' | 'etiquetas'
 export type FilaCatalogo = { id: string; activo: boolean } & Record<string, unknown>
 
 // Catálogos chicos (decenas de filas): sin paginar. Incluye inactivos para poder reactivarlos.

@@ -34,7 +34,8 @@ const vacioEnv = (): NuevoEnvasado => ({
   fabricacion_id: '',
   presentacion_id: '',
   cantidad: 0,
-  etiquetado: '',
+  etiquetar: false,
+  etiqueta_id: null,
   operaria_1: null,
   operaria_2: null,
 })
@@ -45,7 +46,8 @@ const vacioFrac = (): NuevoFraccionado => ({
   presentacion_id: null,
   cantidad: 0,
   lote: '',
-  etiquetado: '',
+  etiquetar: false,
+  etiqueta_id: null,
   operaria_id: null,
 })
 
@@ -150,7 +152,10 @@ export function NuevaOrden({
   const crear = async () => {
     setEnviando(true)
     setError(null)
-    const r = await crearOrden(tipo, tipo === 'fabricacion' ? fab : tipo === 'envasado' ? env : frac)
+    // `etiquetar` es solo del formulario: no es columna.
+    const { etiquetar: _e, ...envIns } = env
+    const { etiquetar: _f, ...fracIns } = frac
+    const r = await crearOrden(tipo, tipo === 'fabricacion' ? fab : tipo === 'envasado' ? envIns : fracIns)
     setEnviando(false)
     if (r.error) {
       setError(mensajeError(r.error).texto)
@@ -353,9 +358,49 @@ export function NuevaOrden({
                     {advertencia}
                   </p>
                 )}
-                <Campo id="o-etiq" etiqueta="Etiquetado">
-                  <input id="o-etiq" value={env.etiquetado} onChange={(e) => setEnv({ ...env, etiquetado: e.target.value })} />
-                </Campo>
+                <fieldset className="campo">
+                  <legend>Etiquetado</legend>
+                  <label>
+                    <input
+                      type="radio"
+                      name="o-etiquetar"
+                      checked={!env.etiquetar}
+                      onChange={() => setEnv({ ...env, etiquetar: false, etiqueta_id: null })}
+                    />{' '}
+                    No
+                  </label>{' '}
+                  <label>
+                    <input
+                      type="radio"
+                      name="o-etiquetar"
+                      checked={env.etiquetar}
+                      onChange={() => {
+                        setEnv({ ...env, etiquetar: true })
+                        tocar('etiqueta_id')
+                      }}
+                    />{' '}
+                    Sí
+                  </label>
+                </fieldset>
+                {env.etiquetar && (
+                  <Campo id="o-etiqueta" etiqueta="Etiqueta" error={err('etiqueta_id')}>
+                    <select
+                      id="o-etiqueta"
+                      value={env.etiqueta_id ?? ''}
+                      onChange={(e) => {
+                        setEnv({ ...env, etiqueta_id: opcional(e.target.value) })
+                        tocar('etiqueta_id')
+                      }}
+                    >
+                      <option value="">Elegí una etiqueta</option>
+                      {datos?.etiquetas.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </Campo>
+                )}
                 <Campo id="o-op1" etiqueta="Operaria 1 (opcional)">
                   <select id="o-op1" value={env.operaria_1 ?? ''} onChange={(e) => setEnv({ ...env, operaria_1: opcional(e.target.value) })}>
                     {operariasOpciones}
@@ -428,9 +473,49 @@ export function NuevaOrden({
                 <Campo id="o-flote" etiqueta="Lote">
                   <input id="o-flote" value={frac.lote} onChange={(e) => setFrac({ ...frac, lote: e.target.value })} />
                 </Campo>
-                <Campo id="o-fetiq" etiqueta="Etiquetado">
-                  <input id="o-fetiq" value={frac.etiquetado} onChange={(e) => setFrac({ ...frac, etiquetado: e.target.value })} />
-                </Campo>
+                <fieldset className="campo">
+                  <legend>Etiquetado</legend>
+                  <label>
+                    <input
+                      type="radio"
+                      name="o-f-etiquetar"
+                      checked={!frac.etiquetar}
+                      onChange={() => setFrac({ ...frac, etiquetar: false, etiqueta_id: null })}
+                    />{' '}
+                    No
+                  </label>{' '}
+                  <label>
+                    <input
+                      type="radio"
+                      name="o-f-etiquetar"
+                      checked={frac.etiquetar}
+                      onChange={() => {
+                        setFrac({ ...frac, etiquetar: true })
+                        tocar('etiqueta_id')
+                      }}
+                    />{' '}
+                    Sí
+                  </label>
+                </fieldset>
+                {frac.etiquetar && (
+                  <Campo id="o-f-etiqueta" etiqueta="Etiqueta" error={err('etiqueta_id')}>
+                    <select
+                      id="o-f-etiqueta"
+                      value={frac.etiqueta_id ?? ''}
+                      onChange={(e) => {
+                        setFrac({ ...frac, etiqueta_id: opcional(e.target.value) })
+                        tocar('etiqueta_id')
+                      }}
+                    >
+                      <option value="">Elegí una etiqueta</option>
+                      {datos?.etiquetas.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </Campo>
+                )}
                 <Campo id="o-fop" etiqueta="Operaria (opcional)">
                   <select
                     id="o-fop"
