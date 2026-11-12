@@ -51,6 +51,8 @@ function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
     producto_tipo: null,
     operarias: [],
     etiqueta: null,
+    control_intento: null,
+    control_rechazo: null,
     tanque_codigo: 'T-01',
     presentacion: null,
     cantidad: null,

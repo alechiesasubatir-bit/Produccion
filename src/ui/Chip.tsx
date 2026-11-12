@@ -5,6 +5,7 @@ const VARIANTES: Record<string, Variante> = {
   envasando: { clase: 'envasando', texto: 'Envasando', enCurso: true },
   activo: { clase: 'envasando', texto: 'Envasando', enCurso: true },
   fraccionado: { clase: 'fraccionado', texto: 'Fraccionado', enCurso: true },
+  en_control: { clase: 'control', texto: 'En control', enCurso: false },
   pausada: { clase: 'pausado', texto: 'Pausado', enCurso: false },
   pausado: { clase: 'pausado', texto: 'Pausado', enCurso: false },
   env_pausado: { clase: 'pausado', texto: 'Pausado', enCurso: false },

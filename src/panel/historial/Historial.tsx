@@ -25,7 +25,7 @@ import { SelectorRango } from './SelectorRango'
 type Vista = 'tabla' | 'mes' | 'semana'
 
 const TIPOS: Record<Entidad, string> = { fabricacion: 'Fabricación', envasado: 'Envasado', fraccionado: 'Fraccionado' }
-const ESTADOS = ['cola', 'fabricando', 'pausada', 'para_envasar', 'finalizada', 'activo', 'pausado', 'finalizado', 'cancelada', 'cancelado']
+const ESTADOS = ['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar', 'finalizada', 'activo', 'pausado', 'finalizado', 'cancelada', 'cancelado']
 
 export const fechaHora = (ts: string | null) =>
   ts
@@ -85,7 +85,7 @@ const CSV: ColumnaCSV<FilaCSV>[] = [
   { titulo: 'Minutos operaria', valor: ({ p }) => (p ? Math.round(p.minutos) : null) },
 ]
 
-const ABIERTA = ['cola', 'fabricando', 'pausada', 'para_envasar']
+const ABIERTA = ['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar']
 
 export function Historial() {
   const navegar = useNavigate()

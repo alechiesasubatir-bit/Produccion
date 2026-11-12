@@ -30,6 +30,7 @@ export function filaH(over: Partial<FilaHistorial> = {}): FilaHistorial {
     dia: '2026-10-21',
     participaciones: [],
     etiqueta: null,
+    controles: [],
     ...over,
   }
 }

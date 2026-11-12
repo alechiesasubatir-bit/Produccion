@@ -3,10 +3,10 @@ import type { FilaHistorial } from './historial'
 
 export type Estandar = Database['produccion']['Views']['v_tiempos_estandar']['Row']
 
-// Una fabricación está hecha cuando termina de fabricarse (para_envasar), no cuando se termina de
+// Una fabricación está hecha cuando termina de fabricarse (en_control o para_envasar), no cuando se termina de
 // envasar el tanque; envasados y fraccionados, cuando se finalizan.
 export const terminada = (f: Pick<FilaHistorial, 'entidad' | 'estado'>) =>
-  f.entidad === 'fabricacion' ? f.estado === 'para_envasar' || f.estado === 'finalizada' : f.estado === 'finalizado'
+  f.entidad === 'fabricacion' ? f.estado === 'en_control' || f.estado === 'para_envasar' || f.estado === 'finalizada' : f.estado === 'finalizado'
 const un = (n: number) => Math.round(n * 10) / 10
 
 // Igual que la app vieja: por operaria, unidades envasadas / minutos (ahora efectivos).

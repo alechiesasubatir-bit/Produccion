@@ -45,6 +45,11 @@ test('fraccionado pausado panel puede reanudar y cancelar', () => {
   expect(accionesPosibles('fraccionado', 'pausado', 'panel')).toEqual(['reanudar', 'cancelar'])
 })
 
+test('fabricación en_control: solo el panel puede cancelar', () => {
+  expect(accionesPosibles('fabricacion', 'en_control', 'panel')).toEqual(['cancelar'])
+  expect(accionesPosibles('fabricacion', 'en_control', 'planta')).toEqual([])
+})
+
 test('fabricación para_envasar: solo el panel la cierra (merma)', () => {
   expect(accionesPosibles('fabricacion', 'para_envasar', 'panel')).toEqual(['finalizar'])
   expect(accionesPosibles('fabricacion', 'para_envasar', 'planta')).toEqual([])

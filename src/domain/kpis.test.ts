@@ -67,6 +67,11 @@ describe('tiemposVsEstandar', () => {
 })
 
 describe('fabricación terminada', () => {
+  it('una fabricación en control ya cuenta sus litros', () => {
+    const r = resumenOperaciones([filaH({ estado: 'en_control', litros: 500, min_efectivos: 30 })])
+    expect(r.fabricaciones).toBe(1)
+    expect(r.litrosFabricados).toBe(500)
+  })
   it('una fabricación lista para envasar ya cuenta sus litros (no espera al envasado)', () => {
     const r = resumenOperaciones([filaH({ estado: 'para_envasar', litros: 800, min_efectivos: 40 })])
     expect(r.fabricaciones).toBe(1)

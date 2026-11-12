@@ -12,6 +12,7 @@ test.each([
   ['env_pausado', 'Pausado', false],
   ['cola_env', 'En cola', false],
   ['finalizado', 'Terminada', false],
+  ['en_control', 'En control', false],
   ['libre', 'Libre', false],
 ])('chip %s dice "%s"', (estado, texto, enCurso) => {
   const { container } = render(<Chip estado={estado} />)

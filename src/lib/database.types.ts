@@ -1,7 +1,8 @@
 // Tipos de la base (formato de `supabase gen types`).
 // El generador del MCP solo emite el esquema public, así que `produccion` se escribe a mano
-// desde supabase/migrations/ (001–014). Al cambiar una migración, actualizar acá.
+// desde supabase/migrations/ (001–015). Al cambiar una migración, actualizar acá.
 
+import type { ControlHistorial } from '../domain/control'
 import type { OperariaEnOrden, Participacion } from '../domain/participaciones'
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
@@ -9,7 +10,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 type Ts = string // timestamptz en ISO
 type Uuid = string
 
-type EstadoFabricacion = 'cola' | 'fabricando' | 'pausada' | 'para_envasar' | 'finalizada' | 'cancelada'
+type EstadoFabricacion = 'cola' | 'fabricando' | 'pausada' | 'en_control' | 'para_envasar' | 'finalizada' | 'cancelada'
 type EstadoTarea = 'cola' | 'activo' | 'pausado' | 'finalizado' | 'cancelado'
 type EntidadEvento = 'fabricacion' | 'envasado' | 'fraccionado'
 export type TipoProducto = 'liquido' | 'denso' | 'polvo'
@@ -228,7 +229,7 @@ export type Database = {
           id: number
           entidad: EntidadEvento
           entidad_id: Uuid
-          accion: 'crear' | 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar' | 'corregir'
+          accion: 'crear' | 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar' | 'corregir' | 'aprobar' | 'rechazar'
           empleado_id: Uuid | null
           usuario_id: Uuid | null
           dispositivo: string | null
@@ -265,7 +266,7 @@ export type Database = {
         codigo: string
         capacidad_l: number
         orden: number
-        estado: 'libre' | 'cola' | 'fabricando' | 'pausada' | 'para_envasar' | 'cola_env' | 'envasando' | 'env_pausado'
+        estado: 'libre' | 'cola' | 'fabricando' | 'pausada' | 'en_control' | 'para_envasar' | 'cola_env' | 'envasando' | 'env_pausado'
         fabricacion_id: Uuid | null
         producto_id: Uuid | null
         producto: string | null
@@ -302,6 +303,8 @@ export type Database = {
         producto_tipo: TipoProducto | null
         operarias: OperariaEnOrden[]
         etiqueta: string | null
+        control_intento: number | null
+        control_rechazo: string | null
       }>
       v_tareas: Vista<{
         entidad: EntidadEvento
@@ -328,6 +331,8 @@ export type Database = {
         operarias: OperariaEnOrden[]
         etiqueta: string | null
         vencimiento: string | null
+        control_intento: number | null
+        control_rechazo: string | null
       }>
       v_historial: Vista<{
         entidad: EntidadEvento
@@ -355,6 +360,7 @@ export type Database = {
         dia: string
         participaciones: Participacion[]
         etiqueta: string | null
+        controles: ControlHistorial[]
       }>
       v_tiempos_estandar: Vista<{
         entidad: 'fabricacion' | 'envasado'
@@ -393,6 +399,22 @@ export type Database = {
         Args: { p_fab_id: Uuid; p_fecha: string; p_empleado_id?: Uuid }
         Returns: Json
       }
+      registrar_control: {
+        Args: {
+          p_fab_id: Uuid
+          p_ph: number | null
+          p_densidad: number | null
+          p_perfume_ok: boolean
+          p_perfume_comentario: string
+          p_visual_ok: boolean
+          p_visual_comentario: string
+          p_observaciones: string
+          p_resultado: 'aprobado' | 'rechazado'
+          p_firmante?: Uuid
+        }
+        Returns: Json
+      }
+      listar_liberadoras: { Args: never; Returns: { id: Uuid; nombre: string }[] }
       set_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: undefined }
       verificar_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: Json }
       crear_fabricacion_formula: {

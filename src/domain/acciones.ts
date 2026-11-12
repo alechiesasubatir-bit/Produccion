@@ -16,6 +16,8 @@ const TRANSICIONES_FABRICACION: Transicion[] = [
   { entidad: 'fabricacion', estado: 'cola', accion: 'cancelar' },
   { entidad: 'fabricacion', estado: 'fabricando', accion: 'cancelar' },
   { entidad: 'fabricacion', estado: 'pausada', accion: 'cancelar' },
+  // En control solo el panel puede cancelar (la planta pierde 'cancelar' más abajo).
+  { entidad: 'fabricacion', estado: 'en_control', accion: 'cancelar' },
 ]
 
 // envasado y fraccionado comparten los mismos nombres de estado y la misma máquina de estados.

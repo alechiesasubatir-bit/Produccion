@@ -50,6 +50,8 @@ const suya: Tarea = {
   mp_completas: 0,
   operarias: [],
   etiqueta: null,
+  control_intento: null,
+  control_rechazo: null,
   vencimiento: null,
 }
 

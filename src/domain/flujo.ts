@@ -19,6 +19,7 @@ export function columnaFlujo(f: FilaFlujo): Columna {
   if (f.entidad === 'envasado') return f.estado === 'cola' ? 'para_envasar' : 'envasando'
   if (f.estado === 'cola') return 'cola'
   if (f.estado === 'para_envasar') return 'para_envasar'
+  // en_control sigue en la columna de fabricación (con el chip «En control»).
   return 'fabricando'
 }
 

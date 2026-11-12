@@ -28,6 +28,8 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     producto_tipo: null,
     operarias: [],
     etiqueta: null,
+    control_intento: null,
+    control_rechazo: null,
     vencimiento: null,
     tanque_codigo: 'T-01',
     presentacion: null,

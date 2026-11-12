@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, corregirCantidad, ejecutarAccion, guardarMp, setVencimiento } from './acciones'
+import { accionPanel, corregirCantidad, ejecutarAccion, guardarMp, listarLiberadoras, registrarControl, setVencimiento } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -137,5 +137,64 @@ describe('cantidades por operaria', () => {
       ok: false,
       codigo: 'NO_AUTORIZADO',
     })
+  })
+})
+
+describe('registrarControl', () => {
+  const c = {
+    fabricacionId: 'f1',
+    ph: 7.5,
+    densidad: 1.02,
+    perfumeOk: false,
+    perfumeComentario: 'muy suave',
+    visualOk: true,
+    visualComentario: '',
+    observaciones: '',
+    resultado: 'rechazado' as const,
+  }
+
+  it('llama a registrar_control con los nombres de parámetro exactos, sin firmante en el panel', async () => {
+    rpc.mockResolvedValue({ data: { ok: true, intento: 2 }, error: null })
+    expect(await registrarControl(c)).toEqual({ ok: true, intento: 2 })
+    expect(rpc).toHaveBeenLastCalledWith('registrar_control', {
+      p_fab_id: 'f1',
+      p_ph: 7.5,
+      p_densidad: 1.02,
+      p_perfume_ok: false,
+      p_perfume_comentario: 'muy suave',
+      p_visual_ok: true,
+      p_visual_comentario: '',
+      p_observaciones: '',
+      p_resultado: 'rechazado',
+    })
+  })
+
+  it('manda p_firmante cuando hay firmante (tablet) y pH/densidad nulos en polvo', async () => {
+    rpc.mockResolvedValue({ data: { ok: true, intento: 1 }, error: null })
+    await registrarControl({ ...c, ph: null, densidad: null, firmante: 'L1' })
+    expect(rpc).toHaveBeenLastCalledWith('registrar_control', expect.objectContaining({ p_ph: null, p_densidad: null, p_firmante: 'L1' }))
+  })
+
+  it('rechazo de negocio', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'DATOS_INVALIDOS', detalle: 'falta pH' }, error: null })
+    expect(await registrarControl(c)).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+  })
+})
+
+describe('listarLiberadoras', () => {
+  it('devuelve la lista', async () => {
+    rpc.mockResolvedValue({ data: [{ id: 'L1', nombre: 'Marta Gómez' }], error: null })
+    expect(await listarLiberadoras()).toEqual([{ id: 'L1', nombre: 'Marta Gómez' }])
+    expect(rpc).toHaveBeenLastCalledWith('listar_liberadoras')
+  })
+
+  it('sin datos devuelve []', async () => {
+    rpc.mockResolvedValue({ data: null, error: null })
+    expect(await listarLiberadoras()).toEqual([])
+  })
+
+  it('lanza si la RPC falla (42501)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'no autorizado', code: '42501' } })
+    await expect(listarLiberadoras()).rejects.toMatchObject({ code: '42501' })
   })
 })

@@ -164,6 +164,7 @@ body {
 .chip-envasando { background: #e2f1fa; color: #0c4a6e; border-color: #bcdcef; }
 .chip-fraccionado { background: #fbf0d6; color: #7c3d0c; border-color: #efd9a3; }
 .chip-pausado { background: #fde6e1; color: #8f1d0f; border-color: #f5c3b8; }
+.chip-control { background: #e6e9fb; color: #2b3a8f; border-color: #c5cdf1; }
 .chip-cola { background: #efede6; color: #4a4f5b; border-color: #ddd8ca; }
 .chip-terminada { background: #ece8f7; color: #4c2a8a; border-color: #d4cbef; }
 .chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }

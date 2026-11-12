@@ -11,6 +11,10 @@ test('nivelTanque fabricando usa litros x progresoFab / capacidad', () => {
   ).toBe(0.5)
 })
 
+test('nivelTanque en_control muestra el tanque lleno de los litros fabricados', () => {
+  expect(nivelTanque({ estado: 'en_control', capacidad: 2000, litros: 1000 })).toBe(0.5)
+})
+
 test('nivelTanque envasando clampa a 1 cuando litrosRestantes excede capacidad', () => {
   expect(nivelTanque({ estado: 'envasando', capacidad: 2000, litrosRestantes: 3000 })).toBe(1)
 })

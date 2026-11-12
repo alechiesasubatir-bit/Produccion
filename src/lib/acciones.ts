@@ -10,7 +10,7 @@ type Respuesta = { ok?: boolean; fabricacion_cerrada?: boolean } | null
 // Las RPC de produccion no lanzan errores de negocio: devuelven {ok:false, codigo, detalle}.
 // Acá se unifican con los errores de PostgREST y de red en un solo formato.
 async function llamar(
-  nombre: 'accion' | 'cargar_mp' | 'corregir_cantidad' | 'set_vencimiento',
+  nombre: 'accion' | 'cargar_mp' | 'corregir_cantidad' | 'set_vencimiento' | 'registrar_control',
   args: Record<string, unknown>,
 ): Promise<Respuesta | Resultado> {
   try {
@@ -97,4 +97,41 @@ export async function setVencimiento(p: {
     p_empleado_id: p.empleadoId,
   })
   return r && 'codigo' in r ? r : { ok: true }
+}
+
+// Registra el control de una fabricación en_control: aprobada pasa a para_envasar, rechazada vuelve a fabricando.
+// Desde la tablet va con `firmante` (la liberadora elegida); desde el panel firma el usuario logueado.
+export async function registrarControl(p: {
+  fabricacionId: string
+  ph: number | null
+  densidad: number | null
+  perfumeOk: boolean
+  perfumeComentario: string
+  visualOk: boolean
+  visualComentario: string
+  observaciones: string
+  resultado: 'aprobado' | 'rechazado'
+  firmante?: string
+}): Promise<Resultado<{ intento: number }>> {
+  const r = await llamar('registrar_control', {
+    p_fab_id: p.fabricacionId,
+    p_ph: p.ph,
+    p_densidad: p.densidad,
+    p_perfume_ok: p.perfumeOk,
+    p_perfume_comentario: p.perfumeComentario,
+    p_visual_ok: p.visualOk,
+    p_visual_comentario: p.visualComentario,
+    p_observaciones: p.observaciones,
+    p_resultado: p.resultado,
+    ...(p.firmante && { p_firmante: p.firmante }),
+  })
+  if (r && 'codigo' in r) return r
+  return { ok: true, intento: Number((r as { intento?: number } | null)?.intento ?? 0) }
+}
+
+// Quiénes pueden firmar un control desde la tablet. Lanza si falla (el que llama muestra mensajeError).
+export async function listarLiberadoras(): Promise<{ id: string; nombre: string }[]> {
+  const { data, error } = await db.rpc('listar_liberadoras')
+  if (error) throw error
+  return (data ?? []) as { id: string; nombre: string }[]
 }

@@ -13,6 +13,8 @@ export function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
     producto_tipo: null,
     operarias: [],
     etiqueta: null,
+    control_intento: null,
+    control_rechazo: null,
     tanque_codigo: 'T-01',
     presentacion: null,
     cantidad: null,
@@ -37,6 +39,7 @@ describe('columnaFlujo', () => {
   it('ubica cada estado en su columna', () => {
     expect(columnaFlujo(fila({ entidad: 'envasado', estado: 'cola' }))).toBe('para_envasar')
     expect(columnaFlujo(fila({ estado: 'pausada' }))).toBe('fabricando')
+    expect(columnaFlujo(fila({ estado: 'en_control' }))).toBe('fabricando')
     expect(columnaFlujo(fila({ entidad: 'fraccionado', estado: 'activo' }))).toBe('fraccionado')
     expect(columnaFlujo(fila({ entidad: 'envasado', estado: 'finalizado' }))).toBe('terminadas')
     expect(columnaFlujo(fila({ estado: 'para_envasar' }))).toBe('para_envasar')

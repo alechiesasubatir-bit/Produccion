@@ -3,6 +3,7 @@ export type EstadoTanque =
   | 'cola'
   | 'fabricando'
   | 'pausada'
+  | 'en_control'
   | 'para_envasar'
   | 'cola_env'
   | 'envasando'
@@ -28,6 +29,11 @@ export function nivelTanque(t: {
       const litros = t.litros ?? 0
       const progreso = t.progresoFab ?? 0.5
       return clamp01((litros * progreso) / t.capacidad)
+    }
+    case 'en_control': {
+      // La fabricación terminó: el tanque está lleno hasta que se aprueba el control.
+      const litros = t.litros ?? 0
+      return clamp01(litros / t.capacidad)
     }
     case 'para_envasar':
     case 'cola_env':
