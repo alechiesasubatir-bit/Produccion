@@ -109,3 +109,47 @@ test('cancelar llama onCancelar', async () => {
   click(screen.getByRole('button', { name: 'Cancelar' }))
   expect(onCancelar).toHaveBeenCalled()
 })
+
+test('los errores no ensucian el nombre accesible y se anuncian', () => {
+  montar()
+  click(screen.getByRole('button', { name: 'Aprobar' }))
+  const ph = screen.getByRole('textbox', { name: 'pH' })
+  expect(ph).toHaveAttribute('aria-invalid', 'true')
+  expect(ph).toHaveAccessibleDescription('Falta el pH.')
+  expect(screen.getByRole('alert')).toHaveTextContent('Revisá los campos marcados.')
+  expect(screen.getByRole('group', { name: 'Perfume' })).toHaveAccessibleDescription('Marcá OK o No OK.')
+})
+
+test('un callback que rechaza muestra el error y vuelve al formulario', async () => {
+  montar({ onAprobar: () => Promise.reject(new Error('red')) })
+  llenarOk()
+  click(screen.getByRole('button', { name: 'Aprobar' }))
+  click(screen.getByRole('button', { name: 'Sí, aprobar' }))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar. Probá de nuevo.'))
+  expect(screen.getByLabelText('pH')).toBeInTheDocument()
+})
+
+test('doble clic en confirmar llama una sola vez y los valores se conservan tras ok:false', async () => {
+  let resolver: (r: Resultado) => void = () => {}
+  const onAprobar = vi.fn(() => new Promise<Resultado>((res) => (resolver = res)))
+  montar({ onAprobar })
+  llenarOk()
+  click(screen.getByRole('button', { name: 'Aprobar' }))
+  const si = screen.getByRole('button', { name: 'Sí, aprobar' })
+  click(si)
+  click(si)
+  expect(onAprobar).toHaveBeenCalledTimes(1)
+  resolver({ ok: false, codigo: 'TRANSICION_INVALIDA', texto: 'Ya no está en control.' })
+  await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+  expect(screen.getByLabelText('pH')).toHaveValue('7,5')
+  expect(screen.getByLabelText('Densidad')).toHaveValue('1,02')
+})
+
+test('el foco pasa a la confirmación y vuelve al alert', async () => {
+  montar({ onAprobar: () => Promise.resolve({ ok: false, codigo: 'TRANSICION_INVALIDA', texto: 'Ya no está en control.' }) })
+  llenarOk()
+  click(screen.getByRole('button', { name: 'Aprobar' }))
+  await waitFor(() => expect(document.activeElement).toContainElement(screen.getByText('¿Aprobar el control? El tanque queda listo para envasar.')))
+  click(screen.getByRole('button', { name: 'Sí, aprobar' }))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus())
+})

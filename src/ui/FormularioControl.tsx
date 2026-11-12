@@ -1,23 +1,94 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FORM_CONTROL_VACIO, hayNoOk, validarControl, type FormControl } from '../domain/control'
 import type { Resultado } from '../lib/acciones'
 import './FormularioControl.css'
 
 type Accion = 'aprobar' | 'rechazar'
 
-function MensajeError({ texto }: { texto?: string }) {
-  return texto ? <p className="fc-error">{texto}</p> : null
+function MensajeError({ id, texto }: { id: string; texto?: string }) {
+  return texto ? (
+    <p className="fc-error" id={id}>
+      {texto}
+    </p>
+  ) : null
 }
 
-function Ok({ nombre, valor, onChange }: { nombre: string; valor: boolean | null; onChange: (v: boolean) => void }) {
+const desc = (id: string, texto?: string) => (texto ? { 'aria-describedby': id, 'aria-invalid': true as const } : {})
+
+function Ok({
+  nombre,
+  valor,
+  onChange,
+  errorId,
+}: {
+  nombre: string
+  valor: boolean | null
+  onChange: (v: boolean) => void
+  errorId?: string
+}) {
   return (
-    <div className="fc-ok" role="group" aria-label={nombre}>
+    <div className="fc-ok" role="group" aria-label={nombre} aria-describedby={errorId}>
       <button type="button" className="fc-ok-boton" aria-pressed={valor === true} onClick={() => onChange(true)}>
         OK
       </button>
       <button type="button" className="fc-ok-boton fc-no" aria-pressed={valor === false} onClick={() => onChange(false)}>
         No OK
       </button>
+    </div>
+  )
+}
+
+function Comentario({
+  id,
+  valor,
+  onChange,
+  error,
+}: {
+  id: string
+  valor: string
+  onChange: (v: string) => void
+  error?: string
+}) {
+  return (
+    <div className="fc-campo">
+      <label className="fc-etiqueta" htmlFor={id}>
+        ¿Qué está mal?
+      </label>
+      <textarea id={id} className="fc-texto" value={valor} onChange={(e) => onChange(e.target.value)} {...desc(`${id}-error`, error)} />
+      <MensajeError id={`${id}-error`} texto={error} />
+    </div>
+  )
+}
+
+function Numero({
+  id,
+  etiqueta,
+  valor,
+  onChange,
+  error,
+}: {
+  id: string
+  etiqueta: string
+  valor: string
+  onChange: (v: string) => void
+  error?: string
+}) {
+  return (
+    <div className="fc-campo">
+      <label className="fc-etiqueta" htmlFor={id}>
+        {etiqueta}
+      </label>
+      <input
+        id={id}
+        className="fc-input"
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        {...desc(`${id}-error`, error)}
+      />
+      <MensajeError id={`${id}-error`} texto={error} />
     </div>
   )
 }
@@ -43,19 +114,43 @@ export function FormularioControl({
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const [pendiente, setPendiente] = useState(false)
   const [errorServidor, setErrorServidor] = useState<string | null>(null)
+  const [bloqueado, setBloqueado] = useState(false)
+  const enCurso = useRef(false)
+  const titulo = useRef<HTMLHeadingElement>(null)
+  const confirmacion = useRef<HTMLDivElement>(null)
+  const alerta = useRef<HTMLParagraphElement>(null)
+  const estuvoConfirmando = useRef(false)
+
+  // Foco: a la confirmación al abrirla; al alert (o al título) al volver.
+  useEffect(() => {
+    if (confirmando !== null) {
+      estuvoConfirmando.current = true
+      confirmacion.current?.focus()
+    } else if (estuvoConfirmando.current) {
+      estuvoConfirmando.current = false
+      const destino = alerta.current ?? titulo.current
+      destino?.focus()
+    }
+  }, [confirmando])
 
   const errores = intentado ? validarControl(f, esPolvo) : {}
+  const alertaTexto = errorServidor ?? (bloqueado && Object.keys(errores).length > 0 ? 'Revisá los campos marcados.' : null)
   const set = <K extends keyof FormControl>(k: K, v: FormControl[K]) => setF((x) => ({ ...x, [k]: v }))
 
   function pedir(accion: Accion) {
     setIntentado(true)
     setErrorServidor(null)
-    if (Object.keys(validarControl(f, esPolvo)).length > 0) return
+    if (Object.keys(validarControl(f, esPolvo)).length > 0) {
+      setBloqueado(true)
+      return
+    }
+    setBloqueado(false)
     setConfirmando(accion)
   }
 
   async function confirmar() {
-    if (!confirmando) return
+    if (!confirmando || enCurso.current) return
+    enCurso.current = true
     setPendiente(true)
     try {
       const r = await (confirmando === 'aprobar' ? onAprobar(f) : onRechazar(f))
@@ -63,14 +158,18 @@ export function FormularioControl({
         setErrorServidor(r.texto)
         setConfirmando(null)
       }
+    } catch {
+      setErrorServidor('No se pudo guardar. Probá de nuevo.')
+      setConfirmando(null)
     } finally {
+      enCurso.current = false
       setPendiente(false)
     }
   }
 
   return (
     <div className="fc" role="form" aria-label="Control">
-      <h2 className="fc-titulo">
+      <h2 className="fc-titulo" ref={titulo} tabIndex={-1}>
         Control — Intento {intento}
         {producto ? <span className="fc-producto">{producto}</span> : null}
       </h2>
@@ -79,67 +178,49 @@ export function FormularioControl({
         <>
           {!esPolvo && (
             <>
-              <label className="fc-campo">
-                <span className="fc-etiqueta">pH</span>
-                <input
-                  className="fc-input"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={f.ph}
-                  onChange={(e) => set('ph', e.target.value)}
-                />
-                <MensajeError texto={errores.ph} />
-              </label>
-              <label className="fc-campo">
-                <span className="fc-etiqueta">Densidad</span>
-                <input
-                  className="fc-input"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={f.densidad}
-                  onChange={(e) => set('densidad', e.target.value)}
-                />
-                <MensajeError texto={errores.densidad} />
-              </label>
+              <Numero id="fc-ph" etiqueta="pH" valor={f.ph} onChange={(v) => set('ph', v)} error={errores.ph} />
+              <Numero id="fc-densidad" etiqueta="Densidad" valor={f.densidad} onChange={(v) => set('densidad', v)} error={errores.densidad} />
             </>
           )}
 
           <div className="fc-campo">
             <span className="fc-etiqueta">Perfume</span>
-            <Ok nombre="Perfume" valor={f.perfumeOk} onChange={(v) => set('perfumeOk', v)} />
-            <MensajeError texto={errores.perfumeOk} />
+            <Ok
+              nombre="Perfume"
+              valor={f.perfumeOk}
+              onChange={(v) => set('perfumeOk', v)}
+              errorId={errores.perfumeOk ? 'fc-perfume-ok-error' : undefined}
+            />
+            <MensajeError id="fc-perfume-ok-error" texto={errores.perfumeOk} />
             {f.perfumeOk === false && (
-              <label className="fc-campo">
-                <span className="fc-etiqueta">¿Qué está mal?</span>
-                <textarea className="fc-texto" value={f.perfumeComentario} onChange={(e) => set('perfumeComentario', e.target.value)} />
-                <MensajeError texto={errores.perfumeComentario} />
-              </label>
+              <Comentario id="fc-perfume-comentario" valor={f.perfumeComentario} onChange={(v) => set('perfumeComentario', v)} error={errores.perfumeComentario} />
             )}
           </div>
 
           <div className="fc-campo">
             <span className="fc-etiqueta">Visual</span>
-            <Ok nombre="Visual" valor={f.visualOk} onChange={(v) => set('visualOk', v)} />
-            <MensajeError texto={errores.visualOk} />
+            <Ok
+              nombre="Visual"
+              valor={f.visualOk}
+              onChange={(v) => set('visualOk', v)}
+              errorId={errores.visualOk ? 'fc-visual-ok-error' : undefined}
+            />
+            <MensajeError id="fc-visual-ok-error" texto={errores.visualOk} />
             {f.visualOk === false && (
-              <label className="fc-campo">
-                <span className="fc-etiqueta">¿Qué está mal?</span>
-                <textarea className="fc-texto" value={f.visualComentario} onChange={(e) => set('visualComentario', e.target.value)} />
-                <MensajeError texto={errores.visualComentario} />
-              </label>
+              <Comentario id="fc-visual-comentario" valor={f.visualComentario} onChange={(v) => set('visualComentario', v)} error={errores.visualComentario} />
             )}
           </div>
 
-          <label className="fc-campo">
-            <span className="fc-etiqueta">Observaciones (opcional)</span>
-            <textarea className="fc-texto" value={f.observaciones} onChange={(e) => set('observaciones', e.target.value)} />
-          </label>
+          <div className="fc-campo">
+            <label className="fc-etiqueta" htmlFor="fc-observaciones">
+              Observaciones (opcional)
+            </label>
+            <textarea id="fc-observaciones" className="fc-texto" value={f.observaciones} onChange={(e) => set('observaciones', e.target.value)} />
+          </div>
 
-          {errorServidor && (
-            <p className="fc-error" role="alert">
-              {errorServidor}
+          {alertaTexto && (
+            <p className="fc-error" role="alert" ref={alerta} tabIndex={-1}>
+              {alertaTexto}
             </p>
           )}
 
@@ -156,7 +237,7 @@ export function FormularioControl({
           </div>
         </>
       ) : (
-        <>
+        <div ref={confirmacion} tabIndex={-1} className="fc-confirmacion">
           {confirmando === 'aprobar' ? (
             <>
               <p className="fc-confirmar">¿Aprobar el control? El tanque queda listo para envasar.</p>
@@ -173,7 +254,7 @@ export function FormularioControl({
               Volver
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
