@@ -2567,3 +2567,10 @@ th[aria-sort='descending'] .th-orden::after {
   padding: 4px 8px;
   border-radius: 6px;
 }
+
+/* Operarias del detalle del tanque: plegadas para que el panel entre en pantalla. */
+.detalle-operarias > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 0;
+}

@@ -222,8 +222,8 @@ export function DetalleTanque({
       {tanque.fabricacion_id && <TablaMp fabricacionId={tanque.fabricacion_id} estado={estados.fabricacion} plegable />}
 
       {tanque.fabricacion_id && (
-        <section className="detalle-seccion">
-          <h3>Operarias</h3>
+        <details className="detalle-seccion detalle-operarias">
+          <summary>Operarias</summary>
           {estados.envasado && tanque.envasado_id && <h4 className="detalle-etiqueta">Fabricación</h4>}
           <OperariasOrden entidad="fabricacion" id={tanque.fabricacion_id} />
           {estados.envasado && tanque.envasado_id && (
@@ -232,7 +232,7 @@ export function DetalleTanque({
               <OperariasOrden entidad="envasado" id={tanque.envasado_id} />
             </>
           )}
-        </section>
+        </details>
       )}
 
       {recorrido.length > 0 && (
