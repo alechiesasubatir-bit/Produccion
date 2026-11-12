@@ -137,4 +137,34 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
       ['envasado', 0, 0],
     ])
   })
+
+  it('rutas nuevas: etiquetas, participaciones, corregir_cantidad, set_vencimiento y listar_usuarios', async () => {
+    const { db, sim } = cliente()
+    const etiquetas = await db.from('etiquetas').select('id, nombre').eq('activo', true).order('nombre')
+    expect(etiquetas.data).toEqual([expect.objectContaining({ nombre: 'Etiqueta Demo A' }), expect.objectContaining({ nombre: 'Etiqueta Demo B' })])
+
+    sim.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: 'dp1', litros: 100, lote: 'L-1' })
+    const fab = sim.consultar('v_flujo')[0].id as string
+    const venc = await db.rpc('set_vencimiento', { p_fab_id: fab, p_fecha: '2028-05-05' } as never)
+    expect(venc.data).toEqual({ ok: true })
+    expect((await db.from('fabricaciones').select('*').eq('id', fab)).data?.[0]).toMatchObject({ vencimiento: '2028-05-05' })
+
+    await db.rpc('accion', { p_entidad: 'fabricacion', p_id: fab, p_accion: 'iniciar', p_empleado_id: 'do1' } as never)
+    const ya = await db.rpc('accion', { p_entidad: 'fabricacion', p_id: fab, p_accion: 'sumarse', p_empleado_id: 'do1' } as never)
+    expect(ya.data).toMatchObject({ ok: false, codigo: 'YA_PARTICIPA' })
+    await db.rpc('accion', { p_entidad: 'fabricacion', p_id: fab, p_accion: 'sumarse', p_empleado_id: 'do2' } as never)
+    const salir = await db.rpc('accion', { p_entidad: 'fabricacion', p_id: fab, p_accion: 'salir', p_empleado_id: 'do2', p_cantidades: [] } as never)
+    expect(salir.data).toMatchObject({ ok: true })
+
+    const partes = await db.from('participaciones').select('*').eq('entidad', 'fabricacion').eq('entidad_id', fab).order('desde')
+    expect(partes.data).toHaveLength(2)
+    const cerrada = partes.data?.find((p) => p.empleado_id === 'do2')
+    const corr = await db.rpc('corregir_cantidad', { p_participacion_id: cerrada?.id, p_cantidad: 25, p_unidad: 'L' } as never)
+    expect(corr.data).toEqual({ ok: true })
+    const dp = await db.from('participaciones').select('*').eq('id', cerrada?.id as string)
+    expect(dp.data?.[0]).toMatchObject({ cantidad_corregida: 25, corregida_por: expect.any(String) })
+
+    const usuarios = await db.rpc('listar_usuarios')
+    expect(usuarios.data).toEqual([expect.objectContaining({ id: dp.data?.[0].corregida_por, nombre: expect.any(String) })])
+  })
 })

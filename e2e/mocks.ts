@@ -35,13 +35,21 @@ export const MP_BACTIPRO: MpMock[] = [
   { codigo: '900104', descripcion: 'Agua Prueba ( MP )', cantidad: 970.7 },
 ]
 
+type OperariaEnOrden = { empleado_id: string; nombre: string; desde: string }
+export type LlamadaAccion = { p_entidad: string; p_id: string; p_accion: string; p_empleado_id?: string; p_cantidades?: { empleado_id: string; cantidad: number; unidad: string }[] }
+
 type FilaMp = MpMock & { id: string; fabricacion_id: string; orden: number; lote: string | null; pesado: boolean; cargado_por: string | null; cargado_at: string | null }
 
 /**
  * `opciones.mp`: la fabricación F1 de la tablet viene con ese checklist de MP (como si se hubiera
  * creado desde el PDF de la fórmula). Sin MP, F1 es una fabricación cargada a mano.
  */
-export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'planta', opciones: { mp?: MpMock[] } = {}) {
+export async function simularSupabase(
+  page: Page,
+  rol: 'planta' | 'panel' = 'planta',
+  // `equipo`: hay un envasado en curso de Rosa Díaz (para sumarse y salir). `tanqueListo`: el tanque T-01 espera envasado.
+  opciones: { mp?: MpMock[]; equipo?: boolean; tanqueListo?: boolean } = {},
+) {
   const mp: FilaMp[] = (opciones.mp ?? []).map((m, i) => ({
     ...m, id: `MP${i + 1}`, fabricacion_id: 'F1', orden: i + 1, lote: null, pesado: false, cargado_por: null, cargado_at: null,
   }))
@@ -65,7 +73,37 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     min_efectivos: null as number | null,
     corriendo: false,
     created_at: '2026-10-21T09:00:00Z',
+    producto_tipo: 'liquido',
+    operarias: [] as OperariaEnOrden[],
+    etiqueta: null,
+    vencimiento: null,
   }
+  // Envasado en curso de otra operaria (solo con `opciones.equipo`).
+  const envasadoEquipo = {
+    ...tarea,
+    entidad: 'envasado',
+    id: 'V1',
+    estado: 'activo',
+    presentacion: '5L',
+    cantidad: 20,
+    operaria_1: 'E2',
+    inicio: '2026-10-21T09:30:00Z',
+    min_efectivos: 12,
+    corriendo: true,
+    created_at: '2026-10-21T09:10:00Z',
+    mp_total: 0,
+    mp_completas: 0,
+    etiqueta: 'Etiqueta Demo A',
+    operarias: [{ empleado_id: 'E2', nombre: 'Rosa Díaz', desde: '2026-10-21T09:30:00Z' }] as OperariaEnOrden[],
+  }
+  // Lo que la tablet mandó a accion() (para verificar sumarse/salir y las cantidades declaradas).
+  const llamadas: LlamadaAccion[] = []
+  // Lo que el panel mandó a insertar en envasados.
+  const envasadosCreados: Record<string, unknown>[] = []
+  const etiquetas = [
+    { id: 'et1', nombre: 'Etiqueta Demo A', activo: true, created_at: '2026-10-01T00:00:00Z' },
+    { id: 'et2', nombre: 'Etiqueta Demo B', activo: true, created_at: '2026-10-02T00:00:00Z' },
+  ]
   let abierta = true
   const conMp = () => ({ ...tarea, mp_total: mp.length, mp_completas: mp.filter(mpCompleta).length })
   // Lo que el panel mandó a crear_fabricacion_formula (para verificar el payload).
@@ -82,6 +120,9 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
     color: null as string | null, litros: null as number | null, litros_restantes: null as number | null,
     envasado_id: null, operaria_id: null, inicio: null,
   }
+  if (opciones.tanqueListo) {
+    Object.assign(tanque, { estado: 'para_envasar', fabricacion_id: 'F1', producto_id: 'p1', producto: 'Lavandina', color: '#0284c7', litros: 1200, litros_restantes: 1200 })
+  }
   const flujo: object[] = []
   const hoy = new Date().toISOString().slice(0, 10)
   const historial = [
@@ -89,12 +130,12 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       presentacion: null, cantidad: null, litros: 1200, litros_equiv: null, lote: 'L-1', descripcion: null,
       operaria_1: 'E1', operaria_1_nombre: 'Laura Paz', operaria_2: null, operaria_2_nombre: null,
       inicio: `${hoy}T11:00:00Z`, fin: `${hoy}T13:00:00Z`, created_at: `${hoy}T10:00:00Z`,
-      min_brutos: 120, min_pausa: 10, min_efectivos: 110, dia: hoy },
+      min_brutos: 120, min_pausa: 10, min_efectivos: 110, dia: hoy, participaciones: [], etiqueta: null },
     { entidad: 'envasado', id: 'H2', estado: 'finalizado', producto: 'Lavandina', color: '#0284c7', tanque_codigo: 'T-01',
       presentacion: '5L', cantidad: 200, litros: 1000, litros_equiv: 5, lote: 'L-1', descripcion: null,
       operaria_1: 'E2', operaria_1_nombre: 'Rosa Díaz', operaria_2: null, operaria_2_nombre: null,
       inicio: `${hoy}T14:00:00Z`, fin: `${hoy}T15:00:00Z`, created_at: `${hoy}T13:30:00Z`,
-      min_brutos: 60, min_pausa: 0, min_efectivos: 60, dia: hoy },
+      min_brutos: 60, min_pausa: 0, min_efectivos: 60, dia: hoy, participaciones: [], etiqueta: null },
   ]
   const alertas = [
     { id: 'AL1', tipo: 'exceso_9h', entidad: 'fabricacion', entidad_id: 'F9', texto: 'Fabricación de Cloro en T-02 lleva más de 9 horas.',
@@ -124,6 +165,17 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       return r.fulfill({ status: 204, body: '' })
     }
     if (ruta === 'envasados' && metodo === 'GET') return r.fulfill({ json: [] })
+    if (ruta === 'envasados' && metodo === 'POST') {
+      envasadosCreados.push(r.request().postDataJSON())
+      return r.fulfill({ status: 201, body: '' })
+    }
+    if (ruta === 'etiquetas' && metodo === 'GET') {
+      const activo = url.searchParams.get('activo')
+      return r.fulfill({ json: etiquetas.filter((e) => !activo || String(e.activo) === activo.replace(/^eq\./, '')) })
+    }
+    if (ruta === 'participaciones') return r.fulfill({ json: [] })
+    if (ruta === 'rpc/listar_usuarios') return r.fulfill({ json: [] })
+    if (ruta === 'rpc/corregir_cantidad' || ruta === 'rpc/set_vencimiento') return r.fulfill({ json: { ok: true } })
     if (ruta === 'fabricaciones' && metodo === 'GET') return r.fulfill({ json: [] })
     if (ruta === 'rpc/crear_fabricacion_formula') {
       const pedido = r.request().postDataJSON()
@@ -149,11 +201,29 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       return r.fulfill({ json: { ok: true } })
     }
     if (ruta === 'v_operarias') return r.fulfill({ json: operarias })
-    if (ruta === 'v_tareas') return r.fulfill({ json: abierta ? [conMp()] : [] })
+    if (ruta === 'v_tareas') return r.fulfill({ json: [...(abierta ? [conMp()] : []), ...(opciones.equipo ? [envasadoEquipo] : [])] })
     if (ruta === 'rpc/accion') {
-      const { p_accion, p_empleado_id } = r.request().postDataJSON()
+      const llamada: LlamadaAccion = r.request().postDataJSON()
+      const { p_accion, p_empleado_id } = llamada
+      llamadas.push(llamada)
+      if (llamada.p_id === envasadoEquipo.id) {
+        const nombre = operarias.find((o) => o.empleado_id === p_empleado_id)?.nombre ?? ''
+        if (p_accion === 'sumarse') {
+          envasadoEquipo.operarias.push({ empleado_id: p_empleado_id as string, nombre, desde: new Date().toISOString() })
+        }
+        if (p_accion === 'salir') {
+          // como accion(): al salir hay que declarar cuánto se envasó
+          const c = llamada.p_cantidades?.find((x) => x.empleado_id === p_empleado_id)
+          if (!c || !(c.cantidad > 0)) return r.fulfill({ json: { ok: false, codigo: 'CANTIDAD_REQUERIDA', detalle: null } })
+          envasadoEquipo.operarias = envasadoEquipo.operarias.filter((o) => o.empleado_id !== p_empleado_id)
+        }
+        return r.fulfill({ json: { ok: true, fabricacion_cerrada: false } })
+      }
       if (p_accion === 'iniciar') {
-        Object.assign(tarea, { estado: 'fabricando', operaria_1: p_empleado_id, corriendo: true, min_efectivos: 0, inicio: new Date().toISOString() })
+        Object.assign(tarea, {
+          estado: 'fabricando', operaria_1: p_empleado_id, corriendo: true, min_efectivos: 0, inicio: new Date().toISOString(),
+          operarias: [{ empleado_id: p_empleado_id as string, nombre: operarias.find((o) => o.empleado_id === p_empleado_id)?.nombre ?? '', desde: new Date().toISOString() }],
+        })
       }
       if (p_accion === 'finalizar') {
         // como accion(): no se finaliza con MP sin lote o sin pesar
@@ -174,9 +244,10 @@ export async function simularSupabase(page: Page, rol: 'planta' | 'panel' = 'pla
       tanque_codigo: 'T-01', presentacion: null, cantidad: null, litros: d.litros, lote: d.lote, descripcion: null,
       operaria_1: d.operaria_id ?? null, operaria_2: null, listo: true, inicio: null, min_efectivos: null, corriendo: false,
       created_at: new Date().toISOString(), fin: null, fabricacion_id: null, litros_restantes: d.litros,
+      operarias: [], etiqueta: null,
     })
     Object.assign(tanque, { estado: 'cola', fabricacion_id: 'NF1', producto_id: d.producto_id, producto: prod?.nombre, color: prod?.color, litros: d.litros, litros_restantes: d.litros })
   }
 
-  return { formulasCreadas }
+  return { formulasCreadas, llamadas, envasadosCreados }
 }

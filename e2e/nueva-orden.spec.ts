@@ -68,3 +68,29 @@ test('Fabricación desde el PDF de la fórmula: lee el lote y las MP y crea la o
   })
   expect(formulasCreadas[0].p_mp.map((m) => [m.codigo, m.cantidad])).toEqual(MP_BACTIPRO.map((m) => [m.codigo, m.cantidad]))
 })
+
+// Etiquetado: «Sí» pide elegir una etiqueta del catálogo y su id viaja en el alta del envasado.
+test('Envasado con etiquetado Sí: elige una etiqueta y se guarda en el envasado', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const { envasadosCreados } = await simularSupabase(page, 'panel', { tanqueListo: true })
+  await page.goto('panel')
+  await page.getByRole('button', { name: '+ Nueva orden' }).click()
+  const d = page.getByRole('dialog', { name: 'Nueva orden' })
+  await d.getByRole('button', { name: 'Envasado', exact: true }).click()
+  await d.getByLabel('Tanque a envasar').selectOption('F1')
+  await d.getByLabel('Presentación').selectOption('pr1')
+  await d.getByLabel('Cantidad').fill('20')
+
+  await expect(d.getByLabel('Etiqueta', { exact: true })).toHaveCount(0) // «No» por defecto
+  await d.getByRole('radio', { name: 'Sí' }).check()
+  const etiqueta = d.getByLabel('Etiqueta', { exact: true })
+  await expect(etiqueta.locator('option')).toHaveText(['Elegí una etiqueta', 'Etiqueta Demo A', 'Etiqueta Demo B'])
+  await page.screenshot({ path: 'test-results/nueva-orden-etiquetado-1440.png', fullPage: true })
+  await etiqueta.selectOption({ label: 'Etiqueta Demo B' })
+
+  await d.getByRole('button', { name: 'Crear orden', exact: true }).click()
+  await expect(d).toBeHidden()
+  expect(envasadosCreados).toHaveLength(1)
+  expect(envasadosCreados[0]).toMatchObject({ fabricacion_id: 'F1', presentacion_id: 'pr1', cantidad: 20, etiqueta_id: 'et2' })
+  expect(envasadosCreados[0]).not.toHaveProperty('etiquetar')
+})

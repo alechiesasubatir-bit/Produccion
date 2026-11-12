@@ -63,3 +63,29 @@ test('demo: la pestaña Tablet muestra la app de planta y una acción se ve en e
   await page.getByRole('link', { name: 'Flujo' }).click()
   await expect(page.getByRole('region', { name: 'Fabricando' }).getByRole('article', { name: nombre })).toBeVisible()
 })
+
+test('demo: una operaria se suma a una orden en curso y el flujo muestra a las dos', async ({ page }) => {
+  await page.goto('demo')
+  await page.getByRole('button', { name: 'Pausa', exact: true }).click()
+  await page.getByRole('link', { name: 'Tablet' }).click()
+  const tablet = page.getByRole('region', { name: 'Vista de la tablet' })
+  await tablet.getByRole('button').first().click()
+  const quien = ((await tablet.getByRole('heading', { level: 1 }).textContent()) ?? '').replace('Hola, ', '')
+
+  // sumarse a una fabricación que está en marcha (siempre hay varias en la demo)
+  const enCurso = tablet.getByRole('region', { name: 'En curso para sumarme' })
+  const orden = enCurso.getByRole('article').filter({ hasText: 'Fabricando' }).first()
+  const tanque = (await orden.locator('.tarea-tanque').textContent())!
+  const otra = ((await orden.locator('.tarea-con').textContent()) ?? '').replace('Con: ', '')
+  await orden.getByRole('button', { name: 'Sumarme' }).click()
+  await tablet.getByRole('dialog', { name: 'Confirmar' }).getByRole('button', { name: 'Confirmar' }).click()
+  await expect(tablet.getByRole('region', { name: 'Mis tareas' }).getByRole('article').filter({ hasText: tanque })).toBeVisible()
+
+  // en el flujo la tarjeta de esa fabricación lista a las dos operarias
+  await page.getByRole('link', { name: 'Flujo' }).click()
+  const tarjeta = page.getByRole('region', { name: 'Fabricando' }).getByRole('article').filter({ hasText: tanque })
+  const operarias = tarjeta.locator('.tf-operarias')
+  await expect(operarias).toContainText(quien)
+  await expect(operarias).toContainText(otra.split(' · ')[0])
+  await page.screenshot({ path: 'test-results/demo-dos-operarias-1440.png' })
+})

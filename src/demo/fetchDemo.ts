@@ -1,7 +1,7 @@
 // `fetch` falso para el cliente de Supabase en la DEMO: responde el mismo contrato HTTP de PostgREST
 // (y de rpc) a partir del simulador en memoria. Ninguna request sale del navegador.
 import type { Accion, Entidad } from '../domain/acciones'
-import type { Fila, Simulador } from './simulador'
+import type { CantidadDeclarada, Fila, Simulador } from './simulador'
 
 const JSON_H = { 'Content-Type': 'application/json' }
 const responder = (cuerpo: unknown, status = 200) =>
@@ -63,7 +63,19 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
       const texto = (k: string) => (args[k] === undefined || args[k] === null ? null : String(args[k]))
       let r: { ok: boolean } | null = null
       if (ruta === 'rpc/accion') {
-        r = sim.accion(args.p_entidad as Entidad, String(args.p_id), args.p_accion as Accion, texto('p_empleado_id'))
+        r = sim.accion(
+          args.p_entidad as Entidad,
+          String(args.p_id),
+          args.p_accion as Accion,
+          texto('p_empleado_id'),
+          (args.p_cantidades ?? null) as CantidadDeclarada[] | null,
+        )
+      } else if (ruta === 'rpc/corregir_cantidad') {
+        r = sim.corregirCantidad(String(args.p_participacion_id), Number(args.p_cantidad), texto('p_unidad'))
+      } else if (ruta === 'rpc/set_vencimiento') {
+        r = sim.setVencimiento(String(args.p_fab_id), texto('p_fecha'), texto('p_empleado_id'))
+      } else if (ruta === 'rpc/listar_usuarios') {
+        return responder(sim.usuarios())
       } else if (ruta === 'rpc/crear_fabricacion_formula') {
         r = sim.crearFormula((args.p_fab ?? {}) as Fila, (args.p_mp ?? []) as Fila[])
       } else if (ruta === 'rpc/cargar_mp') {

@@ -103,4 +103,176 @@ describe('simulador de la demo', () => {
     expect(nuevas.length).toBeGreaterThan(3)
     expect(flujo(s).some((f) => f.corriendo)).toBe(true)
   })
+
+  describe('varias operarias por orden', () => {
+    type Sim = ReturnType<typeof crearSimulador>
+    type Part = { id: string; entidad: string; entidad_id: string; empleado_id: string; hasta: string | null; cantidad: number | null; unidad: string | null; cantidad_corregida: number | null }
+    type Op = { empleado_id: string; nombre: string }
+    type TareaFila = { id: string; operarias: Op[]; etiqueta: string | null; vencimiento: string | null }
+    const nuevo = () => crearSimulador({ inicio: INICIO, semilla: 21, calentar: 0, autonomo: false })
+    const partes = (s: Sim) => s.consultar('participaciones') as Part[]
+    const tarea = (s: Sim, id: string) => (s.consultar('v_tareas') as TareaFila[]).find((t) => t.id === id)!
+    const chico = (s: Sim, extra: Record<string, unknown> = {}) => {
+      s.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: 'dp1', litros: 100, lote: 'L-1' })
+      const fab = flujo(s)[0].id
+      s.accion('fabricacion', fab, 'iniciar', 'do1')
+      s.avanzar(10) // 100 L a 20 L/min = 5 min
+      s.insertar('envasados', { fabricacion_id: fab, presentacion_id: 'dr4', cantidad: 20, ...extra })
+      const env = flujo(s).find((f) => f.entidad === 'envasado')!.id
+      return { fab, env }
+    }
+
+    it('iniciar abre la participación de quien inicia; sumarse suma a otra y repetir da YA_PARTICIPA', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      expect(s.accion('envasado', env, 'iniciar', 'do1')).toMatchObject({ ok: true })
+      expect(tarea(s, env).operarias.map((o) => o.empleado_id)).toEqual(['do1'])
+      expect(s.accion('envasado', env, 'sumarse', 'do2')).toMatchObject({ ok: true })
+      expect(tarea(s, env).operarias.map((o) => o.empleado_id)).toEqual(['do1', 'do2'])
+      expect(tarea(s, env).operarias[1].nombre).toBe('Carla Pereira')
+      expect(s.accion('envasado', env, 'sumarse', 'do2')).toMatchObject({ ok: false, codigo: 'YA_PARTICIPA' })
+    })
+
+    it('sumarse solo en órdenes en curso y con operaria', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      expect(s.accion('envasado', env, 'sumarse', 'do2')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+      s.accion('envasado', env, 'iniciar', 'do1')
+      expect(s.accion('envasado', env, 'sumarse')).toMatchObject({ ok: false, codigo: 'NO_AUTORIZADO' })
+    })
+
+    it('salir exige cantidad declarada, rechaza a la última y a quien no está', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      s.accion('envasado', env, 'iniciar', 'do1')
+      s.accion('envasado', env, 'sumarse', 'do2')
+      expect(s.accion('envasado', env, 'salir', 'do3')).toMatchObject({ ok: false, codigo: 'NO_PARTICIPA' })
+      expect(s.accion('envasado', env, 'salir', 'do2')).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      expect(s.accion('envasado', env, 'salir', 'do2', [{ empleado_id: 'do2', cantidad: 0, unidad: 'L' }])).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      expect(tarea(s, env).operarias).toHaveLength(2) // nada quedó a medias
+      expect(s.accion('envasado', env, 'salir', 'do2', [{ empleado_id: 'do2', cantidad: 30, unidad: 'L' }])).toMatchObject({ ok: true })
+      expect(tarea(s, env).operarias.map((o) => o.empleado_id)).toEqual(['do1'])
+      expect(partes(s).find((p) => p.empleado_id === 'do2')).toMatchObject({ hasta: expect.any(String), cantidad: 30, unidad: 'L' })
+      expect(s.accion('envasado', env, 'salir', 'do1', [{ empleado_id: 'do1', cantidad: 5, unidad: 'L' }])).toMatchObject({ ok: false, codigo: 'ULTIMA_OPERARIA' })
+    })
+
+    it('finalizar un envasado desde la tablet pide la cantidad de cada operaria y cierra todas las participaciones', () => {
+      const s = nuevo()
+      const { env, fab } = chico(s)
+      s.accion('envasado', env, 'iniciar', 'do1')
+      s.accion('envasado', env, 'sumarse', 'do2')
+      expect(s.accion('envasado', env, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 60, unidad: 'L' }])).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      const r = s.accion('envasado', env, 'finalizar', 'do1', [
+        { empleado_id: 'do1', cantidad: 60, unidad: 'L' },
+        { empleado_id: 'do2', cantidad: 40, unidad: 'L' },
+      ])
+      expect(r).toMatchObject({ ok: true, fabricacion_cerrada: true })
+      expect(partes(s).filter((p) => p.entidad_id === env).map((p) => [p.empleado_id, p.cantidad, p.hasta !== null])).toEqual([
+        ['do1', 60, true],
+        ['do2', 40, true],
+      ])
+      expect(flujo(s).find((f) => f.id === fab)?.estado).toBe('finalizada')
+    })
+
+    it('desde el panel (sin operaria) finalizar no exige cantidades', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      s.accion('envasado', env, 'iniciar', 'do1')
+      expect(s.accion('envasado', env, 'finalizar')).toMatchObject({ ok: true })
+      expect(partes(s).find((p) => p.entidad_id === env)).toMatchObject({ empleado_id: 'do1', cantidad: null })
+    })
+
+    it('desde la tablet solo pausa/reanuda quien está en la orden', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      s.accion('envasado', env, 'iniciar', 'do1')
+      expect(s.accion('envasado', env, 'pausar', 'do2')).toMatchObject({ ok: false, codigo: 'NO_PARTICIPA' })
+      expect(s.accion('envasado', env, 'pausar', 'do1')).toMatchObject({ ok: true })
+    })
+
+    it('OPERARIA_OCUPADA solo si está en otro envasado activo (los pausados no bloquean)', () => {
+      const s = nuevo()
+      const { env, fab } = chico(s, { cantidad: 10 })
+      s.insertar('envasados', { fabricacion_id: fab, presentacion_id: 'dr4', cantidad: 10 })
+      const otro = flujo(s).filter((f) => f.entidad === 'envasado').find((f) => f.id !== env)!.id
+      s.accion('envasado', env, 'iniciar', 'do1')
+      expect(s.accion('envasado', otro, 'iniciar', 'do1')).toMatchObject({ ok: false, codigo: 'OPERARIA_OCUPADA' })
+      s.accion('envasado', env, 'pausar', 'do1')
+      expect(s.accion('envasado', otro, 'iniciar', 'do1')).toMatchObject({ ok: true })
+      // reanudar el pausado: do1 está activa en el otro
+      expect(s.accion('envasado', env, 'reanudar', 'do1')).toMatchObject({ ok: false, codigo: 'OPERARIA_OCUPADA' })
+    })
+
+    it('corregir_cantidad solo sobre tramos cerrados; guarda quién y cuándo y deja el evento', () => {
+      const s = nuevo()
+      const { env } = chico(s)
+      s.accion('envasado', env, 'iniciar', 'do1')
+      s.accion('envasado', env, 'sumarse', 'do2')
+      const abierta = partes(s).find((p) => p.empleado_id === 'do2')!
+      expect(s.corregirCantidad(abierta.id, 50)).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+      s.accion('envasado', env, 'salir', 'do2', [{ empleado_id: 'do2', cantidad: 30, unidad: 'L' }])
+      expect(s.corregirCantidad(abierta.id, 0)).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      expect(s.corregirCantidad('nada', 5)).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+      expect(s.corregirCantidad(abierta.id, 45, 'kg')).toMatchObject({ ok: true })
+      expect(partes(s).find((p) => p.id === abierta.id)).toMatchObject({ cantidad: 30, cantidad_corregida: 45, unidad: 'kg', corregida_por: expect.any(String) })
+      expect(s.consultar('eventos').some((e) => e.accion === 'corregir' && e.entidad_id === env)).toBe(true)
+    })
+
+    it('set_vencimiento: guarda la fecha en la fabricación y rechaza lo cerrado, lo inexistente y a quien no está', () => {
+      const s = nuevo()
+      s.insertar('fabricaciones', { tanque_id: 'dt2', producto_id: 'dp2', litros: 300, lote: 'L-9' })
+      const id = flujo(s)[0].id
+      expect(s.setVencimiento(id, null)).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.setVencimiento('nada', '2028-01-01')).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+      expect(s.setVencimiento(id, '2028-01-01')).toMatchObject({ ok: true })
+      expect(tarea(s, id).vencimiento).toBe('2028-01-01')
+      s.accion('fabricacion', id, 'iniciar', 'do1')
+      expect(s.setVencimiento(id, '2028-02-02', 'do2')).toMatchObject({ ok: false, codigo: 'NO_PARTICIPA' })
+      expect(s.setVencimiento(id, '2028-02-02', 'do1')).toMatchObject({ ok: true })
+      expect(s.consultar('eventos').filter((e) => e.accion === 'editar')).toHaveLength(2)
+      s.accion('fabricacion', id, 'cancelar')
+      expect(s.setVencimiento(id, '2029-01-01')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    })
+
+    it('las etiquetas son un catálogo inventado y llegan a la tarea', () => {
+      const s = nuevo()
+      const etiquetas = s.consultar('etiquetas') as { id: string; nombre: string; activo: boolean }[]
+      expect(etiquetas.map((e) => e.nombre)).toEqual(['Etiqueta Demo A', 'Etiqueta Demo B'])
+      const { env } = chico(s, { etiqueta_id: etiquetas[1].id })
+      expect(tarea(s, env).etiqueta).toBe('Etiqueta Demo B')
+    })
+
+    it('el historial trae las participaciones con su cantidad y minutos', () => {
+      const s = nuevo()
+      const { env } = chico(s, { cantidad: 100 }) // 500 L: tarda unos 14 min
+      s.accion('envasado', env, 'iniciar', 'do1')
+      s.avanzar(4)
+      s.accion('envasado', env, 'sumarse', 'do2')
+      s.avanzar(2)
+      s.accion('envasado', env, 'salir', 'do2', [{ empleado_id: 'do2', cantidad: 12, unidad: 'L' }])
+      type H = { id: string; participaciones: { empleado_id: string; cantidad: number | null; minutos: number; hasta: string | null }[] }
+      const h = (s.consultar('v_historial') as H[]).find((x) => x.id === env)!
+      expect(h.participaciones.map((p) => [p.empleado_id, p.cantidad, p.hasta !== null])).toEqual([
+        ['do1', null, false],
+        ['do2', 12, true],
+      ])
+      expect(h.participaciones[1].minutos).toBe(2)
+    })
+
+    it('solas, las simuladas se suman a órdenes en curso y salen declarando una cantidad (misma semilla, mismo resultado)', () => {
+      const correr = () => {
+        const s = crearSimulador({ inicio: INICIO, semilla: 5 })
+        let dos = false
+        for (let i = 0; i < 40; i++) {
+          s.avanzar(30)
+          if ((s.consultar('v_tareas') as TareaFila[]).some((t) => t.operarias.length >= 2)) dos = true
+        }
+        return { dos, partes: partes(s) }
+      }
+      const a = correr()
+      expect(a.dos).toBe(true)
+      expect(a.partes.some((p) => p.hasta !== null && p.cantidad !== null && p.cantidad > 0)).toBe(true)
+      expect(correr().partes).toEqual(a.partes)
+    })
+  })
 })

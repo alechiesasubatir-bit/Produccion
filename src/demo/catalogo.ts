@@ -69,3 +69,9 @@ export const OPERARIAS: OperariaDemo[] = [
 export const LITROS_FAB_POR_MIN = 20
 export const LITROS_ENV_POR_MIN = 35
 export const UNIDADES_FRAC_POR_MIN = 6
+
+// Etiquetas inventadas para el etiquetado de envasados y fraccionados (catálogo de la demo).
+export const ETIQUETAS: { id: string; nombre: string }[] = [
+  { id: 'det1', nombre: 'Etiqueta Demo A' },
+  { id: 'det2', nombre: 'Etiqueta Demo B' },
+]
