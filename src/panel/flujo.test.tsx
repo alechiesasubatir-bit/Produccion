@@ -6,12 +6,13 @@ import { Flujo } from './Flujo'
 const m = vi.hoisted(() => ({
   filas: [] as unknown[],
   accionPanel: vi.fn(),
+  registrarControl: vi.fn(),
   recargar: vi.fn(),
   canales: {} as Record<string, string[]>,
 }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
-vi.mock('../lib/acciones', () => ({ accionPanel: m.accionPanel }))
+vi.mock('../lib/acciones', () => ({ accionPanel: m.accionPanel, registrarControl: m.registrarControl }))
 vi.mock('../lib/useRealtime', () => ({
   useCambios: () => {},
   useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
@@ -37,6 +38,7 @@ vi.mock('./datosTanque', () => ({
   cargarOperariasLegacy: () => Promise.resolve(['Laura Paz']),
   cargarMpPorOperaria: () => Promise.resolve(new Map()),
   cargarEsperadoEnvasado: () => Promise.resolve(null),
+  cargarControles: () => Promise.resolve([]),
 }))
 
 let n = 0
@@ -85,6 +87,37 @@ describe('Flujo', () => {
     m.filas = []
     render(<Flujo />)
     expect(m.canales.v_flujo).toContain('participaciones')
+  })
+
+  it('escucha los cambios de controles', () => {
+    m.filas = []
+    render(<Flujo />)
+    expect(m.canales.v_flujo).toContain('controles')
+  })
+
+  it('en control: chip y Controlar abren el formulario; aprueba sin firmante y Escape cierra', async () => {
+    m.registrarControl.mockReset().mockResolvedValue({ ok: true, intento: 2 })
+    m.filas = [fila({ estado: 'en_control', corriendo: false, control_intento: 2, producto_tipo: 'polvo' })]
+    render(<Flujo />)
+    const tarjeta = within(columna('Fabricando')).getByRole('article')
+    expect(within(tarjeta).getByText('En control')).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(tarjeta).getByRole('button', { name: 'Controlar' })))
+    const dialogo = screen.getByRole('dialog', { name: 'Control para liberación' })
+    expect(within(dialogo).getByText(/Intento 2/)).toBeInTheDocument()
+    await act(async () => fireEvent.keyDown(window, { key: 'Escape' }))
+    expect(screen.queryByRole('dialog', { name: 'Control para liberación' })).not.toBeInTheDocument()
+
+    await act(async () => fireEvent.click(within(tarjeta).getByRole('button', { name: 'Controlar' })))
+    const d = screen.getByRole('dialog', { name: 'Control para liberación' })
+    await act(async () => fireEvent.click(within(within(d).getByRole('group', { name: 'Perfume' })).getByRole('button', { name: 'OK' })))
+    await act(async () => fireEvent.click(within(within(d).getByRole('group', { name: 'Visual' })).getByRole('button', { name: 'OK' })))
+    await act(async () => fireEvent.click(within(d).getByRole('button', { name: 'Aprobar' })))
+    await act(async () => fireEvent.click(within(d).getByRole('button', { name: 'Sí, aprobar' })))
+    expect(m.registrarControl).toHaveBeenCalledTimes(1)
+    const arg = m.registrarControl.mock.calls[0][0]
+    expect(arg).toMatchObject({ resultado: 'aprobado', ph: null, densidad: null })
+    expect('firmante' in arg).toBe(false)
+    expect(screen.queryByRole('dialog', { name: 'Control para liberación' })).not.toBeInTheDocument()
   })
 
   it('muestra las 5 columnas en orden y Terminadas hoy como lengüeta', () => {

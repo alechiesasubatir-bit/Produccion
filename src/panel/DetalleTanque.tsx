@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { accionesPosibles, type Accion, type Entidad } from '../domain/acciones'
 import { textoEventoOperaria } from '../domain/recorrido'
 import { nivelTanque } from '../domain/tanque'
@@ -9,7 +9,9 @@ import type { EstadoTanqueFila } from '../pages/ParedTanques'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
 import { TablaMp } from './TablaMp'
-import { cargarFabricacion, cargarRecorrido, type DatosFabricacion, type EventoRecorrido } from './datosTanque'
+import { ControlesOrden } from './ControlesOrden'
+import { DialogoControl } from './DialogoControl'
+import { cargarControles, cargarFabricacion, cargarRecorrido, type DatosFabricacion, type EventoRecorrido } from './datosTanque'
 import { OperariasOrden } from './OperariasOrden'
 import { QrTanque } from './QrTanque'
 
@@ -104,6 +106,9 @@ export function DetalleTanque({
   const [recorrido, setRecorrido] = useState<EventoRecorrido[]>([])
   const [fabricacion, setFabricacion] = useState<DatosFabricacion | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const [controlando, setControlando] = useState(false)
+  const [intento, setIntento] = useState(1)
+  const cerrarControl = useCallback(() => setControlando(false), [])
   const estados = estadosDe(tanque)
 
   useEffect(() => {
@@ -115,6 +120,13 @@ export function DetalleTanque({
     }
     let vigente = true
     const id = tanque.fabricacion_id
+    // El próximo intento de control: uno más que los ya registrados.
+    if (tanque.estado === 'en_control') {
+      cargarControles(id).then(
+        (cs) => vigente && setIntento(cs.reduce((m, c) => Math.max(m, c.intento), 0) + 1),
+        () => {},
+      )
+    }
     Promise.all([cargarRecorrido(id), cargarFabricacion(id)]).then(
       ([r, f]) => {
         if (!vigente) return
@@ -202,6 +214,14 @@ export function DetalleTanque({
       ) : (
         <section className="detalle-seccion">
           <h3>Acciones</h3>
+          {tanque.estado === 'en_control' && tanque.fabricacion_id && (
+            <div className="detalle-acciones">
+              <span className="detalle-etiqueta">Control</span>
+              <button type="button" className="boton-mini principal" onClick={() => setControlando(true)}>
+                Controlar
+              </button>
+            </div>
+          )}
           {estados.fabricacion && tanque.fabricacion_id && (
             <Acciones
               entidad="fabricacion"
@@ -222,17 +242,33 @@ export function DetalleTanque({
       {tanque.fabricacion_id && <TablaMp fabricacionId={tanque.fabricacion_id} estado={estados.fabricacion} plegable />}
 
       {tanque.fabricacion_id && (
-        <details className="detalle-seccion detalle-operarias">
-          <summary>Operarias</summary>
-          {estados.envasado && tanque.envasado_id && <h4 className="detalle-etiqueta">Fabricación</h4>}
-          <OperariasOrden entidad="fabricacion" id={tanque.fabricacion_id} />
-          {estados.envasado && tanque.envasado_id && (
-            <>
-              <h4 className="detalle-etiqueta">Envasado</h4>
-              <OperariasOrden entidad="envasado" id={tanque.envasado_id} />
-            </>
-          )}
-        </details>
+        <div className="detalle-plegables">
+          <details className="detalle-seccion detalle-operarias">
+            <summary>Operarias</summary>
+            {estados.envasado && tanque.envasado_id && <h4 className="detalle-etiqueta">Fabricación</h4>}
+            <OperariasOrden entidad="fabricacion" id={tanque.fabricacion_id} />
+            {estados.envasado && tanque.envasado_id && (
+              <>
+                <h4 className="detalle-etiqueta">Envasado</h4>
+                <OperariasOrden entidad="envasado" id={tanque.envasado_id} />
+              </>
+            )}
+          </details>
+          <details className="detalle-seccion detalle-operarias detalle-control">
+            <summary>Control</summary>
+            <ControlesOrden fabricacionId={tanque.fabricacion_id} />
+          </details>
+        </div>
+      )}
+
+      {controlando && tanque.fabricacion_id && (
+        <DialogoControl
+          fabricacionId={tanque.fabricacion_id}
+          esPolvo={tanque.producto_tipo === 'polvo'}
+          intento={intento}
+          producto={tanque.producto ?? undefined}
+          onCerrar={cerrarControl}
+        />
       )}
 
       {recorrido.length > 0 && (

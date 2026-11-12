@@ -24,7 +24,7 @@ const tanque = (over: Partial<EstadoTanqueFila>): EstadoTanqueFila => ({
 })
 
 const m = vi.hoisted(() => ({ tanques: [] as unknown[] }))
-const m2 = vi.hoisted(() => ({ fabricacion: null as { lote: string | null; vencimiento: string | null } | null }))
+const m2 = vi.hoisted(() => ({ fabricacion: null as { lote: string | null; vencimiento: string | null } | null, controles: [] as unknown[] }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../lib/acciones', () => ({ accionPanel: vi.fn() }))
@@ -40,6 +40,7 @@ vi.mock('./datosTanque', () => ({
   cargarOperariasLegacy: () => Promise.resolve([]),
   cargarMpPorOperaria: () => Promise.resolve(new Map()),
   cargarEsperadoEnvasado: () => Promise.resolve(null),
+  cargarControles: () => Promise.resolve(m2.controles),
 }))
 vi.mock('./TablaMp', () => ({
   TablaMp: (p: { fabricacionId: string; estado?: string | null; plegable?: boolean }) => (
@@ -60,6 +61,7 @@ async function elegir(codigo: string) {
 describe('Tanques', () => {
   beforeEach(() => {
     m2.fabricacion = null
+    m2.controles = []
   })
 
   it('cada tanque de la pared muestra su capacidad', () => {
@@ -76,6 +78,18 @@ describe('Tanques', () => {
     expect(within(aside).getByRole('heading', { name: 'T-01' })).toBeInTheDocument()
     expect(aside.querySelector('.qr svg')).not.toBeNull()
     expect(within(aside).getByText(/\/planta\?tanque=T-01$/)).toBeInTheDocument()
+  })
+
+  it('tanque en control: Controlar abre el formulario con el intento siguiente y la sección Control está plegada', async () => {
+    m2.controles = [{ intento: 1, resultado: 'rechazado', ph: 7, densidad: 1, perfume_ok: false, perfume_comentario: 'flojo', visual_ok: true, visual_comentario: null, observaciones: null, firmado_nombre: 'Maria', origen: 'tablet', created_at: '2026-10-21T13:15:00Z' }]
+    m.tanques = [tanque({ estado: 'en_control', fabricacion_id: 'fab1', producto: 'Lavandina', color: '#0284c7', litros: 1200 })]
+    render(<MemoryRouter><Tanques /></MemoryRouter>)
+    const aside = await elegir('T-01')
+    const control = within(aside).getByText('Control', { selector: 'summary' }).closest('details')!
+    expect(control).not.toHaveAttribute('open')
+    expect(within(control).getByText('Intento 1')).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(aside).getByRole('button', { name: 'Controlar' })))
+    expect(within(screen.getByRole('dialog', { name: 'Control para liberación' })).getByText(/Intento 2/)).toBeInTheDocument()
   })
 
   it('tanque libre: ofrece nueva orden', async () => {

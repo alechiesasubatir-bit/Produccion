@@ -26,7 +26,7 @@ const sinAccion = () => {}
 
 // Vista para la TV de la planta: el flujo en grande, sin botones, con la tira de tanques abajo.
 export function Monitor({ salir }: { salir: string }) {
-  const flujo = useRealtime('v_flujo', cargarFlujo, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones'])
+  const flujo = useRealtime('v_flujo', cargarFlujo, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles'])
   const operarias = useRealtime('v_operarias', cargarOperarias, ['operarias'])
   const tanques = useTanques()
   const nombres = useMemo(() => new Map(operarias.datos.map((o) => [o.empleado_id, o.nombre])), [operarias.datos])

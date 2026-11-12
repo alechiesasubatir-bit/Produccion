@@ -13,7 +13,7 @@ const cargarTanques = () =>
 
 // Estado de los tanques en vivo (catálogo de tanques y productos incluidos).
 export function useTanques() {
-  return useRealtime('v_tanque_estado', cargarTanques, ['fabricaciones', 'envasados', 'tanques', 'productos'])
+  return useRealtime('v_tanque_estado', cargarTanques, ['fabricaciones', 'envasados', 'tanques', 'productos', 'controles'])
 }
 
 function Celda({ t }: { t: EstadoTanqueFila }) {

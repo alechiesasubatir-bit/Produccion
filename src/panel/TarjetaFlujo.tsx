@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
@@ -8,6 +8,7 @@ import { confirmacionPanel, etiquetaPanel, tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
+import { DialogoControl } from './DialogoControl'
 import { OperariasOrden } from './OperariasOrden'
 
 const CONFIRMAR: Accion[] = ['cancelar', 'finalizar']
@@ -67,6 +68,8 @@ export function TarjetaFlujo({
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(fila.entidad, fila.estado, 'panel')
   const [verOperarias, setVerOperarias] = useState(false)
+  const [controlando, setControlando] = useState(false)
+  const cerrarControl = useCallback(() => setControlando(false), [])
   const disparador = useRef<HTMLButtonElement>(null)
   const dialogo = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -86,6 +89,7 @@ export function TarjetaFlujo({
     ? enOrden
     : [fila.operaria_1, fila.operaria_2].filter((id): id is string => !!id).map((id) => nombres.get(id) ?? 'Operaria')
   const estado = estadoMini(fila)
+  const enControl = fila.entidad === 'fabricacion' && fila.estado === 'en_control'
   const lista = fila.entidad === 'fabricacion' && fila.estado === 'para_envasar' && !!onCargarEnvasado
   // Nivel aproximado: lo que queda de la fabricación sobre lo fabricado.
   const nivel = nivelTanque({
@@ -133,6 +137,11 @@ export function TarjetaFlujo({
           <button ref={disparador} type="button" className="boton-mini discreto" onClick={() => setVerOperarias(true)}>
             Operarias
           </button>
+          {enControl && (
+            <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={() => setControlando(true)}>
+              Controlar
+            </button>
+          )}
           {lista && (
             <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={onCargarEnvasado}>
               Cargar envasado
@@ -150,6 +159,15 @@ export function TarjetaFlujo({
             </button>
           ))}
         </div>
+      )}
+      {controlando && (
+        <DialogoControl
+          fabricacionId={fila.id}
+          esPolvo={fila.producto_tipo === 'polvo'}
+          intento={fila.control_intento ?? 1}
+          producto={fila.producto ?? undefined}
+          onCerrar={cerrarControl}
+        />
       )}
       {verOperarias &&
         createPortal(

@@ -2574,3 +2574,66 @@ th[aria-sort='descending'] .th-orden::after {
   font-weight: 700;
   padding: 4px 0;
 }
+
+/* ---------- Control para liberación ---------- */
+
+.monitor-tanque.estado-en_control {
+  box-shadow: 0 0 0 2px #c5cdf1;
+  background: #e6e9fb;
+}
+
+.controles-orden {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.control-intento p {
+  margin: 0;
+}
+
+.control-cabecera {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.control-resultado.aprobado {
+  color: #14532d;
+  font-weight: 600;
+}
+
+.control-resultado.rechazado {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.control-valores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.control-firma {
+  color: var(--apagado);
+  font-size: 0.85em;
+}
+
+/* Operarias y Control, una al lado de la otra: el panel tiene que entrar en pantalla. */
+.detalle-plegables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: flex-start;
+}
+
+.detalle-plegables > details {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.detalle-plegables > details[open] {
+  flex-basis: 100%;
+}

@@ -465,3 +465,12 @@
 .aviso-actualizacion .boton {
   flex: none;
 }
+
+/* tanque en control: índigo, igual que el chip */
+.pared-celda:has(.tanque[data-estado='en_control']) {
+  box-shadow: 0 0 0 2px #c5cdf1;
+}
+
+.tanque[data-estado='en_control'] .vidrio {
+  stroke: #2b3a8f;
+}

@@ -3,6 +3,7 @@ import { listarUsuarios } from './config/datosPersonas'
 import type { Entidad } from '../domain/acciones'
 import { esperadoEnvasado, type Unidad } from '../domain/participaciones'
 import type { EventoRecorrido } from '../domain/recorrido'
+import type { ControlHistorial } from '../domain/control'
 
 export type { EventoRecorrido }
 export type DatosFabricacion = { lote: string | null; vencimiento: string | null }
@@ -125,4 +126,17 @@ export async function cargarEsperadoEnvasado(envasadoId: string): Promise<number
   const pres = data?.presentaciones as { litros_equiv: number } | { litros_equiv: number }[] | null | undefined
   const litros = Array.isArray(pres) ? pres[0]?.litros_equiv : pres?.litros_equiv
   return data && litros != null ? esperadoEnvasado(data.cantidad, litros) : null
+}
+
+// Todos los controles de una fabricación, del primer intento al último.
+export async function cargarControles(fabricacionId: string): Promise<ControlHistorial[]> {
+  const { data, error } = await db
+    .from('controles')
+    .select(
+      'intento, resultado, ph, densidad, perfume_ok, perfume_comentario, visual_ok, visual_comentario, observaciones, firmado_nombre, origen, created_at',
+    )
+    .eq('fabricacion_id', fabricacionId)
+    .order('intento')
+  if (error) throw error
+  return data ?? []
 }

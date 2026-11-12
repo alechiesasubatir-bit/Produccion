@@ -74,6 +74,17 @@ describe('Monitor (TV)', () => {
     expect(m.canales.v_flujo).toContain('participaciones')
   })
 
+  it('una fabricación en control muestra el chip y ningún botón, y escucha los controles', () => {
+    m.flujo = [fila({ estado: 'en_control', control_intento: 1 })]
+    m.tanques = [tanque({ estado: 'en_control' })]
+    montar()
+    const fabricando = screen.getByRole('region', { name: 'Fabricando' })
+    expect(within(fabricando).getByText('En control')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Controlar' })).not.toBeInTheDocument()
+    expect(m.canales.v_flujo).toContain('controles')
+    expect(screen.getByRole('list', { name: 'Tanques' }).querySelector('.estado-en_control')).not.toBeNull()
+  })
+
   it('abajo, la tira de tanques con su nivel', () => {
     m.flujo = []
     m.tanques = [tanque({}), tanque({ tanque_id: 't2', codigo: 'T-02', estado: 'libre', producto: null, color: null, litros: null, litros_restantes: null })]

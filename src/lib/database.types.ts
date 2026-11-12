@@ -123,6 +123,26 @@ export type Database = {
         | 'creado_por'
         | 'created_at'
       >
+      controles: Tabla<
+        {
+          id: Uuid
+          fabricacion_id: Uuid
+          intento: number
+          ph: number | null
+          densidad: number | null
+          perfume_ok: boolean
+          perfume_comentario: string | null
+          visual_ok: boolean
+          visual_comentario: string | null
+          observaciones: string | null
+          resultado: 'aprobado' | 'rechazado'
+          firmado_por: Uuid
+          firmado_nombre: string
+          origen: 'panel' | 'tablet'
+          created_at: Ts
+        },
+        'id' | 'ph' | 'densidad' | 'perfume_comentario' | 'visual_comentario' | 'observaciones' | 'created_at'
+      >
       fabricacion_mp: Tabla<
         {
           id: Uuid
