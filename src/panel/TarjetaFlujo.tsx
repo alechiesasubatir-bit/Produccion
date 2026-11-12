@@ -7,6 +7,7 @@ import { confirmacionPanel, etiquetaPanel, tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
+import { OperariasOrden } from './OperariasOrden'
 
 const CONFIRMAR: Accion[] = ['cancelar', 'finalizar']
 
@@ -64,9 +65,12 @@ export function TarjetaFlujo({
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(fila.entidad, fila.estado, 'panel')
-  const operarias = [fila.operaria_1, fila.operaria_2]
-    .filter((id): id is string => !!id)
-    .map((id) => nombres.get(id) ?? 'Operaria')
+  const [verOperarias, setVerOperarias] = useState(false)
+  const enOrden = (fila.operarias ?? []).map((o) => o.nombre)
+  // Sin participaciones (órdenes anteriores) se usan las operarias guardadas en la propia orden.
+  const operarias = enOrden.length
+    ? enOrden
+    : [fila.operaria_1, fila.operaria_2].filter((id): id is string => !!id).map((id) => nombres.get(id) ?? 'Operaria')
   const estado = estadoMini(fila)
   const lista = fila.entidad === 'fabricacion' && fila.estado === 'para_envasar' && !!onCargarEnvasado
   // Nivel aproximado: lo que queda de la fabricación sobre lo fabricado.
@@ -110,8 +114,11 @@ export function TarjetaFlujo({
       {fila.corriendo && proyeccionMin ? (
         <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
       ) : null}
-      {!soloLectura && (acciones.length > 0 || lista) && (
+      {!soloLectura && (
         <div className="tf-acciones">
+          <button type="button" className="boton-mini discreto" onClick={() => setVerOperarias(true)}>
+            Operarias
+          </button>
           {lista && (
             <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={onCargarEnvasado}>
               Cargar envasado
@@ -128,6 +135,19 @@ export function TarjetaFlujo({
               {confirmando === a ? confirmacionPanel(fila.entidad, fila.estado, a) : etiquetaPanel(fila.entidad, fila.estado, a)}
             </button>
           ))}
+        </div>
+      )}
+      {verOperarias && (
+        <div className="modal-fondo" onClick={() => setVerOperarias(false)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Operarias de la orden" onClick={(e) => e.stopPropagation()}>
+            <header className="modal-cabecera">
+              <h2>{`Operarias · ${tituloTarea(fila)}`}</h2>
+              <button type="button" className="boton boton-sec" onClick={() => setVerOperarias(false)} aria-label="Cerrar">
+                ×
+              </button>
+            </header>
+            <OperariasOrden entidad={fila.entidad} id={fila.id} />
+          </div>
         </div>
       )}
     </motion.article>

@@ -36,6 +36,10 @@ vi.mock('./datosTanque', () => ({
   cargarRecorrido: () =>
     Promise.resolve([{ at: '2026-10-21T13:15:00Z', accion: 'iniciar', quien: 'Laura Paz', entidad: 'fabricacion' }]),
   cargarFabricacion: () => Promise.resolve(m2.fabricacion),
+  cargarParticipaciones: () => Promise.resolve([]),
+  cargarOperariasLegacy: () => Promise.resolve([]),
+  cargarMpPorOperaria: () => Promise.resolve(new Map()),
+  cargarEsperadoEnvasado: () => Promise.resolve(null),
 }))
 vi.mock('./TablaMp', () => ({
   TablaMp: (p: { fabricacionId: string; estado?: string | null; plegable?: boolean }) => (

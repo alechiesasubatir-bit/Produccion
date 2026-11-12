@@ -2524,3 +2524,46 @@ th[aria-sort='descending'] .th-orden::after {
   top: 0;
   z-index: 2;
 }
+
+/* ---------- Operarias por orden ---------- */
+
+.operarias-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.operarias-tabla th,
+.operarias-tabla td {
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.operarias-falta {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.operarias-edicion {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.operarias-edicion input {
+  width: 5rem;
+}
+
+.operarias-total {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.operarias-total.aviso {
+  color: #b45309;
+  background: #fef3c7;
+  padding: 4px 8px;
+  border-radius: 6px;
+}

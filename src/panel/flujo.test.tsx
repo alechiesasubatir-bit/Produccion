@@ -29,6 +29,13 @@ vi.mock('./historial/datosHistorial', () => ({
     Promise.resolve([{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 10, muestras: 3, litros_hora_std: null }]),
 }))
 
+vi.mock('./datosTanque', () => ({
+  cargarParticipaciones: () => Promise.resolve([]),
+  cargarOperariasLegacy: () => Promise.resolve(['Laura Paz']),
+  cargarMpPorOperaria: () => Promise.resolve(new Map()),
+  cargarEsperadoEnvasado: () => Promise.resolve(null),
+}))
+
 let n = 0
 function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
   n += 1
@@ -79,6 +86,22 @@ describe('Flujo', () => {
         .map((h) => h.textContent?.replace(/\d+$/, '').trim()),
     ).toEqual(['Cola', 'Fabricando', 'Para envasar', 'Envasando', 'Fraccionado'])
     expect(screen.getByRole('button', { name: /Terminadas hoy/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('la tarjeta muestra las 3 operarias y el botón «Operarias» abre el detalle', async () => {
+    m.filas = [
+      fila({
+        id: 'tres',
+        estado: 'activo',
+        corriendo: true,
+        operarias: ['Ana', 'Beto', 'Cora'].map((nombre, i) => ({ empleado_id: `X${i}`, nombre, desde: '2026-10-21T13:00:00Z' })),
+      }),
+    ]
+    render(<Flujo />)
+    expect(screen.getByText('Ana · Beto · Cora')).toBeTruthy()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Operarias' })))
+    expect(screen.getByRole('dialog', { name: 'Operarias de la orden' })).toBeTruthy()
+    expect(screen.getByText('Laura Paz')).toBeTruthy()
   })
 
   it('la lengüeta de Terminadas hoy se despliega con las terminadas', () => {

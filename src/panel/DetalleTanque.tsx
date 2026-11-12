@@ -9,6 +9,7 @@ import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
 import { TablaMp } from './TablaMp'
 import { cargarFabricacion, cargarRecorrido, type DatosFabricacion, type EventoRecorrido } from './datosTanque'
+import { OperariasOrden } from './OperariasOrden'
 import { QrTanque } from './QrTanque'
 
 const VERBOS: Record<string, string> = {
@@ -218,6 +219,20 @@ export function DetalleTanque({
 
       {/* Plegada tras «Ver MP (N)» y sin lugar si no hay MP: el panel tiene que entrar en pantalla. */}
       {tanque.fabricacion_id && <TablaMp fabricacionId={tanque.fabricacion_id} estado={estados.fabricacion} plegable />}
+
+      {tanque.fabricacion_id && (
+        <section className="detalle-seccion">
+          <h3>Operarias</h3>
+          {estados.envasado && tanque.envasado_id && <h4 className="detalle-etiqueta">Fabricación</h4>}
+          <OperariasOrden entidad="fabricacion" id={tanque.fabricacion_id} />
+          {estados.envasado && tanque.envasado_id && (
+            <>
+              <h4 className="detalle-etiqueta">Envasado</h4>
+              <OperariasOrden entidad="envasado" id={tanque.envasado_id} />
+            </>
+          )}
+        </section>
+      )}
 
       {recorrido.length > 0 && (
         <section className="detalle-seccion">
