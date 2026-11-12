@@ -167,4 +167,28 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
     const usuarios = await db.rpc('listar_usuarios')
     expect(usuarios.data).toEqual([expect.objectContaining({ id: dp.data?.[0].corregida_por, nombre: expect.any(String) })])
   })
+
+  it('control para liberación: listar_liberadoras, registrar_control y la tabla controles', async () => {
+    const { db, sim, onCambio } = cliente()
+    sim.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: 'dp1', litros: 100, lote: 'L-1' })
+    const fab = sim.consultar('v_flujo')[0].id as string
+    sim.accion('fabricacion', fab, 'iniciar', 'do1')
+    sim.accion('fabricacion', fab, 'finalizar', 'do1')
+
+    const lib = await db.rpc('listar_liberadoras')
+    expect(lib.data).toEqual([{ id: expect.any(String), nombre: 'Encargada Demo' }])
+    const args = { p_fab_id: fab, p_ph: 7.5, p_densidad: 1.02, p_perfume_ok: true, p_perfume_comentario: '', p_visual_ok: true, p_visual_comentario: '', p_observaciones: '', p_resultado: 'aprobado' }
+
+    const malo = await db.rpc('registrar_control', { ...args, p_ph: 20 } as never)
+    expect(malo.data).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+    const ajeno = await db.rpc('registrar_control', { ...args, p_firmante: 'nadie' } as never)
+    expect(ajeno.data).toMatchObject({ ok: false, codigo: 'NO_AUTORIZADO' })
+    onCambio.mockClear()
+    const ok = await db.rpc('registrar_control', { ...args, p_firmante: (lib.data as { id: string }[])[0].id } as never)
+    expect(ok.data).toEqual({ ok: true, intento: 1 })
+    expect(onCambio).toHaveBeenCalled()
+
+    const c = await db.from('controles').select('*').eq('fabricacion_id', fab)
+    expect(c.data).toEqual([expect.objectContaining({ intento: 1, ph: 7.5, resultado: 'aprobado', origen: 'tablet' })])
+  })
 })

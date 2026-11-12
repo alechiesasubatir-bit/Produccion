@@ -50,6 +50,8 @@ export function crearMotor(opts: { semilla?: number } = {}): Motor {
       corregirCantidad: (id, cant, uni) => sim.corregirCantidad(id, cant, uni),
       setVencimiento: (id, fecha, emp) => sim.setVencimiento(id, fecha, emp),
       usuarios: () => sim.usuarios(),
+      registrarControl: (d) => sim.registrarControl(d),
+      liberadoras: () => sim.liberadoras(),
     },
     ahora: () => sim.ahora(),
     velocidad: () => velocidad,

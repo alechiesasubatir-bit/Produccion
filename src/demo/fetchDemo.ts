@@ -74,6 +74,23 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
         r = sim.corregirCantidad(String(args.p_participacion_id), Number(args.p_cantidad), texto('p_unidad'))
       } else if (ruta === 'rpc/set_vencimiento') {
         r = sim.setVencimiento(String(args.p_fab_id), texto('p_fecha'), texto('p_empleado_id'))
+      } else if (ruta === 'rpc/registrar_control') {
+        const numero = (k: string) => (args[k] === null || args[k] === undefined ? null : Number(args[k]))
+        const bool = (k: string) => (typeof args[k] === 'boolean' ? (args[k] as boolean) : null)
+        r = sim.registrarControl({
+          fabricacionId: String(args.p_fab_id),
+          ph: numero('p_ph'),
+          densidad: numero('p_densidad'),
+          perfumeOk: bool('p_perfume_ok'),
+          perfumeComentario: texto('p_perfume_comentario'),
+          visualOk: bool('p_visual_ok'),
+          visualComentario: texto('p_visual_comentario'),
+          observaciones: texto('p_observaciones'),
+          resultado: texto('p_resultado'),
+          firmante: texto('p_firmante'),
+        })
+      } else if (ruta === 'rpc/listar_liberadoras') {
+        return responder(sim.liberadoras())
       } else if (ruta === 'rpc/listar_usuarios') {
         return responder(sim.usuarios())
       } else if (ruta === 'rpc/crear_fabricacion_formula') {

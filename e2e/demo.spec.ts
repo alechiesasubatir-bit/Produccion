@@ -89,3 +89,11 @@ test('demo: una operaria se suma a una orden en curso y el flujo muestra a las d
   await expect(operarias).toContainText(otra.split(' · ')[0])
   await page.screenshot({ path: 'test-results/demo-dos-operarias-1440.png' })
 })
+
+test('demo: una fabricación «En control» aparece en el flujo', async ({ page }) => {
+  await page.goto('demo')
+  await page.getByRole('button', { name: '300×' }).click()
+  const enControl = page.getByRole('region', { name: 'Fabricando' }).getByRole('article').filter({ hasText: 'En control' })
+  await expect(enControl.first()).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: 'test-results/demo-en-control-1440.png' })
+})

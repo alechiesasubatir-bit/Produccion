@@ -9,6 +9,11 @@ type Tanque = { tanque_id: string; codigo: string; estado: string; fabricacion_i
 const tanques = (s: ReturnType<typeof crearSimulador>) => s.consultar('v_tanque_estado') as Tanque[]
 const flujo = (s: ReturnType<typeof crearSimulador>) => s.consultar('v_flujo') as FilaFlujo[]
 
+const CONTROL_OK = {
+  ph: 7.2, densidad: 1.02, perfumeOk: true, perfumeComentario: null, visualOk: true, visualComentario: null,
+  observaciones: null, resultado: 'aprobado', fabricacionId: '',
+}
+
 describe('simulador de la demo', () => {
   it('arranca con casi todos los tanques en producción y todas las columnas del flujo con algo', () => {
     const s = crearSimulador({ inicio: INICIO, semilla: 7 })
@@ -41,6 +46,9 @@ describe('simulador de la demo', () => {
     const id = flujo(s).find((f) => f.lote === 'L-1')!.id
     expect(s.accion('fabricacion', id, 'iniciar')).toMatchObject({ ok: true })
     s.avanzar(25) // 400 L a 20 L/min = 20 min
+    expect(flujo(s).find((f) => f.id === id)?.estado).toBe('en_control')
+    expect(tanques(s).find((t) => t.tanque_id === 'dt1')?.estado).toBe('en_control')
+    expect(s.registrarControl({ ...CONTROL_OK, fabricacionId: id })).toEqual({ ok: true, intento: 1 })
     expect(flujo(s).find((f) => f.id === id)?.estado).toBe('para_envasar')
     s.insertar('envasados', { fabricacion_id: id, presentacion_id: 'dr4', cantidad: 80 }) // 80 × 5 L = 400 L
     const env = flujo(s).find((f) => f.entidad === 'envasado' && f.fabricacion_id === id)!
@@ -117,6 +125,7 @@ describe('simulador de la demo', () => {
       const fab = flujo(s)[0].id
       s.accion('fabricacion', fab, 'iniciar', 'do1')
       s.avanzar(10) // 100 L a 20 L/min = 5 min
+      s.registrarControl({ ...CONTROL_OK, fabricacionId: fab })
       s.insertar('envasados', { fabricacion_id: fab, presentacion_id: 'dr4', cantidad: 20, ...extra })
       const env = flujo(s).find((f) => f.entidad === 'envasado')!.id
       return { fab, env }
@@ -273,6 +282,94 @@ describe('simulador de la demo', () => {
       expect(a.dos).toBe(true)
       expect(a.partes.some((p) => p.hasta !== null && p.cantidad !== null && p.cantidad > 0)).toBe(true)
       expect(correr().partes).toEqual(a.partes)
+    })
+  })
+
+  describe('control para liberación', () => {
+    type Ctl = { intento: number; resultado: string; ph: number | null; densidad: number | null; origen: string; firmado_nombre: string }
+    type Ev = { accion: string; entidad_id: string; datos: { intento?: number; motivo?: string } }
+    type Sim = ReturnType<typeof crearSimulador>
+    const enControl = (producto = 'dp1') => {
+      const s = crearSimulador({ inicio: INICIO, semilla: 11, calentar: 0, autonomo: false })
+      s.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: producto, litros: 100, lote: 'L-1' })
+      const id = flujo(s)[0].id
+      s.accion('fabricacion', id, 'iniciar', 'do1')
+      expect(s.accion('fabricacion', id, 'finalizar', 'do1')).toMatchObject({ ok: true })
+      return { s, id }
+    }
+    const fila = (s: Sim, id: string) => flujo(s).find((f) => f.id === id) as FilaFlujo & { control_intento: number; control_rechazo: string | null }
+
+    it('finalizar la fabricación la deja en control (tarea visible, intento 1, sin fin)', () => {
+      const { s, id } = enControl()
+      expect(fila(s, id)).toMatchObject({ estado: 'en_control', control_intento: 1, control_rechazo: null, fin: null })
+      const tareas = s.consultar('v_tareas') as { id: string; estado: string; control_intento: number }[]
+      expect(tareas.find((t) => t.id === id)).toMatchObject({ estado: 'en_control', control_intento: 1 })
+    })
+
+    it('valida como la RPC: firmante, estado y datos', () => {
+      const { s, id } = enControl()
+      const d = { ...CONTROL_OK, fabricacionId: id }
+      expect(s.registrarControl({ ...d, firmante: 'otra' })).toMatchObject({ ok: false, codigo: 'NO_AUTORIZADO' })
+      expect(s.registrarControl({ ...d, fabricacionId: 'x' })).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+      expect(s.registrarControl({ ...d, ph: 15 })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...d, ph: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...d, densidad: 0 })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...d, resultado: 'quizás' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...d, perfumeOk: false, perfumeComentario: '  ' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...d, visualOk: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.consultar('controles')).toHaveLength(0)
+      expect(s.registrarControl({ ...d, firmante: s.liberadoras()[0].id })).toEqual({ ok: true, intento: 1 })
+      expect(s.registrarControl(d)).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    })
+
+    it('polvo: pH y densidad se guardan como null aunque lleguen', () => {
+      const { s, id } = enControl('dp13')
+      expect(s.registrarControl({ ...CONTROL_OK, fabricacionId: id, ph: null, densidad: null })).toEqual({ ok: true, intento: 1 })
+      expect(s.consultar('controles')[0]).toMatchObject({ ph: null, densidad: null })
+    })
+
+    it('aprobado → para envasar; queda firmado (tablet) y el evento lleva intento y motivo', () => {
+      const { s, id } = enControl()
+      s.registrarControl({ ...CONTROL_OK, fabricacionId: id, firmante: s.liberadoras()[0].id, observaciones: ' todo bien ' })
+      expect(fila(s, id).estado).toBe('para_envasar')
+      expect(s.consultar('controles')).toEqual([
+        expect.objectContaining({ fabricacion_id: id, intento: 1, resultado: 'aprobado', origen: 'tablet', firmado_nombre: s.liberadoras()[0].nombre, observaciones: 'todo bien' }),
+      ])
+      const ev = (s.consultar('eventos') as Ev[]).filter((e) => e.accion === 'aprobar')
+      expect(ev).toEqual([expect.objectContaining({ entidad_id: id, datos: expect.objectContaining({ intento: 1, motivo: 'todo bien' }) })])
+    })
+
+    it('rechazado → vuelve a fabricar con el motivo; al terminar otra vez el intento es 2', () => {
+      const { s, id } = enControl()
+      const r = s.registrarControl({
+        ...CONTROL_OK, fabricacionId: id, resultado: 'rechazado', perfumeOk: false, perfumeComentario: 'flojo', visualOk: false, visualComentario: 'turbio', observaciones: 'ajustar',
+      })
+      expect(r).toEqual({ ok: true, intento: 1 })
+      const motivo = 'perfume No OK (flojo); visual No OK (turbio); ajustar'
+      expect(fila(s, id)).toMatchObject({ estado: 'fabricando', fin: null, control_intento: 2, control_rechazo: motivo })
+      expect((s.consultar('eventos') as Ev[]).find((e) => e.accion === 'rechazar')?.datos.motivo).toBe(motivo)
+      s.accion('fabricacion', id, 'finalizar', 'do1')
+      expect(fila(s, id)).toMatchObject({ estado: 'en_control', control_intento: 2, control_rechazo: null })
+      expect(s.registrarControl({ ...CONTROL_OK, fabricacionId: id })).toEqual({ ok: true, intento: 2 })
+      const h = (s.consultar('v_historial') as { id: string; controles: Ctl[] }[]).find((x) => x.id === id)!
+      expect(h.controles.map((c) => [c.intento, c.resultado])).toEqual([[1, 'rechazado'], [2, 'aprobado']])
+    })
+
+    it('autónoma: la encargada demo controla sola, aprueba la mayoría y rechaza con motivo (determinista)', () => {
+      const correr = () => {
+        const s = crearSimulador({ inicio: INICIO, semilla: 21 })
+        s.avanzar(24 * 60)
+        return s
+      }
+      const s = correr()
+      const cs = s.consultar('controles') as Ctl[]
+      expect(cs.length).toBeGreaterThan(10)
+      expect(cs.filter((c) => c.resultado === 'aprobado').length / cs.length).toBeGreaterThan(0.6)
+      expect(cs.some((c) => c.resultado === 'rechazado')).toBe(true)
+      expect(cs.every((c) => c.origen === 'panel' && c.firmado_nombre === 'Encargada Demo')).toBe(true)
+      const rechazos = (s.consultar('eventos') as Ev[]).filter((e) => e.accion === 'rechazar')
+      expect(rechazos.every((e) => !!e.datos.motivo)).toBe(true)
+      expect(correr().consultar('controles')).toEqual(cs)
     })
   })
 })

@@ -84,3 +84,37 @@ test('equipo: sumarme a un envasado en curso y salir declarando cuánto envasé'
   // sigue en curso para sumarse (Rosa continúa)
   await expect(enCurso.getByText('Con: Rosa Díaz')).toBeVisible()
 })
+
+test('control para liberación: Controlar → ¿Quién controla? → pH/densidad/OK → Aprobar → confirmar', async ({ page }) => {
+  const { controlesRegistrados } = await simularSupabase(page, 'planta', { enControl: true })
+  await page.goto('planta?tanque=T-01')
+  await page.getByRole('button', { name: /Laura Paz/ }).click()
+
+  const grupo = page.getByRole('region', { name: 'En control' })
+  await expect(grupo.getByText('Intento 1')).toBeVisible()
+  await grupo.getByRole('button', { name: 'Controlar' }).click()
+
+  await expect(page.getByRole('heading', { name: '¿Quién controla?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Marta Gil' }).click()
+
+  await expect(page.getByText(/Control — Intento 1/)).toBeVisible()
+  await page.getByLabel('pH').fill('7,5')
+  await page.getByLabel('Densidad').fill('1,02')
+  await page.getByRole('group', { name: 'Perfume' }).getByRole('button', { name: 'OK', exact: true }).click()
+  await page.getByRole('group', { name: 'Visual' }).getByRole('button', { name: 'OK', exact: true }).click()
+  await page.screenshot({ path: 'test-results/planta-control-1180.png', fullPage: true })
+  await page.getByRole('button', { name: 'Aprobar' }).click()
+  await page.getByRole('button', { name: 'Sí, aprobar' }).click()
+
+  await expect(page.getByText(/Control — Intento/)).toHaveCount(0)
+  expect(controlesRegistrados).toHaveLength(1)
+  expect(controlesRegistrados[0]).toMatchObject({
+    p_fab_id: 'F1',
+    p_ph: 7.5,
+    p_densidad: 1.02,
+    p_perfume_ok: true,
+    p_visual_ok: true,
+    p_resultado: 'aprobado',
+    p_firmante: 'L1',
+  })
+})

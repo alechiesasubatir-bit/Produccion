@@ -36,6 +36,7 @@ export const MP_BACTIPRO: MpMock[] = [
 ]
 
 type OperariaEnOrden = { empleado_id: string; nombre: string; desde: string }
+export type LlamadaControl = Record<string, unknown> & { p_fab_id: string; p_ph: number | null; p_resultado: string; p_firmante?: string }
 export type LlamadaAccion = { p_entidad: string; p_id: string; p_accion: string; p_empleado_id?: string; p_cantidades?: { empleado_id: string; cantidad: number; unidad: string }[] }
 
 type FilaMp = MpMock & { id: string; fabricacion_id: string; orden: number; lote: string | null; pesado: boolean; cargado_por: string | null; cargado_at: string | null }
@@ -48,7 +49,8 @@ export async function simularSupabase(
   page: Page,
   rol: 'planta' | 'panel' = 'planta',
   // `equipo`: hay un envasado en curso de Rosa Díaz (para sumarse y salir). `tanqueListo`: el tanque T-01 espera envasado.
-  opciones: { mp?: MpMock[]; equipo?: boolean; tanqueListo?: boolean } = {},
+  // `enControl`: F1 ya terminó de fabricarse y espera el control para liberación.
+  opciones: { mp?: MpMock[]; equipo?: boolean; tanqueListo?: boolean; enControl?: boolean } = {},
 ) {
   const mp: FilaMp[] = (opciones.mp ?? []).map((m, i) => ({
     ...m, id: `MP${i + 1}`, fabricacion_id: 'F1', orden: i + 1, lote: null, pesado: false, cargado_por: null, cargado_at: null,
@@ -77,6 +79,11 @@ export async function simularSupabase(
     operarias: [] as OperariaEnOrden[],
     etiqueta: null,
     vencimiento: null,
+    control_intento: null as number | null,
+    control_rechazo: null as string | null,
+  }
+  if (opciones.enControl) {
+    Object.assign(tarea, { estado: 'en_control', operaria_1: 'E2', inicio: '2026-10-21T09:05:00Z', min_efectivos: 60, control_intento: 1 })
   }
   // Envasado en curso de otra operaria (solo con `opciones.equipo`).
   const envasadoEquipo = {
@@ -98,6 +105,8 @@ export async function simularSupabase(
   }
   // Lo que la tablet mandó a accion() (para verificar sumarse/salir y las cantidades declaradas).
   const llamadas: LlamadaAccion[] = []
+  // Lo que se mandó a registrar_control.
+  const controlesRegistrados: LlamadaControl[] = []
   // Lo que el panel mandó a insertar en envasados.
   const envasadosCreados: Record<string, unknown>[] = []
   const etiquetas = [
@@ -130,12 +139,12 @@ export async function simularSupabase(
       presentacion: null, cantidad: null, litros: 1200, litros_equiv: null, lote: 'L-1', descripcion: null,
       operaria_1: 'E1', operaria_1_nombre: 'Laura Paz', operaria_2: null, operaria_2_nombre: null,
       inicio: `${hoy}T11:00:00Z`, fin: `${hoy}T13:00:00Z`, created_at: `${hoy}T10:00:00Z`,
-      min_brutos: 120, min_pausa: 10, min_efectivos: 110, dia: hoy, participaciones: [], etiqueta: null },
+      min_brutos: 120, min_pausa: 10, min_efectivos: 110, dia: hoy, participaciones: [], etiqueta: null, controles: [] },
     { entidad: 'envasado', id: 'H2', estado: 'finalizado', producto: 'Lavandina', color: '#0284c7', tanque_codigo: 'T-01',
       presentacion: '5L', cantidad: 200, litros: 1000, litros_equiv: 5, lote: 'L-1', descripcion: null,
       operaria_1: 'E2', operaria_1_nombre: 'Rosa Díaz', operaria_2: null, operaria_2_nombre: null,
       inicio: `${hoy}T14:00:00Z`, fin: `${hoy}T15:00:00Z`, created_at: `${hoy}T13:30:00Z`,
-      min_brutos: 60, min_pausa: 0, min_efectivos: 60, dia: hoy, participaciones: [], etiqueta: null },
+      min_brutos: 60, min_pausa: 0, min_efectivos: 60, dia: hoy, participaciones: [], etiqueta: null, controles: [] },
   ]
   const alertas = [
     { id: 'AL1', tipo: 'exceso_9h', entidad: 'fabricacion', entidad_id: 'F9', texto: 'Fabricación de Cloro en T-02 lleva más de 9 horas.',
@@ -174,6 +183,18 @@ export async function simularSupabase(
       return r.fulfill({ json: etiquetas.filter((e) => !activo || String(e.activo) === activo.replace(/^eq\./, '')) })
     }
     if (ruta === 'participaciones') return r.fulfill({ json: [] })
+    if (ruta === 'controles') return r.fulfill({ json: [] })
+    if (ruta === 'rpc/listar_liberadoras') return r.fulfill({ json: [{ id: 'L1', nombre: 'Marta Gil' }, { id: 'L2', nombre: 'Elena Soto' }] })
+    if (ruta === 'rpc/registrar_control') {
+      const pedido: LlamadaControl = r.request().postDataJSON()
+      controlesRegistrados.push(pedido)
+      // como la RPC: en la tablet se firma con una liberadora y hay que estar en_control
+      if (!pedido.p_firmante) return r.fulfill({ json: { ok: false, codigo: 'NO_AUTORIZADO', detalle: null } })
+      if (tarea.estado !== 'en_control') return r.fulfill({ json: { ok: false, codigo: 'TRANSICION_INVALIDA', detalle: null } })
+      if (pedido.p_resultado === 'aprobado') abierta = false
+      else Object.assign(tarea, { estado: 'fabricando', corriendo: true, control_intento: 2, control_rechazo: 'visual No OK' })
+      return r.fulfill({ json: { ok: true, intento: 1 } })
+    }
     if (ruta === 'rpc/listar_usuarios') return r.fulfill({ json: [] })
     if (ruta === 'rpc/corregir_cantidad' || ruta === 'rpc/set_vencimiento') return r.fulfill({ json: { ok: true } })
     if (ruta === 'fabricaciones' && metodo === 'GET') return r.fulfill({ json: [] })
@@ -244,10 +265,10 @@ export async function simularSupabase(
       tanque_codigo: 'T-01', presentacion: null, cantidad: null, litros: d.litros, lote: d.lote, descripcion: null,
       operaria_1: d.operaria_id ?? null, operaria_2: null, listo: true, inicio: null, min_efectivos: null, corriendo: false,
       created_at: new Date().toISOString(), fin: null, fabricacion_id: null, litros_restantes: d.litros,
-      operarias: [], etiqueta: null,
+      operarias: [], etiqueta: null, control_intento: 1, control_rechazo: null,
     })
     Object.assign(tanque, { estado: 'cola', fabricacion_id: 'NF1', producto_id: d.producto_id, producto: prod?.nombre, color: prod?.color, litros: d.litros, litros_restantes: d.litros })
   }
 
-  return { formulasCreadas, llamadas, envasadosCreados }
+  return { formulasCreadas, llamadas, envasadosCreados, controlesRegistrados }
 }

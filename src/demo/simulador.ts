@@ -36,6 +36,39 @@ type Fab = Base & {
   envasado: number
   vencimiento: string | null
   fecha_formula: string | null
+  controlEn: number | null // cuándo la encargada demo controla (solo en en_control)
+  minExtra: number // minutos extra de fabricación por controles rechazados
+}
+// Control para liberación, como produccion.controles.
+type Control = {
+  id: string
+  fabricacion_id: string
+  intento: number
+  ph: number | null
+  densidad: number | null
+  perfume_ok: boolean
+  perfume_comentario: string | null
+  visual_ok: boolean
+  visual_comentario: string | null
+  observaciones: string | null
+  resultado: 'aprobado' | 'rechazado'
+  firmado_por: string
+  firmado_nombre: string
+  origen: 'panel' | 'tablet'
+  created_at: string
+}
+// Lo que manda registrar_control (`firmante`: la liberadora elegida en la tablet; sin firmante firma el panel).
+export type DatosControl = {
+  fabricacionId: string
+  ph: number | null
+  densidad: number | null
+  perfumeOk: boolean | null
+  perfumeComentario?: string | null
+  visualOk: boolean | null
+  visualComentario?: string | null
+  observaciones?: string | null
+  resultado: string | null
+  firmante?: string | null
 }
 // Materia prima de la fórmula (checklist de la tablet), como produccion.fabricacion_mp.
 type Mp = {
@@ -112,6 +145,10 @@ export type Simulador = {
   setVencimiento(fabId: string, fecha: string | null, empleadoId?: string | null): { ok: true } | Rechazo
   /** Como la RPC listar_usuarios. */
   usuarios(): Fila[]
+  /** Como la RPC registrar_control: aprobado → para_envasar; rechazado → fabricando. */
+  registrarControl(d: DatosControl): { ok: true; intento: number } | Rechazo
+  /** Como la RPC listar_liberadoras. */
+  liberadoras(): { id: string; nombre: string }[]
 }
 
 // PRNG determinista (mulberry32): la misma semilla da la misma película.
@@ -126,8 +163,8 @@ function azarCon(semilla: number) {
   }
 }
 
-const ABIERTA_FAB = new Set(['cola', 'fabricando', 'pausada', 'para_envasar'])
-const TAREA_FAB = new Set(['cola', 'fabricando', 'pausada'])
+const ABIERTA_FAB = new Set(['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar'])
+const TAREA_FAB = new Set(['cola', 'fabricando', 'pausada', 'en_control'])
 const CORRIENDO = new Set(['fabricando', 'activo'])
 const PAUSA = new Set(['pausada', 'pausado'])
 const ABIERTA_TAREA = new Set(['cola', 'activo', 'pausado'])
@@ -145,6 +182,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const eventos: Evento[] = []
   const mps: Mp[] = []
   const partes: Participacion[] = []
+  const controles: Control[] = []
   const etiquetas = ETIQUETAS.map((e, i) => ({ ...e, activo: true, created_at: new Date(opts.inicio - (10 - i) * 24 * 60 * MIN).toISOString() }))
   const codigos = new Map<string, string>() // producto_id → código de la fórmula
 
@@ -202,6 +240,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         envasado: 0,
         vencimiento: (d.vencimiento as string | null) ?? null,
         fecha_formula: (d.fecha_formula as string | null) ?? null,
+        controlEn: null,
+        minExtra: 0,
       }
       fabs.push(f)
       evento('fabricacion', f.id, 'crear')
@@ -431,7 +471,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         x.fin = t
         cerrada = true
       } else if (fab) {
-        x.estado = 'para_envasar'
+        x.estado = 'en_control'
       } else {
         // las participaciones se cierran antes: terminarTarea puede cerrar también la fabricación
         cerrarPartes(entidad, id, declarado)
@@ -489,6 +529,78 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     return { ok: true }
   }
 
+  const MOTIVOS_PERFUME = ['olor débil, falta esencia', 'olor distinto al patrón']
+  const MOTIVOS_VISUAL = ['aspecto turbio', 'color más claro que el patrón', 'se ven partículas']
+
+  function registrarControl(d: DatosControl): { ok: true; intento: number } | Rechazo {
+    const no = (codigo: CodigoError, detalle: string | null = null): Rechazo => ({ ok: false, codigo, detalle })
+    // sin firmante firma la encargada desde el panel; la tablet manda la liberadora elegida
+    if (d.firmante && d.firmante !== ENCARGADA.id) return no('NO_AUTORIZADO')
+    const origen = d.firmante ? 'tablet' : 'panel'
+    const f = fabs.find((y) => y.id === d.fabricacionId)
+    if (!f) return no('NO_ENCONTRADO')
+    if (f.estado !== 'en_control') return no('TRANSICION_INVALIDA', `está en estado ${f.estado.replace('_', ' ')}`)
+    const polvo = producto(f.producto_id)?.tipo === 'polvo'
+    const ph = polvo ? null : d.ph
+    const densidad = polvo ? null : d.densidad
+    const limpio = (x: string | null | undefined) => x?.trim() || null
+    const perfume = limpio(d.perfumeComentario)
+    const visual = limpio(d.visualComentario)
+    const obs = limpio(d.observaciones)
+    if (
+      (d.resultado !== 'aprobado' && d.resultado !== 'rechazado') ||
+      typeof d.perfumeOk !== 'boolean' ||
+      typeof d.visualOk !== 'boolean' ||
+      (!d.perfumeOk && !perfume) ||
+      (!d.visualOk && !visual) ||
+      (!polvo && (typeof ph !== 'number' || !(ph >= 0 && ph <= 14) || typeof densidad !== 'number' || !(densidad > 0)))
+    ) {
+      return no('DATOS_INVALIDOS')
+    }
+    const intento = Math.max(0, ...controles.filter((c) => c.fabricacion_id === f.id).map((c) => c.intento)) + 1
+    const c: Control = {
+      id: nuevoId('dc'), fabricacion_id: f.id, intento, ph: ph ?? null, densidad: densidad ?? null,
+      perfume_ok: d.perfumeOk, perfume_comentario: d.perfumeOk ? null : perfume,
+      visual_ok: d.visualOk, visual_comentario: d.visualOk ? null : visual, observaciones: obs,
+      resultado: d.resultado, firmado_por: ENCARGADA.id, firmado_nombre: ENCARGADA.nombre, origen, created_at: new Date(t).toISOString(),
+    }
+    controles.push(c)
+    f.controlEn = null
+    if (d.resultado === 'aprobado') {
+      f.estado = 'para_envasar'
+    } else {
+      f.estado = 'fabricando'
+      f.fin = null
+      f.minExtra += 5 + (intento % 3) * 5 // retrabajo: unos minutos más de fabricación
+    }
+    const motivo = [!d.perfumeOk && `perfume No OK (${perfume})`, !d.visualOk && `visual No OK (${visual})`, obs].filter(Boolean).join('; ')
+    evento('fabricacion', f.id, d.resultado === 'aprobado' ? 'aprobar' : 'rechazar', null, { control_id: c.id, intento, motivo }, ENCARGADA.id)
+    return { ok: true, intento }
+  }
+
+  // La encargada demo controla las fabricaciones que llevan un rato en control: aprueba ~85 %.
+  function encargadaControla() {
+    for (const f of fabs) {
+      if (f.estado !== 'en_control') continue
+      f.controlEn ??= t + entre(15, 45) * MIN
+      if (f.controlEn > t) continue
+      const polvo = producto(f.producto_id)?.tipo === 'polvo'
+      const rechaza = azar() >= 0.85
+      const malo = rechaza ? entre(0, 2) : -1 // 0 perfume, 1 visual, 2 los dos
+      registrarControl({
+        fabricacionId: f.id,
+        ph: polvo ? null : entre(65, 85) / 10,
+        densidad: polvo ? null : entre(100, 110) / 100,
+        perfumeOk: malo !== 0 && malo !== 2,
+        perfumeComentario: malo === 0 || malo === 2 ? elegir(MOTIVOS_PERFUME) : null,
+        visualOk: malo !== 1 && malo !== 2,
+        visualComentario: malo === 1 || malo === 2 ? elegir(MOTIVOS_VISUAL) : null,
+        observaciones: rechaza ? 'Se vuelve a ajustar y se controla de nuevo' : null,
+        resultado: rechaza ? 'rechazado' : 'aprobado',
+      })
+    }
+  }
+
   // ---------- un minuto de planta ----------
   // Al terminar sola, lo que falta declarar se reparte entre quienes siguen en la orden.
   function repartirRestante(entidad: Entidad, x: Env | Frac): Map<string, CantidadDeclarada> {
@@ -534,8 +646,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       if (f.estado !== 'fabricando') continue
       f.efectivos += 1
       // con fórmula, no se da por terminada hasta completar el checklist de MP
-      if (f.efectivos * LITROS_FAB_POR_MIN >= f.litros && mpFaltan(f.id) === 0) {
-        f.estado = 'para_envasar'
+      if ((f.efectivos - f.minExtra) * LITROS_FAB_POR_MIN >= f.litros && mpFaltan(f.id) === 0) {
+        f.estado = 'en_control'
         cerrarPartes('fabricacion', f.id)
         evento('fabricacion', f.id, 'finalizar', f.operaria)
       }
@@ -587,6 +699,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       if (m && azar() < 0.3) cargarMp(m.id, `${m.codigo}-${entre(1000, 9999)}`, true)
     }
     equipo()
+    encargadaControla()
     // alguna pausa de vez en cuando
     for (const f of fabs) if (f.estado === 'fabricando' && azar() < 0.006) accion('fabricacion', f.id, 'pausar')
     for (const e of envs) if (e.estado === 'activo' && azar() < 0.006) accion('envasado', e.id, 'pausar')
@@ -632,6 +745,18 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const operariasDe = (entidad: Entidad, id: string) =>
     abiertas(entidad, id).map((p) => ({ empleado_id: p.empleado_id, nombre: nombreOperaria(p.empleado_id), desde: p.desde }))
   const nombreEtiqueta = (id: string | null) => etiquetas.find((e) => e.id === id)?.nombre ?? null
+  const controlesDe = (fabId: string) => controles.filter((c) => c.fabricacion_id === fabId)
+  // control_intento: el que viene (controles hechos + 1); control_rechazo: motivo del último rechazo mientras se retrabaja.
+  const estadoControl = (f: Fab) => {
+    const hechos = controlesDe(f.id)
+    const ultimo = hechos[hechos.length - 1]
+    const rechazar = [...eventos].reverse().find((e) => e.entidad === 'fabricacion' && e.entidad_id === f.id && e.accion === 'rechazar')
+    const motivo =
+      (f.estado === 'fabricando' || f.estado === 'pausada') && ultimo?.resultado === 'rechazado'
+        ? ((rechazar?.datos.motivo as string | undefined) ?? null)
+        : null
+    return { control_intento: hechos.length + 1, control_rechazo: motivo }
+  }
 
   function vFlujo(): Fila[] {
     const filas: Fila[] = []
@@ -644,7 +769,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando',
         created_at: iso(f.creado), fin: iso(f.fin), fabricacion_id: null, litros_restantes: restante(f),
-        operarias: operariasDe('fabricacion', f.id), etiqueta: null,
+        operarias: operariasDe('fabricacion', f.id), etiqueta: null, ...estadoControl(f),
       })
     }
     for (const e of envs) {
@@ -659,6 +784,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos, corriendo: e.estado === 'activo',
         created_at: iso(e.creado), fin: iso(e.fin), fabricacion_id: f.id, litros_restantes: restante(f),
         operarias: operariasDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id),
+        control_intento: null, control_rechazo: null,
       })
     }
     for (const x of fracs) {
@@ -672,6 +798,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
         fin: iso(x.fin), fabricacion_id: null, litros_restantes: null,
         operarias: operariasDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id),
+        control_intento: null, control_rechazo: null,
       })
     }
     return filas.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
@@ -713,7 +840,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando', created_at: iso(f.creado),
         mp_total: mp.length, mp_completas: mp.filter(mpCompleta).length,
-        operarias: operariasDe('fabricacion', f.id), etiqueta: null, vencimiento: f.vencimiento,
+        operarias: operariasDe('fabricacion', f.id), etiqueta: null, vencimiento: f.vencimiento, ...estadoControl(f),
       })
     }
     for (const e of envs) {
@@ -727,6 +854,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         listo: f.estado === 'para_envasar', inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos,
         corriendo: e.estado === 'activo', created_at: iso(e.creado), mp_total: 0, mp_completas: 0,
         operarias: operariasDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id), vencimiento: f.vencimiento,
+        control_intento: null, control_rechazo: null,
       })
     }
     for (const x of fracs) {
@@ -739,6 +867,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
         mp_total: 0, mp_completas: 0,
         operarias: operariasDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id), vencimiento: null,
+        control_intento: null, control_rechazo: null,
       })
     }
     return filas
@@ -785,6 +914,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         operaria_1: f.operaria, operaria_1_nombre: f.operaria ? nombreOperaria(f.operaria) : null, operaria_2: null, operaria_2_nombre: null,
         inicio: iso(f.inicio), fin: iso(f.fin), created_at: iso(f.creado), ...tiempos(f), dia: dia(f.fin ?? f.inicio ?? f.creado),
         participaciones: participacionesDe('fabricacion', f.id), etiqueta: null,
+        controles: controlesDe(f.id).map(({ id: _id, fabricacion_id: _f, firmado_por: _p, ...c }) => c),
       })
     }
     for (const e of envs) {
@@ -797,7 +927,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         operaria_1: e.operaria_1, operaria_1_nombre: e.operaria_1 ? nombreOperaria(e.operaria_1) : null,
         operaria_2: e.operaria_2, operaria_2_nombre: e.operaria_2 ? nombreOperaria(e.operaria_2) : null,
         inicio: iso(e.inicio), fin: iso(e.fin), created_at: iso(e.creado), ...tiempos(e), dia: dia(e.fin ?? e.inicio ?? e.creado),
-        participaciones: participacionesDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id),
+        participaciones: participacionesDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id), controles: [],
       })
     }
     for (const x of fracs) {
@@ -808,7 +938,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         presentacion: pr.nombre, cantidad: x.cantidad, litros: x.cantidad * pr.litros_equiv, litros_equiv: pr.litros_equiv, lote: x.lote, descripcion: x.descripcion,
         operaria_1: x.operaria, operaria_1_nombre: x.operaria ? nombreOperaria(x.operaria) : null, operaria_2: null, operaria_2_nombre: null,
         inicio: iso(x.inicio), fin: iso(x.fin), created_at: iso(x.creado), ...tiempos(x), dia: dia(x.fin ?? x.inicio ?? x.creado),
-        participaciones: participacionesDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id),
+        participaciones: participacionesDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id), controles: [],
       })
     }
     return filas
@@ -828,6 +958,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         return etiquetas.map((e) => ({ ...e }))
       case 'participaciones':
         return partes.map((p) => ({ ...p }))
+      case 'controles':
+        return controles.map((c) => ({ ...c }))
       case 'fabricacion_mp':
         return mps.map((m) => ({ ...m }))
       case 'fabricaciones':
@@ -879,5 +1011,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   return {
     ahora: () => t, avanzar, consultar, accion, insertar, crearFormula, cargarMp, corregirCantidad, setVencimiento,
     usuarios: () => [{ ...ENCARGADA }],
+    registrarControl,
+    liberadoras: () => [{ id: ENCARGADA.id, nombre: ENCARGADA.nombre }],
   }
 }
