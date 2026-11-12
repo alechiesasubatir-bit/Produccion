@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Participacion } from './participaciones'
 import { filaH } from '../test/fabricas'
-import { diasDelMes, filasPorParticipacion, filtrarHistorial, operariasTexto, moverRango, ordenarHistorial, porDia, rangoDe } from './historial'
+import { controlTexto, diasDelMes, filasPorParticipacion, filtrarHistorial, operariasTexto, moverRango, ordenarHistorial, porDia, rangoDe } from './historial'
 
 describe('porDia', () => {
   it('cada tarea cae en un solo día (el de la vista)', () => {
@@ -98,5 +98,32 @@ describe('filasPorParticipacion', () => {
     const b = filaH()
     expect(filasPorParticipacion([a, b]).map((x) => x.p?.nombre ?? null)).toEqual(['Ana', 'Marta', null])
     expect(filasPorParticipacion([a, b]).map((x) => x.repetida)).toEqual([false, true, false])
+  })
+})
+
+describe('controlTexto', () => {
+  const c = (intento: number, resultado: 'aprobado' | 'rechazado', firmado_nombre: string | null = 'María') => ({
+    intento,
+    resultado,
+    ph: null,
+    densidad: null,
+    perfume_ok: true,
+    perfume_comentario: null,
+    visual_ok: true,
+    visual_comentario: null,
+    observaciones: null,
+    firmado_nombre,
+    origen: 'panel' as const,
+    created_at: '2026-10-21T12:00:00Z',
+  })
+  it('último control aprobado con firmante e intento', () => {
+    expect(controlTexto(filaH({ controles: [c(1, 'rechazado'), c(2, 'aprobado')] }))).toBe('Aprobado (María, 2.º intento)')
+  })
+  it('último control rechazado', () => {
+    expect(controlTexto(filaH({ controles: [c(1, 'rechazado', 'Juana')] }))).toBe('Rechazado (Juana, 1.º intento)')
+  })
+  it('sin controles o de otro tipo: raya', () => {
+    expect(controlTexto(filaH())).toBe('—')
+    expect(controlTexto(filaH({ entidad: 'envasado', controles: [c(1, 'aprobado')] }))).toBe('—')
   })
 })

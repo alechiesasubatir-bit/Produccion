@@ -25,6 +25,13 @@ describe('textoEventoOperaria', () => {
     expect(textoEventoOperaria(ev({ accion: 'editar', quien: 'Encargada', datos }))).toBe('La encargada cambió el vencimiento a 12/05/2027')
     expect(textoEventoOperaria(ev({ accion: 'editar', quien: 'Encargada', usuario: 'Juana', datos }))).toBe('Juana cambió el vencimiento a 12/05/2027')
   })
+  it('aprobar y rechazar el control', () => {
+    expect(textoEventoOperaria(ev({ accion: 'aprobar', usuario: 'María' }))).toBe('María aprobó el control')
+    expect(textoEventoOperaria(ev({ accion: 'aprobar' }))).toBe('La encargada aprobó el control')
+    const datos = { motivo: 'perfume No OK (muy suave)' }
+    expect(textoEventoOperaria(ev({ accion: 'rechazar', usuario: 'María', datos }))).toBe('María rechazó el control: perfume No OK (muy suave)')
+    expect(textoEventoOperaria(ev({ accion: 'rechazar', usuario: 'María', datos: { motivo: '' } }))).toBe('María rechazó el control')
+  })
   it('otros eventos quedan para el armado común', () => {
     expect(textoEventoOperaria(ev({ accion: 'editar', datos: {} }))).toBeNull()
     expect(textoEventoOperaria(ev({ accion: 'pausar' }))).toBeNull()

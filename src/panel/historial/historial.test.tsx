@@ -85,7 +85,7 @@ describe('Historial', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
     const lineas = (m.descargar.mock.calls[0][1] as string).split(/\r\n/)
     expect(lineas).toHaveLength(3)
-    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria$/)
+    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria;pH;Densidad;Perfume;Visual;Liberó;Fecha liberación$/)
     expect(lineas[2]).toMatch(/;Ana;/)
     // Las columnas numéricas de la orden van vacías en la 2.ª fila: no se duplican al sumar.
     const [cab, f1, f2] = lineas.map((l) => l.split(';'))
@@ -93,6 +93,47 @@ describe('Historial', () => {
       expect(f2[cab.indexOf(col)]).toBe('')
     }
     expect(f1[cab.indexOf('Litros')]).not.toBe('')
+  })
+
+  it('muestra la columna Control y exporta los datos del control aprobado, vacíos desde la 2.ª fila', async () => {
+    const p = (nombre: string, id: string) => ({
+      empleado_id: id,
+      nombre,
+      desde: '2026-10-15T10:00:00Z',
+      hasta: '2026-10-15T11:00:00Z',
+      cantidad: 10,
+      unidad: 'L' as const,
+      cantidad_corregida: null,
+      minutos: 20,
+    })
+    const ctl = (intento: number, resultado: 'aprobado' | 'rechazado') => ({
+      intento,
+      resultado,
+      ph: 7.5,
+      densidad: 1.03,
+      perfume_ok: true,
+      perfume_comentario: null,
+      visual_ok: false,
+      visual_comentario: 'turbio',
+      observaciones: null,
+      firmado_nombre: 'María',
+      origen: 'panel' as const,
+      created_at: '2026-10-15T12:00:00Z',
+    })
+    m.cargar.mockResolvedValue([
+      filaH({ dia: '2026-10-15', participaciones: [p('Marta', 'e1'), p('Ana', 'e2')], controles: [ctl(1, 'rechazado'), ctl(2, 'aprobado')] }),
+    ])
+    await montar()
+    expect(screen.getByText('Aprobado (María, 2.º intento)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+    const [cab, f1, f2] = (m.descargar.mock.calls[0][1] as string).split(/\r\n/).map((l) => l.split(';'))
+    expect(f1[cab.indexOf('pH')]).toBe('7,5')
+    expect(f1[cab.indexOf('Densidad')]).toBe('1,03')
+    expect(f1[cab.indexOf('Perfume')]).toBe('OK')
+    expect(f1[cab.indexOf('Visual')]).toBe('No OK: turbio')
+    expect(f1[cab.indexOf('Liberó')]).toBe('María')
+    expect(f1[cab.indexOf('Fecha liberación')]).not.toBe('')
+    for (const col of ['pH', 'Densidad', 'Perfume', 'Visual', 'Liberó', 'Fecha liberación']) expect(f2[cab.indexOf(col)]).toBe('')
   })
 
   it('el botón Ver MP de una fabricación despliega la tabla de MP debajo de la fila y se puede ocultar', async () => {

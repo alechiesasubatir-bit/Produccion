@@ -33,6 +33,25 @@ export function operariasTexto(f: FilaHistorial): string {
     .join(' · ')
 }
 
+/** Resultado del control para la columna «Control»: el último intento («Aprobado (María, 2.º intento)»); «—» si no hay. */
+export function controlTexto(f: FilaHistorial): string {
+  const cs = f.entidad === 'fabricacion' ? (f.controles ?? []) : []
+  if (cs.length === 0) return '—'
+  const c = cs.reduce((a, b) => (b.intento >= a.intento ? b : a))
+  const quien = c.firmado_nombre ?? 'sin firma'
+  return `${c.resultado === 'aprobado' ? 'Aprobado' : 'Rechazado'} (${quien}, ${c.intento}.º intento)`
+}
+
+/** Control aprobado de la fábricación (el que la liberó), si lo hay. */
+export function controlAprobado(f: FilaHistorial) {
+  return (f.controles ?? []).filter((c) => c.resultado === 'aprobado').at(-1) ?? null
+}
+
+/** «OK» o «No OK: <comentario>» para perfume / visual. */
+export function okTexto(ok: boolean, comentario: string | null): string {
+  return ok ? 'OK' : comentario ? `No OK: ${comentario}` : 'No OK'
+}
+
 /** Una fila por participación para exportar (las órdenes sin participaciones quedan en una fila). */
 /** `repetida`: 2.ª fila en adelante de la misma orden (las columnas numéricas de la orden se dejan vacías para no duplicar al sumar). */
 export type FilaExport = { fila: FilaHistorial; p: Participacion | null; repetida: boolean }

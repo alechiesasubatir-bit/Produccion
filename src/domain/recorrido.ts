@@ -30,6 +30,11 @@ export function textoEventoOperaria(e: EventoRecorrido): string | null {
     const despues = cant(d.despues, d.unidad) ?? '—'
     return `${e.usuario || 'La encargada'} corrigió a ${e.sujeto ?? 'la operaria'}: ${antes} → ${despues}`
   }
+  if (e.accion === 'aprobar') return `${e.usuario || 'La encargada'} aprobó el control`
+  if (e.accion === 'rechazar') {
+    const motivo = typeof d.motivo === 'string' ? d.motivo.trim() : ''
+    return `${e.usuario || 'La encargada'} rechazó el control${motivo ? `: ${motivo}` : ''}`
+  }
   const venc = obj(d.vencimiento)
   if (e.accion === 'editar' && typeof venc.despues === 'string') {
     const quien = e.quien !== 'Encargada' ? e.quien : e.usuario || 'La encargada'

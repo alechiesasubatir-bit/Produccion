@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import type { Entidad } from '../../domain/acciones'
 import { aCSV, descargarCSV, type ColumnaCSV } from '../../domain/csv'
 import {
+  controlAprobado,
+  controlTexto,
+  okTexto,
   filasPorParticipacion,
   filtrarHistorial,
   hoyMontevideo,
@@ -60,6 +63,7 @@ const COLUMNAS: Columna[] = [
   { clave: 'min_efectivos', titulo: 'Efectivo', celda: (f) => minutos(f.min_efectivos) },
   { clave: 'min_pausa', titulo: 'Pausas', celda: (f) => minutos(f.min_pausa) },
   { clave: 'estado', titulo: 'Estado', celda: (f) => <Chip estado={f.estado} /> },
+  { clave: 'controles', titulo: 'Control', celda: controlTexto },
 ]
 
 const CSV: ColumnaCSV<FilaCSV>[] = [
@@ -83,6 +87,12 @@ const CSV: ColumnaCSV<FilaCSV>[] = [
   { titulo: 'Cantidad operaria', valor: ({ p }) => (p ? cantidadEfectiva(p) : null) },
   { titulo: 'Unidad', valor: ({ p }) => (p && cantidadEfectiva(p) !== null ? p.unidad : null) },
   { titulo: 'Minutos operaria', valor: ({ p }) => (p ? Math.round(p.minutos) : null) },
+  { titulo: 'pH', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.ph) },
+  { titulo: 'Densidad', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.densidad) },
+  { titulo: 'Perfume', valor: ({ fila, repetida }) => { const c = repetida ? null : controlAprobado(fila); return c && okTexto(c.perfume_ok, c.perfume_comentario) } },
+  { titulo: 'Visual', valor: ({ fila, repetida }) => { const c = repetida ? null : controlAprobado(fila); return c && okTexto(c.visual_ok, c.visual_comentario) } },
+  { titulo: 'Liberó', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.firmado_nombre) },
+  { titulo: 'Fecha liberación', valor: ({ fila, repetida }) => (repetida ? null : fechaHoraP(controlAprobado(fila)?.created_at)) },
 ]
 
 const ABIERTA = ['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar']
