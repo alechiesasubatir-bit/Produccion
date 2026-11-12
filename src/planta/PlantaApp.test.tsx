@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   recargar: vi.fn(),
   error: null as string | null,
   mpTotal: 0,
+  canales: {} as Record<string, string[]>,
 }))
 
 vi.mock('../lib/acciones', () => ({
@@ -53,7 +54,8 @@ const suya: Tarea = {
 }
 
 vi.mock('../lib/useRealtime', () => ({
-  useRealtime: (tabla: string) => ({
+  useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
+    ...(m.canales[tabla] = canales, {}),
     datos: tabla === 'v_operarias' ? operarias : [{ ...suya, mp_total: m.mpTotal }],
     conectado: true,
     enVivo: true,
@@ -80,6 +82,11 @@ describe('PlantaApp', () => {
   afterEach(() => {
     vi.useRealTimers()
     m.mpTotal = 0
+  })
+
+  it('escucha los cambios de participaciones para ver el equipo al día', () => {
+    montar()
+    expect(m.canales.v_tareas).toContain('participaciones')
   })
 
   it('flujo feliz: persona → finalizar → confirmación, sin PIN', async () => {

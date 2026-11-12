@@ -100,6 +100,13 @@ describe('OperariasOrden', () => {
     expect(screen.getByText(/Total declarado: 90 L/).closest('p')!.className).toContain('aviso')
   })
 
+  it('con el total declarado en kg no marca desvío contra el esperado en L', async () => {
+    m.filas = [part({ cantidad: 90, unidad: 'kg' })]
+    render(<OperariasOrden entidad="envasado" id="e1" cantidad={100} presentacionLitros={1} />)
+    await act(async () => {})
+    expect(screen.getByText(/Total declarado: 90 kg/).closest('p')!.className).not.toContain('aviso')
+  })
+
   it('fabricación: columna «MP cargadas»', async () => {
     m.filas = [part({ cantidad: null })]
     m.mp = new Map([['E1', 4]])

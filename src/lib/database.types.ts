@@ -1,6 +1,6 @@
 // Tipos de la base (formato de `supabase gen types`).
 // El generador del MCP solo emite el esquema public, así que `produccion` se escribe a mano
-// desde supabase/migrations/ (001–009). Al cambiar una migración, actualizar acá.
+// desde supabase/migrations/ (001–014). Al cambiar una migración, actualizar acá.
 
 import type { OperariaEnOrden, Participacion } from '../domain/participaciones'
 
@@ -228,7 +228,7 @@ export type Database = {
           id: number
           entidad: EntidadEvento
           entidad_id: Uuid
-          accion: 'crear' | 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar'
+          accion: 'crear' | 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar' | 'corregir'
           empleado_id: Uuid | null
           usuario_id: Uuid | null
           dispositivo: string | null

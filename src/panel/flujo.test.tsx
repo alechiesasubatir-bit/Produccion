@@ -7,12 +7,14 @@ const m = vi.hoisted(() => ({
   filas: [] as unknown[],
   accionPanel: vi.fn(),
   recargar: vi.fn(),
+  canales: {} as Record<string, string[]>,
 }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../lib/acciones', () => ({ accionPanel: m.accionPanel }))
 vi.mock('../lib/useRealtime', () => ({
-  useRealtime: (tabla: string) => ({
+  useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
+    ...(m.canales[tabla] = canales, {}),
     datos: tabla === 'v_flujo' ? m.filas : [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
     conectado: true,
     enVivo: true,
@@ -75,6 +77,12 @@ describe('Flujo', () => {
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('reduce'), addEventListener() {}, removeEventListener() {} }))
   })
   afterEach(() => vi.unstubAllGlobals())
+
+  it('escucha los cambios de participaciones para ver el equipo al día', () => {
+    m.filas = []
+    render(<Flujo />)
+    expect(m.canales.v_flujo).toContain('participaciones')
+  })
 
   it('muestra las 5 columnas en orden y Terminadas hoy como lengüeta', () => {
     m.filas = []

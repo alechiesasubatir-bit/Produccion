@@ -34,12 +34,13 @@ export function operariasTexto(f: FilaHistorial): string {
 }
 
 /** Una fila por participación para exportar (las órdenes sin participaciones quedan en una fila). */
-export type FilaExport = { fila: FilaHistorial; p: Participacion | null }
+/** `repetida`: 2.ª fila en adelante de la misma orden (las columnas numéricas de la orden se dejan vacías para no duplicar al sumar). */
+export type FilaExport = { fila: FilaHistorial; p: Participacion | null; repetida: boolean }
 
 export function filasPorParticipacion(filas: FilaHistorial[]): FilaExport[] {
   return filas.flatMap((fila): FilaExport[] => {
     const ps = fila.participaciones ?? []
-    return ps.length === 0 ? [{ fila, p: null }] : ps.map((p) => ({ fila, p }))
+    return ps.length === 0 ? [{ fila, p: null, repetida: false }] : ps.map((p, i) => ({ fila, p, repetida: i > 0 }))
   })
 }
 

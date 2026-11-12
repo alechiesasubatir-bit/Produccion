@@ -40,7 +40,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
   const tanque = params.get('tanque')
 
   const operarias = useRealtime('v_operarias', cargarOperarias, [])
-  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados'])
+  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones'])
   // El cronómetro suma desde el momento en que llegaron los datos.
   const cargadoEn = useMemo(() => Date.now(), [tareas.datos])
 

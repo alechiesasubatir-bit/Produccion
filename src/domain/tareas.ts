@@ -9,7 +9,6 @@ export type Tarea = Database['produccion']['Views']['v_tareas']['Row']
 function ids(t: Tarea): string[] {
   const op = t.operarias ?? []
   if (op.length > 0) return op.map((o) => o.empleado_id)
-  if (t.estado === 'cola') return []
   return [t.operaria_1, t.operaria_2].filter((x): x is string => x !== null)
 }
 

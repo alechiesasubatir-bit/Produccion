@@ -59,6 +59,14 @@ describe('clasificarTareas', () => {
     expect(clasificarTareas([t], 'E1').disponibles).toEqual([])
   })
 
+  it('una cola preasignada a mí está en Mías (y no en Disponibles de otra)', () => {
+    const t = tarea({ operaria_1: 'E1' })
+    expect(clasificarTareas([t], 'E1').mias).toEqual([t])
+    expect(clasificarTareas([t], 'E1').disponibles).toEqual([])
+    expect(clasificarTareas([t], 'E2').mias).toEqual([])
+    expect(clasificarTareas([t], 'E2').disponibles).toEqual([])
+  })
+
   it('una cola preasignada a otra operaria no es disponible', () => {
     const t = tarea({ operaria_1: 'E2' })
     expect(clasificarTareas([t], 'E1').disponibles).toEqual([])

@@ -97,5 +97,6 @@ describe('filasPorParticipacion', () => {
     const a = filaH({ participaciones: [part('Ana', 'e2', 1), part('Marta', 'e1', 2)] })
     const b = filaH()
     expect(filasPorParticipacion([a, b]).map((x) => x.p?.nombre ?? null)).toEqual(['Ana', 'Marta', null])
+    expect(filasPorParticipacion([a, b]).map((x) => x.repetida)).toEqual([false, true, false])
   })
 })

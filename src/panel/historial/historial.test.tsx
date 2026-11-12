@@ -87,6 +87,12 @@ describe('Historial', () => {
     expect(lineas).toHaveLength(3)
     expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria$/)
     expect(lineas[2]).toMatch(/;Ana;/)
+    // Las columnas numéricas de la orden van vacías en la 2.ª fila: no se duplican al sumar.
+    const [cab, f1, f2] = lineas.map((l) => l.split(';'))
+    for (const col of ['Cantidad', 'Litros', 'Minutos efectivos', 'Minutos de pausa']) {
+      expect(f2[cab.indexOf(col)]).toBe('')
+    }
+    expect(f1[cab.indexOf('Litros')]).not.toBe('')
   })
 
   it('el botón Ver MP de una fabricación despliega la tabla de MP debajo de la fila y se puede ocultar', async () => {

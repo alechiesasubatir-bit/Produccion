@@ -5,11 +5,12 @@ import type { FilaFlujo } from '../../domain/flujo'
 import type { EstadoTanqueFila } from '../../pages/ParedTanques'
 import { Monitor } from './Monitor'
 
-const m = vi.hoisted(() => ({ flujo: [] as unknown[], tanques: [] as unknown[] }))
+const m = vi.hoisted(() => ({ flujo: [] as unknown[], tanques: [] as unknown[], canales: {} as Record<string, string[]> }))
 
 vi.mock('../../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../../lib/useRealtime', () => ({
-  useRealtime: (tabla: string) => ({
+  useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
+    ...(m.canales[tabla] = canales, {}),
     datos: tabla === 'v_flujo' ? m.flujo : tabla === 'v_tanque_estado' ? m.tanques : [{ empleado_id: 'E1', nombre: 'Laura Paz' }],
     cargado: true,
     conectado: true,
@@ -65,6 +66,12 @@ describe('Monitor (TV)', () => {
     const cola = screen.getByRole('region', { name: 'Cola' })
     expect(within(cola).getAllByRole('article')).toHaveLength(6)
     expect(within(cola).getByText('+3 más')).toBeInTheDocument()
+  })
+
+  it('escucha los cambios de participaciones para ver el equipo al día', () => {
+    m.flujo = []
+    montar()
+    expect(m.canales.v_flujo).toContain('participaciones')
   })
 
   it('abajo, la tira de tanques con su nivel', () => {

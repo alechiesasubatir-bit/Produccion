@@ -139,7 +139,8 @@ export function OperariasOrden({
   const tot = totalDeclarado(filas)
   const unidades = Object.entries(tot.porUnidad) as [Unidad, number][]
   const totalTxt = unidades.length ? unidades.map(([u, n]) => texto(n, u)).join(' + ') : texto(0, null)
-  const desvio = esperado !== null && tot.faltan === 0 && unidades.length > 0 && Math.abs(tot.total - esperado) > 1e-9
+  const soloLitros = unidades.length > 0 && unidades.every(([u]) => u === 'L')
+  const desvio = soloLitros && esperado !== null && tot.faltan === 0 && Math.abs(tot.total - esperado) > 1e-9
 
   return (
     <div className="operarias-orden">
