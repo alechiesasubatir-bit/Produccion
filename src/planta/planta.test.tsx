@@ -12,7 +12,7 @@ const op = (empleado_id: string, nombre: string): OperariaFila => ({
   activo: true,
 })
 
-const corriendo = { operaria_1: 'E1', operaria_2: null, corriendo: true, estado: 'fabricando' } as Tarea
+const corriendo = { operarias: [], operaria_1: 'E1', operaria_2: null, corriendo: true, estado: 'fabricando' } as unknown as Tarea
 
 describe('QuienTrabaja', () => {
   const operarias = [op('E2', 'Rosa Díaz'), op('E1', 'Laura Paz')]

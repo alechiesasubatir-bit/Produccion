@@ -3,6 +3,10 @@ import {
   clasificarTareas,
   confirmacionPanel,
   estadoOperaria,
+  esUltima,
+  parsearCantidad,
+  pideCantidad,
+  unidadPorDefecto,
   etiquetaPanel,
   etiquetaAccion,
   formatoCronometro,
@@ -118,5 +122,46 @@ describe('acciones del panel', () => {
     expect(etiquetaPanel('fabricacion', 'fabricando', 'finalizar')).toBe('Finalizar')
     expect(etiquetaPanel('envasado', 'activo', 'finalizar')).toBe('Finalizar')
     expect(confirmacionPanel('fabricacion', 'cola', 'cancelar')).toBe('¿Seguro?')
+  })
+})
+
+const op = (id: string) => ({ empleado_id: id, nombre: id, desde: '2026-10-21T10:00:00Z' })
+
+describe('clasificación por participación', () => {
+  it('separa mías, en curso ajenas y disponibles', () => {
+    const mia = tarea({ estado: 'activo', entidad: 'envasado', operarias: [op('E1'), op('E2')] })
+    const ajena = tarea({ estado: 'fabricando', operarias: [op('E2')] })
+    const cola = tarea({ estado: 'cola' })
+    const r = clasificarTareas([mia, ajena, cola], 'E1')
+    expect(r.mias).toEqual([mia])
+    expect(r.enCurso).toEqual([ajena])
+    expect(r.disponibles).toEqual([cola])
+  })
+  it('estadoOperaria usa operarias', () => {
+    const t = tarea({ estado: 'fabricando', corriendo: true, operarias: [op('E1')] })
+    expect(estadoOperaria([t], 'E1')).toBe('trabajando')
+    expect(estadoOperaria([t], 'E2')).toBeNull()
+  })
+  it('esUltima', () => {
+    expect(esUltima(tarea({ estado: 'activo', operarias: [op('E1')] }), 'E1')).toBe(true)
+    expect(esUltima(tarea({ estado: 'activo', operarias: [op('E1'), op('E2')] }), 'E1')).toBe(false)
+  })
+})
+
+describe('cantidades', () => {
+  it('unidad por defecto', () => {
+    expect(unidadPorDefecto({ producto_tipo: 'polvo' })).toBe('kg')
+    expect(unidadPorDefecto({ producto_tipo: 'liquido' })).toBe('L')
+    expect(unidadPorDefecto({ producto_tipo: null })).toBe('L')
+  })
+  it('pideCantidad', () => {
+    expect(pideCantidad('envasado')).toBe(true)
+    expect(pideCantidad('fraccionado')).toBe(true)
+    expect(pideCantidad('fabricacion')).toBe(false)
+  })
+  it('parsearCantidad', () => {
+    expect(parsearCantidad('12,5')).toBe(12.5)
+    expect(parsearCantidad('12.5')).toBe(12.5)
+    for (const x of ['0', '', '-3', 'abc', '1,2,3']) expect(parsearCantidad(x)).toBeNull()
   })
 })

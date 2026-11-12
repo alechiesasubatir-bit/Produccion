@@ -606,3 +606,77 @@
 .confirmacion-texto {
   animation: aparecer 0.5s 0.25s var(--ease) both;
 }
+
+/* Declarar cantidad: campos y botones grandes para tablet. */
+.declarar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.declarar-titulo {
+  margin: 0;
+  font-size: 28px;
+}
+
+.declarar-unidad {
+  display: flex;
+  gap: 12px;
+}
+
+.declarar-unidad-boton {
+  flex: 1;
+  min-height: 64px;
+  border: 2px solid var(--tinta);
+  border-radius: 10px;
+  background: transparent;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.declarar-unidad-boton[aria-pressed='true'] {
+  background: var(--tinta);
+  color: #f3f1ea;
+}
+
+.declarar-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.declarar-nombre {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.declarar-input {
+  min-height: 72px;
+  padding: 0 16px;
+  border: 2px solid var(--tinta);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 36px;
+  font-variant-numeric: tabular-nums;
+}
+
+.declarar-acciones {
+  display: flex;
+  gap: 12px;
+}
+
+.declarar-acciones .boton {
+  flex: 1;
+  min-height: 64px;
+  font-size: 22px;
+}
+
+.declarar-unidad-boton:focus-visible,
+.declarar-input:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}

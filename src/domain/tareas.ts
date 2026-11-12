@@ -1,9 +1,40 @@
 import type { Database } from '../lib/database.types'
-import type { Accion } from './acciones'
+import type { Accion, Entidad } from './acciones'
+import type { Unidad } from './participaciones'
 
 export type Tarea = Database['produccion']['Views']['v_tareas']['Row']
 
-const esMia = (t: Tarea, empleadoId: string) => t.operaria_1 === empleadoId || t.operaria_2 === empleadoId
+// Quiénes están trabajando ahora en la orden. Las órdenes en curso anteriores a la 014 no tienen
+// `operarias` cargadas: ahí se cae a operaria_1/operaria_2.
+function ids(t: Tarea): string[] {
+  if (t.operarias.length > 0) return t.operarias.map((o) => o.empleado_id)
+  if (t.estado === 'cola') return []
+  return [t.operaria_1, t.operaria_2].filter((x): x is string => x !== null)
+}
+
+const esMia = (t: Tarea, empleadoId: string) => ids(t).includes(empleadoId)
+
+const EN_CURSO = ['fabricando', 'pausada', 'activo', 'pausado']
+
+export function esUltima(t: Tarea, empleadoId: string): boolean {
+  const quienes = ids(t)
+  return quienes.length === 1 && quienes[0] === empleadoId
+}
+
+export function unidadPorDefecto(t: Pick<Tarea, 'producto_tipo'>): Unidad {
+  return t.producto_tipo === 'polvo' ? 'kg' : 'L'
+}
+
+export function pideCantidad(entidad: Entidad): boolean {
+  return entidad === 'envasado' || entidad === 'fraccionado'
+}
+
+export function parsearCantidad(texto: string): number | null {
+  const limpio = texto.trim().replace(',', '.')
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(limpio)) return null
+  const n = Number(limpio)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
 
 // Orden: primero el tanque del QR, después lo que está corriendo, después por antigüedad.
 function ordenar(tareas: Tarea[], tanque: string | null | undefined): Tarea[] {
@@ -20,10 +51,14 @@ export function clasificarTareas(
   tareas: Tarea[],
   empleadoId: string,
   tanque?: string | null,
-): { mias: Tarea[]; disponibles: Tarea[] } {
+): { mias: Tarea[]; enCurso: Tarea[]; disponibles: Tarea[] } {
   return {
     mias: ordenar(
       tareas.filter((t) => esMia(t, empleadoId)),
+      tanque,
+    ),
+    enCurso: ordenar(
+      tareas.filter((t) => EN_CURSO.includes(t.estado) && !esMia(t, empleadoId)),
       tanque,
     ),
     disponibles: ordenar(
