@@ -102,6 +102,10 @@ describe('Flujo', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Operarias' })))
     expect(screen.getByRole('dialog', { name: 'Operarias de la orden' })).toBeTruthy()
     expect(screen.getByText('Laura Paz')).toBeTruthy()
+    const boton = screen.getByRole('button', { name: 'Operarias' })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(boton)
   })
 
   it('la lengüeta de Terminadas hoy se despliega con las terminadas', () => {

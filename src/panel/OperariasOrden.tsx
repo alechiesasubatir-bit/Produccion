@@ -77,26 +77,44 @@ export function OperariasOrden({
   const [editando, setEditando] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
 
-  const cargar = useCallback(async () => {
-    try {
-      const ps = await cargarParticipaciones(entidad, id)
-      setFilas(ps)
-      setLegacy(ps.length === 0 ? await cargarOperariasLegacy(entidad, id) : [])
-      if (entidad === 'fabricacion' && ps.length > 0) setMp(await cargarMpPorOperaria(id))
-      setAviso(null)
-    } catch (e) {
-      setAviso(mensajeError(e).texto)
-    }
-  }, [entidad, id])
+  // `vigente` descarta respuestas de una carga vieja (cambió la orden o se desmontó).
+  const cargar = useCallback(
+    async (vigente: () => boolean = () => true) => {
+      try {
+        const ps = await cargarParticipaciones(entidad, id)
+        const leg = ps.length === 0 ? await cargarOperariasLegacy(entidad, id) : []
+        const mps = entidad === 'fabricacion' && ps.length > 0 ? await cargarMpPorOperaria(id) : null
+        if (!vigente()) return
+        setFilas(ps)
+        setLegacy(leg)
+        if (mps) setMp(mps)
+        setAviso(null)
+      } catch (e) {
+        if (vigente()) setAviso(mensajeError(e).texto)
+      }
+    },
+    [entidad, id],
+  )
 
   useEffect(() => {
-    void cargar()
+    let vigente = true
+    void cargar(() => vigente)
+    return () => {
+      vigente = false
+    }
   }, [cargar])
 
   const esperadoDado = presentacionLitros != null && cantidad != null
   useEffect(() => {
     if (entidad !== 'envasado' || esperadoDado) return
-    cargarEsperadoEnvasado(id).then(setEsperadoCargado, () => setEsperadoCargado(null))
+    let vigente = true
+    cargarEsperadoEnvasado(id).then(
+      (n) => vigente && setEsperadoCargado(n),
+      () => vigente && setEsperadoCargado(null),
+    )
+    return () => {
+      vigente = false
+    }
   }, [entidad, id, esperadoDado])
   const esperado = esperadoDado ? esperadoEnvasado(cantidad, presentacionLitros) : esperadoCargado
 

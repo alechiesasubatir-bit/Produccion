@@ -1,4 +1,5 @@
-import { db, supabase } from '../lib/supabase'
+import { db } from '../lib/supabase'
+import { listarUsuarios } from './config/datosPersonas'
 import type { Entidad } from '../domain/acciones'
 import { esperadoEnvasado, type Unidad } from '../domain/participaciones'
 
@@ -55,11 +56,11 @@ export async function cargarParticipaciones(entidad: Entidad, id: string): Promi
   const corrigieron = [...new Set(filas.map((f) => f.corregida_por).filter((x): x is string => !!x))]
   const [operarias, perfiles] = await Promise.all([
     db.from('v_operarias').select('empleado_id, nombre'),
-    corrigieron.length ? supabase.from('perfiles').select('id, nombre').in('id', corrigieron) : Promise.resolve({ data: [], error: null }),
+    corrigieron.length ? listarUsuarios().catch(() => []) : Promise.resolve([]),
   ])
   if (operarias.error) throw operarias.error
   const nombres = new Map((operarias.data ?? []).map((o) => [o.empleado_id, o.nombre]))
-  const quienes = new Map((perfiles.data ?? []).map((p) => [p.id, p.nombre]))
+  const quienes = new Map(perfiles.map((u) => [u.id, u.nombre]))
   return filas.map((f) => ({
     id: f.id,
     empleado_id: f.empleado_id,
@@ -70,7 +71,7 @@ export async function cargarParticipaciones(entidad: Entidad, id: string): Promi
     unidad: f.unidad,
     cantidad_corregida: f.cantidad_corregida,
     corregida_at: f.corregida_at,
-    corregida_por_nombre: f.corregida_por ? (quienes.get(f.corregida_por) ?? 'Encargada') : null,
+    corregida_por_nombre: f.corregida_por ? (quienes.get(f.corregida_por) || 'Encargada') : null,
   }))
 }
 
@@ -92,6 +93,7 @@ export async function cargarOperariasLegacy(entidad: Entidad, id: string): Promi
     db.from('v_operarias').select('empleado_id, nombre'),
   ])
   if (orden.error) throw orden.error
+  if (operarias.error) throw operarias.error
   const fila = (orden.data ?? {}) as Record<string, string | null>
   const nombres = new Map((operarias.data ?? []).map((o) => [o.empleado_id, o.nombre]))
   return [fila.operaria_1, fila.operaria_2, fila.operaria_id].filter((x): x is string => !!x).map((x) => nombres.get(x) ?? 'Operaria')
