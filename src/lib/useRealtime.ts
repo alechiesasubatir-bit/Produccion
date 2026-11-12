@@ -112,3 +112,32 @@ export function useRealtime<T>(
 
   return { datos, cargado, conectado: online, enVivo: canalOk, error, recargar }
 }
+
+// Avisa (con el mismo debounce) cuando cambia alguna tabla de `canales`, para componentes que cargan
+// sus datos por su cuenta. En DEMO, en cada paso del simulador.
+export function useCambios(canales: string[], alCambiar: () => void): void {
+  const alCambiarRef = useRef(alCambiar)
+  alCambiarRef.current = alCambiar
+  const claveCanales = canales.join(',')
+  const sufijo = useId()
+
+  useEffect(() => {
+    if (modoDemo) return motorDemo().suscribir(() => alCambiarRef.current())
+    let vigente = true
+    let espera: ReturnType<typeof setTimeout> | undefined
+    const avisar = () => {
+      clearTimeout(espera)
+      espera = setTimeout(() => vigente && alCambiarRef.current(), DEBOUNCE_MS)
+    }
+    const canal = supabase.channel(`rt-cambios-${claveCanales}-${sufijo}`)
+    for (const t of claveCanales.split(',').filter(Boolean)) {
+      canal.on('postgres_changes', { event: '*', schema: 'produccion', table: t }, avisar)
+    }
+    canal.subscribe()
+    return () => {
+      vigente = false
+      clearTimeout(espera)
+      void supabase.removeChannel(canal)
+    }
+  }, [claveCanales, sufijo])
+}

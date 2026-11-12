@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../lib/acciones', () => ({ accionPanel: m.accionPanel }))
 vi.mock('../lib/useRealtime', () => ({
+  useCambios: () => {},
   useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
     ...(m.canales[tabla] = canales, {}),
     datos: tabla === 'v_flujo' ? m.filas : [{ empleado_id: 'E1', nombre: 'Laura Paz' }],

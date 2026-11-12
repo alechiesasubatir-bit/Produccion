@@ -8,9 +8,16 @@ const m = vi.hoisted(() => ({
   legacy: [] as string[],
   mp: new Map<string, number>(),
   corregir: vi.fn(),
+  cambios: { canales: [] as string[], avisar: () => {} },
 }))
 
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
+vi.mock('../lib/useRealtime', () => ({
+  useCambios: (canales: string[], alCambiar: () => void) => {
+    m.cambios.canales = canales
+    m.cambios.avisar = alCambiar
+  },
+}))
 vi.mock('../lib/acciones', () => ({ corregirCantidad: m.corregir }))
 vi.mock('./datosTanque', () => ({
   cargarParticipaciones: () => Promise.resolve(m.filas),
@@ -45,6 +52,19 @@ describe('OperariasOrden', () => {
     m.legacy = []
     m.mp = new Map()
     m.corregir.mockReset().mockResolvedValue({ ok: true })
+  })
+
+  it('se actualiza sola cuando cambian las participaciones', async () => {
+    m.filas = [part({ hasta: null, cantidad: null })]
+    await montar()
+    expect(m.cambios.canales).toEqual(expect.arrayContaining(['participaciones', 'fabricacion_mp']))
+    expect(screen.queryByText('Juana')).toBeNull()
+
+    m.filas = [part({ hasta: null, cantidad: null }), part({ id: 'p2', empleado_id: 'E2', nombre: 'Juana', hasta: null, cantidad: null })]
+    await act(async () => {
+      m.cambios.avisar()
+    })
+    expect(screen.getByText('Juana')).toBeTruthy()
   })
 
   it('tabla con horas de Montevideo y «sigue» para las abiertas', async () => {

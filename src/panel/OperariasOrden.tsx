@@ -5,6 +5,7 @@ import { parsearCantidad } from '../domain/tareas'
 import { corregirCantidad } from '../lib/acciones'
 import { mensajeError } from '../lib/errores'
 import { horaMontevideo } from '../lib/hora'
+import { useCambios } from '../lib/useRealtime'
 import {
   cargarEsperadoEnvasado,
   cargarMpPorOperaria,
@@ -103,6 +104,9 @@ export function OperariasOrden({
       vigente = false
     }
   }, [cargar])
+
+  // En vivo: alguien se sumó/salió, se corrigió una cantidad o se marcó una MP.
+  useCambios(['participaciones', 'fabricacion_mp'], () => void cargar())
 
   const esperadoDado = presentacionLitros != null && cantidad != null
   useEffect(() => {

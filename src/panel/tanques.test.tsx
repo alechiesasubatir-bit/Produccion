@@ -48,6 +48,7 @@ vi.mock('./TablaMp', () => ({
 }))
 vi.mock('../lib/useRealtime', () => ({
   useRealtime: () => ({ datos: m.tanques, conectado: true, enVivo: true, error: null, recargar: vi.fn() }),
+  useCambios: () => {},
 }))
 
 async function elegir(codigo: string) {
