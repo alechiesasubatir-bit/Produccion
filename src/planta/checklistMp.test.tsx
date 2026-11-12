@@ -175,6 +175,16 @@ const base = {
   onSalir: () => {},
 }
 
+describe('autor de cada MP', () => {
+  it('muestra quién marcó cada renglón, y otra operaria puede marcar', async () => {
+    m.cargarMpDe.mockResolvedValue([fila(1, '900101', 'Bacterias', 6.5, { lote: 'L1', pesado: true, cargado_por: 'E2' }), fila(2, '220012', 'Conservante', 0.4)])
+    render(<ChecklistMp {...props} nombres={{ E1: 'Laura', E2: 'Ana' }} onCambio={() => {}} />)
+    expect(await screen.findByText('Marcó: Ana')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pesado 220012' }))
+    await waitFor(() => expect(m.guardarMp).toHaveBeenCalledWith({ id: 'mp2', lote: '', pesado: true, empleadoId: 'E1' }))
+  })
+})
+
 describe('Tarjeta con MP en MisTareas', () => {
   it('con MP pendientes Finalizar está deshabilitado y dice cuántas faltan', async () => {
     m.cargarMpDe.mockReturnValue(new Promise(() => {}))

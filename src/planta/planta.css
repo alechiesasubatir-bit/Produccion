@@ -686,3 +686,16 @@
   font-weight: 500;
   color: var(--muted, #475569);
 }
+
+.tarea-vencimiento,
+.tarea-etiqueta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+.mp-autor {
+  font-size: 0.85rem;
+  color: var(--texto-suave, #64748b);
+}

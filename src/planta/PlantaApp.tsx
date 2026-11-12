@@ -160,6 +160,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
             cargadoEn={cargadoEn}
             aviso={aviso}
             recargaMp={recargaMp}
+            operarias={operarias.datos}
             onAccion={(t, a, c) => void accionar(t, a, c)}
             onSalir={volverAlInicio}
           />

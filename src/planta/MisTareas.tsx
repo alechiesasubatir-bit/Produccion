@@ -3,6 +3,7 @@ import type { Accion } from '../domain/acciones'
 import type { Cantidad, OperariaEnOrden } from '../domain/participaciones'
 import { clasificarTareas, pideCantidad, tituloTarea, unidadPorDefecto, type Tarea } from '../domain/tareas'
 import { mensajeError } from '../lib/errores'
+import type { OperariaFila } from './QuienTrabaja'
 import { ChecklistMp } from './ChecklistMp'
 import { DeclararCantidad } from './DeclararCantidad'
 import { TarjetaTarea } from './TarjetaTarea'
@@ -25,6 +26,7 @@ export function MisTareas({
   cargadoEn,
   aviso,
   recargaMp = 0,
+  operarias = [],
   onAccion,
   onSalir,
 }: {
@@ -36,6 +38,8 @@ export function MisTareas({
   cargadoEn: number
   aviso: string | null
   recargaMp?: number
+  // Todas las operarias (para nombrar a quien marcó cada MP, aunque ya haya salido de la orden).
+  operarias?: OperariaFila[]
   onAccion: (t: Tarea, a: Accion, cantidades?: Cantidad[]) => void
   onSalir: () => void
 }) {
@@ -59,6 +63,13 @@ export function MisTareas({
     }
     onAccion(t, a)
   }
+
+  const nombresDe = (t: Tarea) =>
+    Object.fromEntries([
+      ...operarias.map((o) => [o.empleado_id, o.nombre]),
+      ...(t.operarias ?? []).map((o) => [o.empleado_id, o.nombre]),
+      [empleadoId, nombre],
+    ]) as Record<string, string>
 
   const personasDe = (t: Tarea, a: Accion): OperariaEnOrden[] => {
     const todas = t.operarias ?? []
@@ -106,6 +117,7 @@ export function MisTareas({
                     empleadoId={empleadoId}
                     habilitado={conectado}
                     recarga={recargaMp}
+                    nombres={nombresDe(t)}
                     onCambio={(n) => setCompletasLocal((c) => (c[t.id] === n ? c : { ...c, [t.id]: n }))}
                   />
                 )

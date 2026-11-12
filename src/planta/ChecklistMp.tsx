@@ -21,6 +21,7 @@ export function ChecklistMp({
   empleadoId,
   habilitado,
   recarga = 0,
+  nombres = {},
   onCambio,
 }: {
   fabricacionId: string
@@ -28,6 +29,8 @@ export function ChecklistMp({
   habilitado: boolean
   // Al cambiar, vuelve a leer las MP de la base (p. ej. si Finalizar dijo que faltan MP).
   recarga?: number
+  // empleado_id → nombre, para mostrar quién marcó cada MP.
+  nombres?: Record<string, string>
   onCambio: (completas: number) => void
 }) {
   const [filas, setFilas] = useState<Fila[] | null>(null)
@@ -166,6 +169,9 @@ export function ChecklistMp({
                   'Guardado'
                 ) : null}
               </span>
+              {f.cargado_por && nombres[f.cargado_por] && (
+                <span className="mp-autor">Marcó: {nombres[f.cargado_por]}</span>
+              )}
               {f.error && (
                 <p className="mp-error" role="alert">
                   {f.error}

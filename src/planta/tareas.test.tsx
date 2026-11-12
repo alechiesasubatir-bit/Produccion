@@ -1,11 +1,13 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Tarea } from '../domain/tareas'
 import { Confirmacion } from './Confirmacion'
 import { MisTareas } from './MisTareas'
 import { TarjetaTarea } from './TarjetaTarea'
 
+const m = vi.hoisted(() => ({ setVencimiento: vi.fn() }))
 vi.mock('../lib/supabase', () => ({ db: {} }))
+vi.mock('../lib/acciones', () => ({ setVencimiento: m.setVencimiento, guardarMp: vi.fn() }))
 
 let n = 0
 function tarea(over: Partial<Tarea> = {}): Tarea {
@@ -197,5 +199,51 @@ describe('Confirmacion', () => {
     act(() => vi.advanceTimersByTime(1300))
     expect(onFin).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
+  })
+})
+
+describe('vencimiento y etiqueta', () => {
+  const laura = { empleado_id: 'E1', nombre: 'Laura Paz', desde: '2026-10-21T10:00:00Z' }
+  const propia = (over: Partial<Tarea> = {}) =>
+    tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E1', operarias: [laura], ...over })
+
+  it('muestra «Vence: 12/05/2027» con botón para cambiarlo', () => {
+    render(<MisTareas {...base} tareas={[propia({ vencimiento: '2027-05-12' })]} />)
+    expect(screen.getByText('Vence: 12/05/2027')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cambiar vencimiento' })).toBeInTheDocument()
+  })
+
+  it('sin vencimiento ofrece «Cargar vencimiento» y guarda la fecha elegida', async () => {
+    m.setVencimiento.mockReset().mockResolvedValue({ ok: true })
+    const t = propia()
+    render(<MisTareas {...base} tareas={[t]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar vencimiento' }))
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), { target: { value: '2027-05-12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() =>
+      expect(m.setVencimiento).toHaveBeenCalledWith({ fabricacionId: t.id, fecha: '2027-05-12', empleadoId: 'E1' }),
+    )
+    expect(await screen.findByText('Vence: 12/05/2027')).toBeInTheDocument()
+  })
+
+  it('muestra el error del servidor', async () => {
+    m.setVencimiento.mockReset().mockResolvedValue({ ok: false, codigo: 'NO_PARTICIPA', texto: 'No estás en esta orden.' })
+    render(<MisTareas {...base} tareas={[propia()]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cargar vencimiento' }))
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), { target: { value: '2027-05-12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('No estás en esta orden.')).toBeInTheDocument()
+  })
+
+  it('no hay vencimiento en tarjetas ajenas o disponibles', () => {
+    render(<MisTareas {...base} tareas={[tarea({ vencimiento: '2027-05-12' })]} />)
+    expect(screen.queryByText(/Vence:/)).not.toBeInTheDocument()
+  })
+
+  it('envasado muestra la etiqueta o «Sin etiquetar»', () => {
+    const e = { entidad: 'envasado' as const, estado: 'cola' as const, tanque_codigo: null }
+    render(<MisTareas {...base} tareas={[tarea({ ...e, etiqueta: 'Etiqueta-test' }), tarea({ ...e, etiqueta: null })]} />)
+    expect(screen.getByText('Etiqueta: Etiqueta-test')).toBeInTheDocument()
+    expect(screen.getByText('Sin etiquetar')).toBeInTheDocument()
   })
 })

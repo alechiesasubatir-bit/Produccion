@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type CSSProperties, type ReactNode } from '
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
 import { esUltima, etiquetaAccion, formatoCronometro, segundosTranscurridos, tituloTarea, type Tarea } from '../domain/tareas'
+import { setVencimiento } from '../lib/acciones'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
 
@@ -27,6 +28,58 @@ export function Cronometro({ tarea, cargadoEn }: { tarea: Pick<Tarea, 'min_efect
     <span className="cronometro" role="timer">
       {formatoCronometro(segundosTranscurridos(tarea, cargadoEn, ahora))}
     </span>
+  )
+}
+
+const fechaAr = (iso: string) => iso.split('-').reverse().join('/')
+
+function Vencimiento({ fabricacionId, vencimiento, empleadoId, habilitado }: { fabricacionId: string; vencimiento: string | null; empleadoId?: string; habilitado: boolean }) {
+  const [editando, setEditando] = useState(false)
+  const [fecha, setFecha] = useState(vencimiento ?? '')
+  // Valor recién guardado: vale hasta que Realtime traiga uno distinto del que había.
+  const [local, setLocal] = useState<{ base: string | null; fecha: string } | null>(null)
+  const valor = local && local.base === vencimiento ? local.fecha : vencimiento
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const guardar = async () => {
+    if (!fecha || guardando) return
+    setGuardando(true)
+    const r = await setVencimiento({ fabricacionId, fecha, empleadoId })
+    setGuardando(false)
+    if (!r.ok) return setError(r.texto)
+    setError(null)
+    setLocal({ base: vencimiento, fecha })
+    setEditando(false)
+  }
+  if (editando)
+    return (
+      <div className="tarea-vencimiento">
+        <input type="date" aria-label="Fecha de vencimiento" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        <button type="button" className="boton" disabled={!habilitado || !fecha || guardando} onClick={() => void guardar()}>
+          Guardar
+        </button>
+        <button type="button" className="boton boton-sec" onClick={() => { setEditando(false); setError(null) }}>
+          Cancelar
+        </button>
+        {error && <p className="aviso-planta" role="alert">{error}</p>}
+      </div>
+    )
+  const abrir = () => { setFecha(valor ?? ''); setEditando(true) }
+  return (
+    <div className="tarea-vencimiento">
+      {valor ? (
+        <>
+          <span>Vence: {fechaAr(valor)}</span>
+          <button type="button" className="boton boton-sec" aria-label="Cambiar vencimiento" disabled={!habilitado} onClick={abrir}>
+            ✎
+          </button>
+        </>
+      ) : (
+        <button type="button" className="boton boton-sec" disabled={!habilitado} onClick={abrir}>
+          Cargar vencimiento
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -93,6 +146,12 @@ export function TarjetaTarea({
         </span>
       </div>
       <Cronometro tarea={tarea} cargadoEn={cargadoEn} />
+      {tarea.entidad !== 'fabricacion' && (
+        <span className="tarea-etiqueta">{tarea.etiqueta ? `Etiqueta: ${tarea.etiqueta}` : 'Sin etiquetar'}</span>
+      )}
+      {propia && tarea.entidad === 'fabricacion' && (
+        <Vencimiento fabricacionId={tarea.id} vencimiento={tarea.vencimiento} empleadoId={empleadoId} habilitado={habilitado} />
+      )}
       <div className="tarea-acciones">
         {acciones.map((a) => {
           const salirUltima = a === 'salir' && ultima
