@@ -2,6 +2,8 @@
 // El generador del MCP solo emite el esquema public, así que `produccion` se escribe a mano
 // desde supabase/migrations/ (001–009). Al cambiar una migración, actualizar acá.
 
+import type { OperariaEnOrden, Participacion } from '../domain/participaciones'
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 type Ts = string // timestamptz en ISO
@@ -143,6 +145,7 @@ export type Database = {
           presentacion_id: Uuid
           cantidad: number
           etiquetado: string | null
+          etiqueta_id: Uuid | null
           operaria_1: Uuid | null
           operaria_2: Uuid | null
           estado: EstadoTarea
@@ -151,7 +154,7 @@ export type Database = {
           creado_por: Uuid | null
           created_at: Ts
         },
-        'id' | 'etiquetado' | 'operaria_1' | 'operaria_2' | 'estado' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
+        'id' | 'etiquetado' | 'etiqueta_id' | 'operaria_1' | 'operaria_2' | 'estado' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
         >,
         [
           {
@@ -173,6 +176,7 @@ export type Database = {
           cantidad: number
           lote: string | null
           etiquetado: string | null
+          etiqueta_id: Uuid | null
           operaria_id: Uuid | null
           estado: EstadoTarea
           inicio: Ts | null
@@ -186,6 +190,7 @@ export type Database = {
         | 'presentacion_id'
         | 'lote'
         | 'etiquetado'
+        | 'etiqueta_id'
         | 'operaria_id'
         | 'estado'
         | 'inicio'
@@ -193,12 +198,37 @@ export type Database = {
         | 'creado_por'
         | 'created_at'
       >
+      participaciones: Tabla<
+        {
+          id: Uuid
+          entidad: EntidadEvento
+          entidad_id: Uuid
+          empleado_id: Uuid
+          desde: Ts
+          hasta: Ts | null
+          cantidad: number | null
+          unidad: 'L' | 'kg' | null
+          cantidad_corregida: number | null
+          corregida_por: Uuid | null
+          corregida_at: Ts | null
+        },
+        'id' | 'desde' | 'hasta' | 'cantidad' | 'unidad' | 'cantidad_corregida' | 'corregida_por' | 'corregida_at'
+      >
+      etiquetas: Tabla<
+        {
+          id: Uuid
+          nombre: string
+          activo: boolean
+          created_at: Ts
+        },
+        'id' | 'activo' | 'created_at'
+      >
       eventos: Tabla<
         {
           id: number
           entidad: EntidadEvento
           entidad_id: Uuid
-          accion: 'crear' | 'iniciar' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar'
+          accion: 'crear' | 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar' | 'editar'
           empleado_id: Uuid | null
           usuario_id: Uuid | null
           dispositivo: string | null
@@ -270,6 +300,8 @@ export type Database = {
         fabricacion_id: Uuid | null
         litros_restantes: number | null
         producto_tipo: TipoProducto | null
+        operarias: OperariaEnOrden[]
+        etiqueta: string | null
       }>
       v_tareas: Vista<{
         entidad: EntidadEvento
@@ -293,6 +325,9 @@ export type Database = {
         mp_total: number
         mp_completas: number
         producto_tipo: TipoProducto | null
+        operarias: OperariaEnOrden[]
+        etiqueta: string | null
+        vencimiento: string | null
       }>
       v_historial: Vista<{
         entidad: EntidadEvento
@@ -318,6 +353,8 @@ export type Database = {
         min_pausa: number | null
         min_efectivos: number | null
         dia: string
+        participaciones: Participacion[]
+        etiqueta: string | null
       }>
       v_tiempos_estandar: Vista<{
         entidad: 'fabricacion' | 'envasado'
@@ -341,10 +378,19 @@ export type Database = {
         Args: {
           p_entidad: EntidadEvento
           p_id: Uuid
-          p_accion: 'iniciar' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar'
+          p_accion: 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar'
           p_empleado_id?: Uuid
           p_pin?: string
+          p_cantidades?: { empleado_id: Uuid; cantidad: number; unidad: 'L' | 'kg' }[]
         }
+        Returns: Json
+      }
+      corregir_cantidad: {
+        Args: { p_participacion_id: Uuid; p_cantidad: number; p_unidad?: 'L' | 'kg' }
+        Returns: Json
+      }
+      set_vencimiento: {
+        Args: { p_fab_id: Uuid; p_fecha: string; p_empleado_id?: Uuid }
         Returns: Json
       }
       set_pin: { Args: { p_empleado_id: Uuid; p_pin: string }; Returns: undefined }

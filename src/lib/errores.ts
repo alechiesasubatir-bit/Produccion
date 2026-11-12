@@ -15,6 +15,11 @@ export type CodigoError =
   | 'MP_INCOMPLETA'
   | 'LOTE_DUPLICADO'
   | 'DATOS_INVALIDOS'
+  | 'YA_PARTICIPA'
+  | 'NO_PARTICIPA'
+  | 'ULTIMA_OPERARIA'
+  | 'CANTIDAD_REQUERIDA'
+  | 'ETIQUETA_INACTIVA'
   | 'RED'
   | 'DESCONOCIDO'
 
@@ -35,6 +40,11 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   MP_INCOMPLETA: (d) => `Faltan ${d ?? 'algunas'} MP por completar.`,
   LOTE_DUPLICADO: () => 'Ya existe una fabricación con ese lote.',
   DATOS_INVALIDOS: () => 'Faltan datos o hay datos inválidos en la orden.',
+  YA_PARTICIPA: () => 'Ya estás en esta orden.',
+  NO_PARTICIPA: () => 'No estás en esta orden.',
+  ULTIMA_OPERARIA: () => 'Sos la última: pausá o finalizá.',
+  CANTIDAD_REQUERIDA: () => 'Falta declarar cuánto se envasó.',
+  ETIQUETA_INACTIVA: () => 'Esa etiqueta está desactivada.',
   RED: () => 'Sin conexión. Revisá el WiFi.',
   DESCONOCIDO: () => 'Algo salió mal. Avisá a la encargada.',
 }

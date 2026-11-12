@@ -1,5 +1,5 @@
 export type Entidad = 'fabricacion' | 'envasado' | 'fraccionado'
-export type Accion = 'iniciar' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar'
+export type Accion = 'iniciar' | 'sumarse' | 'salir' | 'pausar' | 'reanudar' | 'finalizar' | 'cancelar'
 
 interface Transicion {
   entidad: Entidad

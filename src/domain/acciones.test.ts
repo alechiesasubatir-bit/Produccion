@@ -49,3 +49,11 @@ test('fabricación para_envasar: solo el panel la cierra (merma)', () => {
   expect(accionesPosibles('fabricacion', 'para_envasar', 'panel')).toEqual(['finalizar'])
   expect(accionesPosibles('fabricacion', 'para_envasar', 'planta')).toEqual([])
 })
+
+test('no ofrece sumarse/salir: los decide la tablet según la participación', () => {
+  for (const estado of ['cola', 'activo', 'pausado']) {
+    const a = accionesPosibles('envasado', estado, 'planta')
+    expect(a).not.toContain('sumarse')
+    expect(a).not.toContain('salir')
+  }
+})

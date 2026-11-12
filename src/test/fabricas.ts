@@ -28,6 +28,8 @@ export function filaH(over: Partial<FilaHistorial> = {}): FilaHistorial {
     min_pausa: 0,
     min_efectivos: 60,
     dia: '2026-10-21',
+    participaciones: [],
+    etiqueta: null,
     ...over,
   }
 }

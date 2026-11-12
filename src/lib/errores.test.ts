@@ -105,3 +105,15 @@ describe('fetchAll', () => {
     ])
   })
 })
+
+describe('mensajeError: operarias múltiples', () => {
+  it.each([
+    ['YA_PARTICIPA', 'Ya estás en esta orden.'],
+    ['NO_PARTICIPA', 'No estás en esta orden.'],
+    ['ULTIMA_OPERARIA', 'Sos la última: pausá o finalizá.'],
+    ['CANTIDAD_REQUERIDA', 'Falta declarar cuánto se envasó.'],
+    ['ETIQUETA_INACTIVA', 'Esa etiqueta está desactivada.'],
+  ])('%s', (codigo, texto) => {
+    expect(mensajeError({ codigo })).toEqual({ codigo, texto })
+  })
+})

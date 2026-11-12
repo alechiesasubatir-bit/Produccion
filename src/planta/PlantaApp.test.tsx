@@ -47,6 +47,9 @@ const suya: Tarea = {
   created_at: '2026-10-21T09:00:00Z',
   mp_total: 0,
   mp_completas: 0,
+  operarias: [],
+  etiqueta: null,
+  vencimiento: null,
 }
 
 vi.mock('../lib/useRealtime', () => ({

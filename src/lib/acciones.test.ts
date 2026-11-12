@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, ejecutarAccion, guardarMp } from './acciones'
+import { accionPanel, corregirCantidad, ejecutarAccion, guardarMp, setVencimiento } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -88,6 +88,54 @@ describe('guardarMp', () => {
       ok: false,
       codigo: 'TRANSICION_INVALIDA',
       texto: 'Esta tarea ya cambió de estado.',
+    })
+  })
+})
+
+describe('cantidades por operaria', () => {
+  it('ejecutarAccion manda p_cantidades con empleado_id', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    await ejecutarAccion({ ...base, cantidades: [{ empleadoId: 'e1', cantidad: 12.5, unidad: 'L' }] })
+    expect(rpc).toHaveBeenLastCalledWith('accion', {
+      p_entidad: 'fabricacion',
+      p_id: 'f1',
+      p_accion: 'finalizar',
+      p_empleado_id: 'E1',
+      p_cantidades: [{ empleado_id: 'e1', cantidad: 12.5, unidad: 'L' }],
+    })
+  })
+
+  it('sin cantidades no manda p_cantidades', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    await ejecutarAccion(base)
+    expect(rpc.mock.lastCall?.[1]).not.toHaveProperty('p_cantidades')
+  })
+
+  it('corregirCantidad llama a la RPC', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    expect(await corregirCantidad({ participacionId: 'p1', cantidad: 10, unidad: 'kg' })).toEqual({ ok: true })
+    expect(rpc).toHaveBeenLastCalledWith('corregir_cantidad', {
+      p_participacion_id: 'p1',
+      p_cantidad: 10,
+      p_unidad: 'kg',
+    })
+  })
+
+  it('setVencimiento llama a la RPC', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    expect(await setVencimiento({ fabricacionId: 'f1', fecha: '2027-01-31', empleadoId: 'e1' })).toEqual({ ok: true })
+    expect(rpc).toHaveBeenLastCalledWith('set_vencimiento', {
+      p_fab_id: 'f1',
+      p_fecha: '2027-01-31',
+      p_empleado_id: 'e1',
+    })
+  })
+
+  it('corregirCantidad devuelve el rechazo de negocio', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'NO_AUTORIZADO' }, error: null })
+    expect(await corregirCantidad({ participacionId: 'p1', cantidad: 10 })).toMatchObject({
+      ok: false,
+      codigo: 'NO_AUTORIZADO',
     })
   })
 })

@@ -60,6 +60,8 @@ export function formatoCronometro(seg: number): string {
 
 const ETIQUETAS: Record<Accion, string> = {
   iniciar: 'Iniciar',
+  sumarse: 'Sumarme',
+  salir: 'Salir de la orden',
   pausar: 'Pausar',
   reanudar: 'Reanudar',
   finalizar: 'Finalizar',
@@ -72,6 +74,8 @@ export function etiquetaAccion(accion: Accion, disponible: boolean): string {
 
 const PASADOS: Record<Accion, string> = {
   iniciar: 'empezaste',
+  sumarse: 'te sumaste',
+  salir: 'saliste',
   pausar: 'pausaste',
   reanudar: 'retomaste',
   finalizar: 'finalizaste',
