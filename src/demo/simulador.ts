@@ -474,6 +474,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando', created_at: iso(f.creado),
         mp_total: mp.length, mp_completas: mp.filter(mpCompleta).length,
+        operarias: [], etiqueta: null, vencimiento: null,
       })
     }
     for (const e of envs) {
@@ -486,6 +487,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         litros: f.litros, lote: f.lote, descripcion: null, operaria_1: e.operaria_1, operaria_2: e.operaria_2,
         listo: f.estado === 'para_envasar', inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos,
         corriendo: e.estado === 'activo', created_at: iso(e.creado), mp_total: 0, mp_completas: 0,
+        operarias: [], etiqueta: null, vencimiento: null,
       })
     }
     for (const x of fracs) {
@@ -497,6 +499,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         lote: x.lote, descripcion: x.descripcion, operaria_1: x.operaria, operaria_2: null, listo: true, inicio: iso(x.inicio),
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
         mp_total: 0, mp_completas: 0,
+        operarias: [], etiqueta: null, vencimiento: null,
       })
     }
     return filas

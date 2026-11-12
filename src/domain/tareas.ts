@@ -7,7 +7,8 @@ export type Tarea = Database['produccion']['Views']['v_tareas']['Row']
 // Quiénes están trabajando ahora en la orden. Las órdenes en curso anteriores a la 014 no tienen
 // `operarias` cargadas: ahí se cae a operaria_1/operaria_2.
 function ids(t: Tarea): string[] {
-  if (t.operarias.length > 0) return t.operarias.map((o) => o.empleado_id)
+  const op = t.operarias ?? []
+  if (op.length > 0) return op.map((o) => o.empleado_id)
   if (t.estado === 'cola') return []
   return [t.operaria_1, t.operaria_2].filter((x): x is string => x !== null)
 }

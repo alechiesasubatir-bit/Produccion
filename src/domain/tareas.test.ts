@@ -165,3 +165,11 @@ describe('cantidades', () => {
     for (const x of ['0', '', '-3', 'abc', '1,2,3']) expect(parsearCantidad(x)).toBeNull()
   })
 })
+
+describe('filas sin operarias (demo)', () => {
+  it('sin operarias y con operaria_1 en curso es mía, sin tirar', () => {
+    const t = { ...tarea({ estado: 'activo', operaria_1: 'E1' }), operarias: undefined } as unknown as Tarea
+    expect(clasificarTareas([t], 'E1').mias).toEqual([t])
+    expect(estadoOperaria([t], 'E1')).toBeNull()
+  })
+})

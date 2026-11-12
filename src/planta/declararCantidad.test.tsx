@@ -42,4 +42,12 @@ describe('DeclararCantidad', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(onCancelar).toHaveBeenCalled()
   })
+
+  it.each(['0', '-3'])('«%s» no habilita Confirmar', (valor) => {
+    render(
+      <DeclararCantidad personas={personas.slice(0, 1)} unidadInicial="L" titulo="t" onConfirmar={() => {}} onCancelar={() => {}} />,
+    )
+    fireEvent.change(screen.getByLabelText('Ana'), { target: { value: valor } })
+    expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled()
+  })
 })
