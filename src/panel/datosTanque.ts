@@ -2,8 +2,9 @@ import { db } from '../lib/supabase'
 import { listarUsuarios } from './config/datosPersonas'
 import type { Entidad } from '../domain/acciones'
 import { esperadoEnvasado, type Unidad } from '../domain/participaciones'
+import type { EventoRecorrido } from '../domain/recorrido'
 
-export type EventoRecorrido = { at: string; accion: string; quien: string; entidad: string }
+export type { EventoRecorrido }
 export type DatosFabricacion = { lote: string | null; vencimiento: string | null }
 
 // Lote y vencimiento de la fabricación en curso, para mostrarlos en el detalle del tanque.
@@ -20,18 +21,32 @@ export async function cargarRecorrido(fabricacionId: string): Promise<EventoReco
   const ids = [fabricacionId, ...(envasados.data ?? []).map((e) => e.id)]
 
   const [eventos, operarias] = await Promise.all([
-    db.from('eventos').select('at, accion, empleado_id, entidad').in('entidad_id', ids).order('at'),
+    db.from('eventos').select('at, accion, empleado_id, usuario_id, entidad, datos').in('entidad_id', ids).order('at'),
     db.from('v_operarias').select('empleado_id, nombre'),
   ])
   if (eventos.error) throw eventos.error
   const nombres = new Map((operarias.data ?? []).map((o) => [o.empleado_id, o.nombre]))
+  const lista = eventos.data ?? []
 
-  return (eventos.data ?? []).map((e) => ({
-    at: e.at,
-    accion: e.accion,
-    entidad: e.entidad,
-    quien: (e.empleado_id && nombres.get(e.empleado_id)) || 'Encargada',
-  }))
+  // Nombres de quienes usaron el panel (solo si hay correcciones o ediciones de encargada).
+  let usuarios = new Map<string, string | null>()
+  if (lista.some((e) => e.usuario_id && !e.empleado_id)) {
+    const us = await listarUsuarios().catch(() => [])
+    usuarios = new Map(us.map((u) => [u.id, u.nombre]))
+  }
+
+  return lista.map((e) => {
+    const datos = e.datos as { empleado_id?: string } | null
+    return {
+      at: e.at,
+      accion: e.accion,
+      entidad: e.entidad,
+      quien: (e.empleado_id && nombres.get(e.empleado_id)) || 'Encargada',
+      sujeto: (datos?.empleado_id && nombres.get(datos.empleado_id)) || null,
+      usuario: (e.usuario_id && usuarios.get(e.usuario_id)) || null,
+      datos: e.datos,
+    }
+  })
 }
 
 export type ParticipacionFila = {

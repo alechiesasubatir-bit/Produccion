@@ -68,6 +68,27 @@ describe('Historial', () => {
     expect(contenido).toMatch(/^﻿Día;Tipo;Producto;/)
   })
 
+  it('la columna Operaria(s) muestra cada una con su cantidad y el CSV tiene una fila por participación', async () => {
+    const p = (nombre: string, id: string, c: number) => ({
+      empleado_id: id,
+      nombre,
+      desde: '2026-10-15T10:00:00Z',
+      hasta: '2026-10-15T11:00:00Z',
+      cantidad: c,
+      unidad: 'L' as const,
+      cantidad_corregida: null,
+      minutos: 20,
+    })
+    m.cargar.mockResolvedValue([filaH({ dia: '2026-10-15', participaciones: [p('Marta', 'e1', 115), p('Ana', 'e2', 80)] })])
+    await montar()
+    expect(screen.getByText('Marta 115 L · Ana 80 L')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+    const lineas = (m.descargar.mock.calls[0][1] as string).split(/\r\n/)
+    expect(lineas).toHaveLength(3)
+    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria$/)
+    expect(lineas[2]).toMatch(/;Ana;/)
+  })
+
   it('el botón Ver MP de una fabricación despliega la tabla de MP debajo de la fila y se puede ocultar', async () => {
     await montar()
     const filaFab = screen.getAllByRole('row')[1]

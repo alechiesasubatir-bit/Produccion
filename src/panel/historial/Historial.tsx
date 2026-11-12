@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import type { Entidad } from '../../domain/acciones'
 import { aCSV, descargarCSV, type ColumnaCSV } from '../../domain/csv'
 import {
+  filasPorParticipacion,
   filtrarHistorial,
   hoyMontevideo,
   moverRango,
   ordenarHistorial,
+  operariasTexto,
   rangoDe,
   type FilaHistorial,
   type Rango,
 } from '../../domain/historial'
+import { cantidadEfectiva } from '../../domain/participaciones'
 import { formatoCronometro } from '../../domain/tareas'
 import { mensajeError } from '../../lib/errores'
 import { Chip } from '../../ui/Chip'
@@ -37,7 +40,9 @@ export const fechaHora = (ts: string | null) =>
     : ''
 const minutos = (m: number | null) => (m === null ? '' : formatoCronometro(Math.round(m * 60)))
 const cantidad = (f: FilaHistorial) => (f.entidad === 'fabricacion' ? `${f.litros ?? '?'} L` : `${f.cantidad ?? '?'} u`)
-const operarias = (f: FilaHistorial) => [f.operaria_1_nombre, f.operaria_2_nombre].filter(Boolean).join(' · ')
+const nombresOperarias = (f: FilaHistorial) => operariasTexto(f)
+type FilaCSV = ReturnType<typeof filasPorParticipacion>[number]
+const fechaHoraP = (ts: string | null | undefined) => (ts ? fechaHora(ts) : null)
 
 type Columna = { clave: keyof FilaHistorial; titulo: string; celda: (f: FilaHistorial) => React.ReactNode }
 
@@ -49,7 +54,7 @@ const COLUMNAS: Columna[] = [
   { clave: 'litros', titulo: 'Cant./Litros', celda: cantidad },
   { clave: 'lote', titulo: 'Lote', celda: (f) => f.lote ?? '—' },
   { clave: 'tanque_codigo', titulo: 'Tanque', celda: (f) => f.tanque_codigo ?? '—' },
-  { clave: 'operaria_1_nombre', titulo: 'Operaria(s)', celda: (f) => operarias(f) || '—' },
+  { clave: 'operaria_1_nombre', titulo: 'Operaria(s)', celda: (f) => nombresOperarias(f) || '—' },
   { clave: 'inicio', titulo: 'Inicio', celda: (f) => fechaHora(f.inicio) },
   { clave: 'fin', titulo: 'Fin', celda: (f) => fechaHora(f.fin) },
   { clave: 'min_efectivos', titulo: 'Efectivo', celda: (f) => minutos(f.min_efectivos) },
@@ -57,21 +62,27 @@ const COLUMNAS: Columna[] = [
   { clave: 'estado', titulo: 'Estado', celda: (f) => <Chip estado={f.estado} /> },
 ]
 
-const CSV: ColumnaCSV<FilaHistorial>[] = [
-  { titulo: 'Día', valor: (f) => f.dia },
-  { titulo: 'Tipo', valor: (f) => TIPOS[f.entidad] },
-  { titulo: 'Producto', valor: (f) => f.producto },
-  { titulo: 'Presentación', valor: (f) => f.presentacion },
-  { titulo: 'Cantidad', valor: (f) => f.cantidad },
-  { titulo: 'Litros', valor: (f) => f.litros },
-  { titulo: 'Lote', valor: (f) => f.lote },
-  { titulo: 'Tanque', valor: (f) => f.tanque_codigo },
-  { titulo: 'Operaria(s)', valor: operarias },
-  { titulo: 'Inicio', valor: (f) => fechaHora(f.inicio) },
-  { titulo: 'Fin', valor: (f) => fechaHora(f.fin) },
-  { titulo: 'Minutos efectivos', valor: (f) => (f.min_efectivos === null ? null : Math.round(f.min_efectivos)) },
-  { titulo: 'Minutos de pausa', valor: (f) => (f.min_pausa === null ? null : Math.round(f.min_pausa)) },
-  { titulo: 'Estado', valor: (f) => f.estado },
+const CSV: ColumnaCSV<FilaCSV>[] = [
+  { titulo: 'Día', valor: ({ fila: f }) => f.dia },
+  { titulo: 'Tipo', valor: ({ fila: f }) => TIPOS[f.entidad] },
+  { titulo: 'Producto', valor: ({ fila: f }) => f.producto },
+  { titulo: 'Presentación', valor: ({ fila: f }) => f.presentacion },
+  { titulo: 'Cantidad', valor: ({ fila: f }) => f.cantidad },
+  { titulo: 'Litros', valor: ({ fila: f }) => f.litros },
+  { titulo: 'Lote', valor: ({ fila: f }) => f.lote },
+  { titulo: 'Tanque', valor: ({ fila: f }) => f.tanque_codigo },
+  { titulo: 'Operaria(s)', valor: ({ fila: f }) => nombresOperarias(f) },
+  { titulo: 'Inicio', valor: ({ fila: f }) => fechaHora(f.inicio) },
+  { titulo: 'Fin', valor: ({ fila: f }) => fechaHora(f.fin) },
+  { titulo: 'Minutos efectivos', valor: ({ fila: f }) => (f.min_efectivos === null ? null : Math.round(f.min_efectivos)) },
+  { titulo: 'Minutos de pausa', valor: ({ fila: f }) => (f.min_pausa === null ? null : Math.round(f.min_pausa)) },
+  { titulo: 'Estado', valor: ({ fila: f }) => f.estado },
+  { titulo: 'Operaria', valor: ({ p }) => p?.nombre },
+  { titulo: 'Desde', valor: ({ p }) => fechaHoraP(p?.desde) },
+  { titulo: 'Hasta', valor: ({ p }) => fechaHoraP(p?.hasta) },
+  { titulo: 'Cantidad operaria', valor: ({ p }) => (p ? cantidadEfectiva(p) : null) },
+  { titulo: 'Unidad', valor: ({ p }) => (p && cantidadEfectiva(p) !== null ? p.unidad : null) },
+  { titulo: 'Minutos operaria', valor: ({ p }) => (p ? Math.round(p.minutos) : null) },
 ]
 
 const ABIERTA = ['cola', 'fabricando', 'pausada', 'para_envasar']
@@ -124,7 +135,7 @@ export function Historial() {
     setOrden((o) => (o?.por === por ? { por, asc: !o.asc } : { por, asc: true }))
 
   const exportar = () =>
-    descargarCSV(`prodcontrol-historial-${rango.desde}_${rango.hasta}.csv`, aCSV(CSV, visibles))
+    descargarCSV(`prodcontrol-historial-${rango.desde}_${rango.hasta}.csv`, aCSV(CSV, filasPorParticipacion(visibles)))
 
   return (
     <div className="historial">

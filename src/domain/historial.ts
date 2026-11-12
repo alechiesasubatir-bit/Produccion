@@ -1,5 +1,6 @@
 import type { Database } from '../lib/database.types'
 import type { Entidad } from './acciones'
+import { cantidadEfectiva, type Participacion } from './participaciones'
 
 export type FilaHistorial = Database['produccion']['Views']['v_historial']['Row']
 /** Fechas YYYY-MM-DD, inclusivas. */
@@ -11,6 +12,37 @@ export const normalizar = (s: string) =>
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
 
+const nf = new Intl.NumberFormat('es-UY', { maximumFractionDigits: 2 })
+
+/** Operarias de la orden por orden de llegada, con su cantidad efectiva si la tienen («Marta 115 L · Ana 80 L»). */
+export function operariasTexto(f: FilaHistorial): string {
+  const ps = [...(f.participaciones ?? [])].sort((a, b) => a.desde.localeCompare(b.desde))
+  if (ps.length === 0) return [f.operaria_1_nombre, f.operaria_2_nombre].filter(Boolean).join(' · ')
+  const por = new Map<string, { nombre: string; total: number | null; unidad: string | null }>()
+  for (const p of ps) {
+    const g = por.get(p.empleado_id) ?? { nombre: p.nombre, total: null, unidad: null }
+    const c = cantidadEfectiva(p)
+    if (c !== null) {
+      g.total = (g.total ?? 0) + c
+      g.unidad ??= p.unidad
+    }
+    por.set(p.empleado_id, g)
+  }
+  return [...por.values()]
+    .map((g) => (g.total === null ? g.nombre : `${g.nombre} ${nf.format(g.total)}${g.unidad ? ` ${g.unidad}` : ''}`))
+    .join(' · ')
+}
+
+/** Una fila por participación para exportar (las órdenes sin participaciones quedan en una fila). */
+export type FilaExport = { fila: FilaHistorial; p: Participacion | null }
+
+export function filasPorParticipacion(filas: FilaHistorial[]): FilaExport[] {
+  return filas.flatMap((fila): FilaExport[] => {
+    const ps = fila.participaciones ?? []
+    return ps.length === 0 ? [{ fila, p: null }] : ps.map((p) => ({ fila, p }))
+  })
+}
+
 export function filtrarHistorial(
   filas: FilaHistorial[],
   f: { entidad?: Entidad | ''; estado?: string; texto?: string },
@@ -21,7 +53,8 @@ export function filtrarHistorial(
     if (f.estado && r.estado !== f.estado) return false
     if (!texto) return true
     const campos = [r.producto, r.lote, r.tanque_codigo, r.presentacion, r.operaria_1_nombre, r.operaria_2_nombre, r.descripcion]
-    return campos.some((c) => c && normalizar(c).includes(texto))
+    const nombres = (r.participaciones ?? []).map((p) => p.nombre)
+    return [...campos, ...nombres].some((c) => c && normalizar(c).includes(texto))
   })
 }
 

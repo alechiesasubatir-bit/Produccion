@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { accionesPosibles, type Accion, type Entidad } from '../domain/acciones'
+import { textoEventoOperaria } from '../domain/recorrido'
 import { nivelTanque } from '../domain/tanque'
 import { confirmacionPanel, etiquetaPanel } from '../domain/tareas'
 import { accionPanel } from '../lib/acciones'
@@ -240,7 +241,7 @@ export function DetalleTanque({
           <ol className="recorrido">
             {recorrido.map((e, i) => (
               <li key={i}>
-                {`${hora(e.at)} · ${VERBOS[e.accion] ?? e.accion}${e.entidad === 'envasado' ? ' envasado' : ''} · ${e.quien}`}
+                {`${hora(e.at)} · ${textoEventoOperaria(e) ?? `${VERBOS[e.accion] ?? e.accion}${e.entidad === 'envasado' ? ' envasado' : ''} · ${e.quien}`}`}
               </li>
             ))}
           </ol>
