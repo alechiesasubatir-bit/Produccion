@@ -395,4 +395,132 @@ $$;
 revoke execute on function produccion.accion(text, uuid, text, uuid, text, jsonb) from public, anon;
 grant execute on function produccion.accion(text, uuid, text, uuid, text, jsonb) to authenticated;
 
+-- registrar_control: panel o planta. Aprobado → para_envasar; rechazado → fabricando (sin fin).
+create function produccion.registrar_control(
+  p_fab_id uuid,
+  p_ph numeric,
+  p_densidad numeric,
+  p_perfume_ok boolean,
+  p_perfume_comentario text,
+  p_visual_ok boolean,
+  p_visual_comentario text,
+  p_observaciones text,
+  p_resultado text,
+  p_firmante uuid default null
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_panel   boolean := produccion.es_panel();
+  v_planta  boolean := produccion.es_planta();
+  v_firma   uuid;
+  v_nombre  text;
+  v_disp    text;
+  v_fab     record;
+  v_tipo    text;
+  v_perf    text := nullif(trim(p_perfume_comentario), '');
+  v_vis     text := nullif(trim(p_visual_comentario), '');
+  v_obs     text := nullif(trim(p_observaciones), '');
+  v_ph      numeric := p_ph;
+  v_dens    numeric := p_densidad;
+  v_intento int;
+  v_id      uuid;
+  v_motivo  text;
+begin
+  if not (v_panel or v_planta) then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_AUTORIZADO', 'detalle', null);
+  end if;
+
+  -- Firmante: el panel firma con su usuario; la tablet elige a una liberadora válida
+  if v_panel then
+    v_firma := auth.uid();
+  else
+    v_firma := p_firmante;
+  end if;
+  select coalesce(nullif(trim(p.nombre), ''), p.email) into v_nombre
+  from public.perfiles p
+  where p.id = v_firma and p.activo and (p.rol = 'admin' or p.rol_produccion = 'panel');
+  if v_firma is null or v_nombre is null then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_AUTORIZADO', 'detalle', null);
+  end if;
+  if not v_panel then
+    select email into v_disp from public.perfiles where id = auth.uid();
+  end if;
+
+  select f.id, f.estado, f.producto_id into v_fab
+  from produccion.fabricaciones f where f.id = p_fab_id for update;
+  if not found then
+    return jsonb_build_object('ok', false, 'codigo', 'NO_ENCONTRADO', 'detalle', null);
+  end if;
+  if v_fab.estado <> 'en_control' then
+    return jsonb_build_object('ok', false, 'codigo', 'TRANSICION_INVALIDA',
+      'detalle', format('está en estado %s', replace(v_fab.estado, '_', ' ')));
+  end if;
+
+  select pr.tipo into v_tipo from produccion.productos pr where pr.id = v_fab.producto_id;
+  if v_tipo = 'polvo' then
+    v_ph := null;
+    v_dens := null;
+  end if;
+
+  if p_resultado is null or p_resultado not in ('aprobado', 'rechazado')
+     or p_perfume_ok is null or p_visual_ok is null
+     or (not p_perfume_ok and v_perf is null)
+     or (not p_visual_ok and v_vis is null)
+     or (v_tipo is distinct from 'polvo' and (
+           v_ph is null or v_ph < 0 or v_ph > 14 or v_dens is null or v_dens <= 0)) then
+    return jsonb_build_object('ok', false, 'codigo', 'DATOS_INVALIDOS', 'detalle', null);
+  end if;
+
+  select coalesce(max(c.intento), 0) + 1 into v_intento
+  from produccion.controles c where c.fabricacion_id = p_fab_id;
+
+  insert into produccion.controles (fabricacion_id, intento, ph, densidad, perfume_ok, perfume_comentario,
+    visual_ok, visual_comentario, observaciones, resultado, firmado_por, firmado_nombre, origen)
+  values (p_fab_id, v_intento, v_ph, v_dens, p_perfume_ok, case when p_perfume_ok then null else v_perf end,
+    p_visual_ok, case when p_visual_ok then null else v_vis end, v_obs, p_resultado, v_firma, v_nombre,
+    case when v_panel then 'panel' else 'tablet' end)
+  returning id into v_id;
+
+  if p_resultado = 'aprobado' then
+    update produccion.fabricaciones set estado = 'para_envasar' where id = p_fab_id;
+  else
+    update produccion.fabricaciones set estado = 'fabricando', fin = null where id = p_fab_id;
+  end if;
+
+  select coalesce(string_agg(x.t, '; ' order by x.o), '') into v_motivo from (
+    select 1 as o, format('perfume No OK (%s)', v_perf) as t where not p_perfume_ok
+    union all
+    select 2, format('visual No OK (%s)', v_vis) where not p_visual_ok
+    union all
+    select 3, v_obs where v_obs is not null
+  ) x;
+
+  insert into produccion.eventos (entidad, entidad_id, accion, usuario_id, dispositivo, datos)
+  values ('fabricacion', p_fab_id, case when p_resultado = 'aprobado' then 'aprobar' else 'rechazar' end,
+    v_firma, v_disp, jsonb_build_object('control_id', v_id, 'intento', v_intento, 'motivo', v_motivo));
+
+  return jsonb_build_object('ok', true, 'intento', v_intento);
+end;
+$$;
+revoke execute on function produccion.registrar_control(uuid, numeric, numeric, boolean, text, boolean, text, text, text, uuid) from public, anon;
+grant execute on function produccion.registrar_control(uuid, numeric, numeric, boolean, text, boolean, text, text, text, uuid) to authenticated;
+
+-- listar_liberadoras: quiénes pueden firmar un control (la tablet las muestra en «¿Quién controla?»)
+create function produccion.listar_liberadoras()
+returns table (id uuid, nombre text)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not (produccion.es_panel() or produccion.es_planta()) then
+    raise exception using errcode = '42501', message = 'NO_AUTORIZADO';
+  end if;
+  return query
+    select p.id, coalesce(nullif(trim(p.nombre), ''), p.email)
+    from public.perfiles p
+    where p.activo and (p.rol = 'admin' or p.rol_produccion = 'panel')
+    order by 2, 1;
+end;
+$$;
+revoke execute on function produccion.listar_liberadoras() from public, anon;
+grant execute on function produccion.listar_liberadoras() to authenticated;
+
 -- 3. Vistas ------------------------------------------------------------------
