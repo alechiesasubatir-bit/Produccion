@@ -1219,6 +1219,7 @@ th[aria-sort='descending'] .th-orden::after {
 
 .alerta-exceso_9h { border-left-color: var(--senal); }
 .alerta-desvio_estandar { border-left-color: #ea580c; }
+.alerta-sin_control { border-left-color: #2b3a8f; }
 
 .alerta-texto {
   display: flex;
