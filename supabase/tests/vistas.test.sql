@@ -1,5 +1,5 @@
 -- Ejecutar: begin; + _fixtures.sql + este archivo.
-insert into _tap (l) select plan(20);
+insert into _tap (l) select plan(24);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -60,6 +60,24 @@ insert into produccion.eventos (entidad, entidad_id, accion, datos, at) values
   ('fabricacion', '00000000-0000-0000-0000-0000000000b4', 'rechazar', '{"motivo":"viejo"}', now() - interval '2 hours'),
   ('fabricacion', '00000000-0000-0000-0000-0000000000b5', 'rechazar', '{"motivo":"perfume No OK (sin aroma)"}', now() - interval '1 hour');
 
+-- Tiempos con rechazo: 097 retrabajo simple (+ aprobar y cierre automático) · 096 con pausa en el retrabajo · 095 en retrabajo
+insert into produccion.eventos (entidad, entidad_id, accion, datos, at) values
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'iniciar',   '{}', '2026-01-06 10:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'finalizar', '{}', '2026-01-06 11:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'rechazar',  '{"motivo":"x"}', '2026-01-06 11:30-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'finalizar', '{}', '2026-01-06 12:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'aprobar',   '{"motivo":""}', '2026-01-06 12:10-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000097', 'finalizar', '{"auto": true}', '2026-01-06 15:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'iniciar',   '{}', '2026-01-06 10:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'finalizar', '{}', '2026-01-06 11:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'rechazar',  '{"motivo":"x"}', '2026-01-06 11:30-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'pausar',    '{}', '2026-01-06 11:40-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'reanudar',  '{}', '2026-01-06 11:50-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000096', 'finalizar', '{}', '2026-01-06 12:00-03'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000095', 'iniciar',   '{}', now() - interval '3 hours'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000095', 'finalizar', '{}', now() - interval '2 hours'),
+  ('fabricacion', '00000000-0000-0000-0000-000000000095', 'rechazar',  '{"motivo":"x"}', now() - interval '1 hour');
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
 
@@ -77,6 +95,25 @@ insert into _tap (l) select results_eq(
     where entidad_id = '00000000-0000-0000-0000-000000000099'$$,
   $$values (60, 10, 50)$$,
   'tiempos: 60 brutos, 10 de pausa, 50 efectivos');
+insert into _tap (l) select results_eq(
+  $$select fin, min_brutos::int, min_pausa::int, min_efectivos::int from produccion.v_tiempos_efectivos
+    where entidad_id = '00000000-0000-0000-0000-000000000097'$$,
+  $$values ('2026-01-06 12:00-03'::timestamptz, 120, 30, 90)$$,
+  'tiempos tras un rechazo: fin = finalizar posterior al rechazo; finalizar → rechazar cuenta como pausa');
+insert into _tap (l) select results_eq(
+  $$select min_brutos::int, min_pausa::int, min_efectivos::int from produccion.v_tiempos_efectivos
+    where entidad_id = '00000000-0000-0000-0000-000000000096'$$,
+  $$values (120, 40, 80)$$,
+  'tiempos tras un rechazo con pausa en el retrabajo: 30 de control + 10 de pausa');
+insert into _tap (l) select is(
+  (select count(*)::int from produccion.v_tiempos_efectivos where min_pausa < 0
+     and entidad_id::text like '00000000-0000-0000-0000-00000000009_'),
+  0, 'tiempos: ninguna pausa negativa');
+insert into _tap (l) select results_eq(
+  $$select fin is null, min_brutos::int, min_pausa::int, min_efectivos::int from produccion.v_tiempos_efectivos
+    where entidad_id = '00000000-0000-0000-0000-000000000095'$$,
+  $$values (true, 180, 60, 120)$$,
+  'tiempos en retrabajo: sin fin, el control descuenta como pausa y corre hasta ahora');
 
 -- Varias operarias, etiqueta y participaciones en las vistas
 insert into _tap (l) select is(

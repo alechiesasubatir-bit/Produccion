@@ -466,6 +466,8 @@ begin
      or p_perfume_ok is null or p_visual_ok is null
      or (not p_perfume_ok and v_perf is null)
      or (not p_visual_ok and v_vis is null)
+     -- rechazar exige un motivo: algo No OK o una observación
+     or (p_resultado = 'rechazado' and p_perfume_ok and p_visual_ok and v_obs is null)
      or (v_tipo is distinct from 'polvo' and (
            v_ph is null or v_ph < 0 or v_ph > 14 or v_dens is null or v_dens <= 0)) then
     return jsonb_build_object('ok', false, 'codigo', 'DATOS_INVALIDOS', 'detalle', null);
@@ -524,6 +526,64 @@ revoke execute on function produccion.listar_liberadoras() from public, anon;
 grant execute on function produccion.listar_liberadoras() to authenticated;
 
 -- 3. Vistas ------------------------------------------------------------------
+
+-- v_tiempos_efectivos: con rechazos, la fabricación vuelve a fabricarse. fin = primer finalizar/cancelar
+-- posterior al último rechazar (sin rechazos, el primero: nunca el cierre automático al envasar).
+-- Pausa = cada pausar hasta el reanudar/finalizar/cancelar siguiente, más cada tramo finalizar → rechazar
+-- (la orden esperó en control y no se estaba fabricando). Envasado y fraccionado: sin cambios.
+create or replace view produccion.v_tiempos_efectivos with (security_invoker = true) as
+with rechazo as (
+  select entidad, entidad_id, max(at) as ultimo
+  from produccion.eventos
+  where accion = 'rechazar'
+  group by entidad, entidad_id
+),
+tarea as (
+  select e.entidad, e.entidad_id,
+    min(e.at) filter (where e.accion = 'iniciar') as inicio,
+    min(e.at) filter (where e.accion in ('finalizar', 'cancelar') and (r.ultimo is null or e.at > r.ultimo)) as fin
+  from produccion.eventos e
+  left join rechazo r on r.entidad = e.entidad and r.entidad_id = e.entidad_id
+  group by e.entidad, e.entidad_id
+),
+tramo as (
+  select t.entidad, t.entidad_id,
+    extract(epoch from (least(coalesce(r.at, now()), coalesce(t.fin, now())) - p.at)) / 60 as minutos
+  from tarea t
+  join produccion.eventos p
+    on p.entidad = t.entidad and p.entidad_id = t.entidad_id and p.accion = 'pausar'
+  left join lateral (
+    select min(x.at) as at from produccion.eventos x
+    where x.entidad = p.entidad and x.entidad_id = p.entidad_id
+      and x.accion in ('reanudar', 'finalizar', 'cancelar') and x.at > p.at
+  ) r on true
+  union all
+  select t.entidad, t.entidad_id, extract(epoch from (r.at - f.at)) / 60
+  from tarea t
+  join produccion.eventos r
+    on r.entidad = t.entidad and r.entidad_id = t.entidad_id and r.accion = 'rechazar'
+  join lateral (
+    select max(x.at) as at from produccion.eventos x
+    where x.entidad = r.entidad and x.entidad_id = r.entidad_id
+      and x.accion = 'finalizar' and x.at < r.at
+  ) f on f.at is not null
+),
+pausa as (
+  select entidad, entidad_id, sum(minutos) as min_pausa
+  from tramo
+  group by entidad, entidad_id
+)
+select
+  t.entidad,
+  t.entidad_id,
+  t.inicio,
+  t.fin,
+  extract(epoch from (coalesce(t.fin, now()) - t.inicio)) / 60 as min_brutos,
+  coalesce(p.min_pausa, 0) as min_pausa,
+  extract(epoch from (coalesce(t.fin, now()) - t.inicio)) / 60 - coalesce(p.min_pausa, 0) as min_efectivos
+from tarea t
+left join pausa p on p.entidad = t.entidad and p.entidad_id = t.entidad_id
+where t.inicio is not null;
 
 -- v_tanque_estado: una fabricación en_control deja el tanque en 'en_control' (a.estado <> 'para_envasar' lo pasa tal cual).
 create or replace view produccion.v_tanque_estado with (security_invoker = true) as

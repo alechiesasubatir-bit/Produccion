@@ -38,7 +38,14 @@ export const FORM_CONTROL_VACIO: FormControl = {
 // El pH admite 0, que parsearCantidad rechaza (pide > 0).
 export const parsearPh = (texto: string): number | null => (/^0([.,]0*)?$/.test(texto.trim()) ? 0 : parsearCantidad(texto))
 
-export function validarControl(f: FormControl, esPolvo: boolean): Partial<Record<keyof FormControl, string>> {
+export const FALTA_MOTIVO_RECHAZO = 'Para rechazar, marcá qué está mal o escribí una observación.'
+
+// Con `resultado = 'rechazado'` exige un motivo: algo No OK o una observación (igual que registrar_control).
+export function validarControl(
+  f: FormControl,
+  esPolvo: boolean,
+  resultado: 'aprobado' | 'rechazado' = 'aprobado',
+): Partial<Record<keyof FormControl, string>> {
   const e: Partial<Record<keyof FormControl, string>> = {}
   if (!esPolvo) {
     if (f.ph.trim() === '') e.ph = 'Falta el pH.'
@@ -53,6 +60,8 @@ export function validarControl(f: FormControl, esPolvo: boolean): Partial<Record
   else if (!f.perfumeOk && f.perfumeComentario.trim() === '') e.perfumeComentario = 'Explicá qué está mal.'
   if (f.visualOk === null) e.visualOk = 'Marcá OK o No OK.'
   else if (!f.visualOk && f.visualComentario.trim() === '') e.visualComentario = 'Explicá qué está mal.'
+  if (resultado === 'rechazado' && f.perfumeOk === true && f.visualOk === true && f.observaciones.trim() === '')
+    e.observaciones = FALTA_MOTIVO_RECHAZO
   return e
 }
 

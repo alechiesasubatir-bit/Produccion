@@ -317,9 +317,18 @@ describe('simulador de la demo', () => {
       expect(s.registrarControl({ ...d, resultado: 'quizás' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
       expect(s.registrarControl({ ...d, perfumeOk: false, perfumeComentario: '  ' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
       expect(s.registrarControl({ ...d, visualOk: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      // rechazar con todo OK exige una observación
+      expect(s.registrarControl({ ...d, resultado: 'rechazado', observaciones: '  ' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
       expect(s.consultar('controles')).toHaveLength(0)
       expect(s.registrarControl({ ...d, firmante: s.liberadoras()[0].id })).toEqual({ ok: true, intento: 1 })
       expect(s.registrarControl(d)).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    })
+
+    it('rechazar con todo OK alcanza con una observación como motivo', () => {
+      const { s, id } = enControl()
+      expect(s.registrarControl({ ...CONTROL_OK, fabricacionId: id, resultado: 'rechazado' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.registrarControl({ ...CONTROL_OK, fabricacionId: id, resultado: 'rechazado', observaciones: 'grumoso' })).toEqual({ ok: true, intento: 1 })
+      expect((s.consultar('eventos') as Ev[]).find((e) => e.accion === 'rechazar')?.datos.motivo).toBe('grumoso')
     })
 
     it('polvo: pH y densidad se guardan como null aunque lleguen', () => {

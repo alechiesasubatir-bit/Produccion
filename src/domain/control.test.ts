@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FORM_CONTROL_VACIO, hayNoOk, motivoRechazo, validarControl, type FormControl } from './control'
+import { FALTA_MOTIVO_RECHAZO, FORM_CONTROL_VACIO, hayNoOk, motivoRechazo, validarControl, type FormControl } from './control'
 
 const ok: FormControl = { ...FORM_CONTROL_VACIO, ph: '7,5', densidad: '1.02', perfumeOk: true, visualOk: true }
 
@@ -31,6 +31,17 @@ describe('validarControl', () => {
   it('No OK exige comentario', () => {
     const e = validarControl({ ...ok, perfumeOk: false, visualOk: false, visualComentario: '  ' }, false)
     expect(e).toEqual({ perfumeComentario: 'Explicá qué está mal.', visualComentario: 'Explicá qué está mal.' })
+  })
+  it('rechazar exige un motivo: algo No OK o una observación', () => {
+    expect(FALTA_MOTIVO_RECHAZO).toBe('Para rechazar, marcá qué está mal o escribí una observación.')
+    expect(validarControl(ok, false, 'rechazado')).toEqual({ observaciones: FALTA_MOTIVO_RECHAZO })
+    expect(validarControl({ ...ok, observaciones: '   ' }, false, 'rechazado')).toEqual({ observaciones: FALTA_MOTIVO_RECHAZO })
+    expect(validarControl({ ...ok, observaciones: 'grumoso' }, false, 'rechazado')).toEqual({})
+    expect(validarControl({ ...ok, perfumeOk: false, perfumeComentario: 'flojo' }, false, 'rechazado')).toEqual({})
+  })
+  it('aprobar no exige motivo', () => {
+    expect(validarControl(ok, false, 'aprobado')).toEqual({})
+    expect(validarControl(ok, false)).toEqual({})
   })
 })
 

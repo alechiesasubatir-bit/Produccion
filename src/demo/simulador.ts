@@ -553,6 +553,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       typeof d.visualOk !== 'boolean' ||
       (!d.perfumeOk && !perfume) ||
       (!d.visualOk && !visual) ||
+      (d.resultado === 'rechazado' && d.perfumeOk && d.visualOk && !obs) || // rechazar exige un motivo
       (!polvo && (typeof ph !== 'number' || !(ph >= 0 && ph <= 14) || typeof densidad !== 'number' || !(densidad > 0)))
     ) {
       return no('DATOS_INVALIDOS')

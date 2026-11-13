@@ -183,3 +183,29 @@ describe('filas sin operarias (demo)', () => {
     expect(estadoOperaria([t], 'E1')).toBeNull()
   })
 })
+
+describe('fabricación rechazada en control', () => {
+  it('vuelve sin nadie: no cae a operaria_1, está en curso para todas y no cuenta como suya', () => {
+    const t = tarea({ estado: 'fabricando', operaria_1: 'E1', operarias: [], control_intento: 2, control_rechazo: 'pH alto', corriendo: true })
+    const c = clasificarTareas([t], 'E1')
+    expect(c.mias).toEqual([])
+    expect(c.enCurso).toEqual([t])
+    expect(clasificarTareas([t], 'E2').enCurso).toEqual([t])
+    expect(estadoOperaria([t], 'E1')).toBeNull()
+    expect(esUltima(t, 'E1')).toBe(false)
+  })
+  it('pausada también va a «sumarme»', () => {
+    const t = tarea({ estado: 'pausada', operaria_1: 'E1', operarias: [], control_intento: 3 })
+    expect(clasificarTareas([t], 'E1').enCurso).toEqual([t])
+    expect(estadoOperaria([t], 'E1')).toBeNull()
+  })
+  it('con operarias sumadas, es de quienes se sumaron', () => {
+    const t = tarea({ estado: 'fabricando', operaria_1: 'E1', operarias: [{ empleado_id: 'E2', nombre: 'Rosa Díaz', desde: '' }], control_intento: 2, corriendo: true })
+    expect(clasificarTareas([t], 'E2').mias).toEqual([t])
+    expect(clasificarTareas([t], 'E1').enCurso).toEqual([t])
+  })
+  it('primer intento sin operarias (anterior a la 014) sigue cayendo a operaria_1', () => {
+    const t = tarea({ estado: 'fabricando', operaria_1: 'E1', operarias: [], control_intento: 1, corriendo: true })
+    expect(clasificarTareas([t], 'E1').mias).toEqual([t])
+  })
+})

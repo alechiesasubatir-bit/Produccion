@@ -1,6 +1,6 @@
 -- Ejecutar: begin; + 015 + _fixtures.sql + este archivo (execute_sql no soporta \i).
 -- Control para liberación, parte 1: estado en_control y tabla controles (migración 015).
-insert into _tap (l) select plan(47);
+insert into _tap (l) select plan(48);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -147,6 +147,9 @@ insert into _tap (l) select is(
   produccion.registrar_control('00000000-0000-0000-0000-0000000000b3', 7, 1.01, true, null, true, null, null, 'quizas', '00000000-0000-0000-0000-0000000000a4')->>'codigo',
   'DATOS_INVALIDOS', 'resultado inválido: DATOS_INVALIDOS');
 insert into _tap (l) select is(
+  produccion.registrar_control('00000000-0000-0000-0000-0000000000b3', 7, 1.01, true, null, true, null, '   ', 'rechazado', '00000000-0000-0000-0000-0000000000a4')->>'codigo',
+  'DATOS_INVALIDOS', 'rechazar con todo OK y sin observaciones: DATOS_INVALIDOS');
+insert into _tap (l) select is(
   produccion.registrar_control('00000000-0000-0000-0000-0000000000b9', 7, 1.01, true, null, true, null, null, 'aprobado', '00000000-0000-0000-0000-0000000000a4')->>'codigo',
   'NO_ENCONTRADO', 'fabricación inexistente: NO_ENCONTRADO');
 
@@ -204,8 +207,8 @@ insert into _tap (l) select is(
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
 insert into _tap (l) select is(
-  (produccion.registrar_control('00000000-0000-0000-0000-0000000000b4', null, null, true, null, true, null, null, 'rechazado', '00000000-0000-0000-0000-0000000000a1')->>'ok')::boolean,
-  true, 'polvo sin pH ni densidad: ok');
+  (produccion.registrar_control('00000000-0000-0000-0000-0000000000b4', null, null, true, null, true, null, 'grumoso', 'rechazado', '00000000-0000-0000-0000-0000000000a1')->>'ok')::boolean,
+  true, 'polvo sin pH ni densidad, rechazo con todo OK pero con observaciones: ok');
 reset role;
 update produccion.fabricaciones set estado = 'en_control', fin = now() where id = '00000000-0000-0000-0000-0000000000b4';
 set local role authenticated;

@@ -5,10 +5,12 @@ import type { Unidad } from './participaciones'
 export type Tarea = Database['produccion']['Views']['v_tareas']['Row']
 
 // Quiénes están trabajando ahora en la orden. Las órdenes en curso anteriores a la 014 no tienen
-// `operarias` cargadas: ahí se cae a operaria_1/operaria_2.
+// `operarias` cargadas: ahí se cae a operaria_1/operaria_2. Una fabricación rechazada en control
+// (intento > 1) vuelve sin nadie: no se cae a operaria_1, queda para que cualquiera se sume.
 function ids(t: Tarea): string[] {
   const op = t.operarias ?? []
   if (op.length > 0) return op.map((o) => o.empleado_id)
+  if (t.entidad === 'fabricacion' && (t.control_intento ?? 1) > 1) return []
   return [t.operaria_1, t.operaria_2].filter((x): x is string => x !== null)
 }
 

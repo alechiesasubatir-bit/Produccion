@@ -40,11 +40,13 @@ function Ok({
 
 function Comentario({
   id,
+  etiqueta,
   valor,
   onChange,
   error,
 }: {
   id: string
+  etiqueta: string
   valor: string
   onChange: (v: string) => void
   error?: string
@@ -52,7 +54,7 @@ function Comentario({
   return (
     <div className="fc-campo">
       <label className="fc-etiqueta" htmlFor={id}>
-        ¿Qué está mal?
+        {etiqueta}
       </label>
       <textarea id={id} className="fc-texto" value={valor} onChange={(e) => onChange(e.target.value)} {...desc(`${id}-error`, error)} />
       <MensajeError id={`${id}-error`} texto={error} />
@@ -110,7 +112,8 @@ export function FormularioControl({
   onCancelar: () => void
 }) {
   const [f, setF] = useState<FormControl>(FORM_CONTROL_VACIO)
-  const [intentado, setIntentado] = useState(false)
+  // Última acción intentada: rechazar exige un motivo, aprobar no.
+  const [intentado, setIntentado] = useState<Accion | null>(null)
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const [pendiente, setPendiente] = useState(false)
   const [errorServidor, setErrorServidor] = useState<string | null>(null)
@@ -133,14 +136,15 @@ export function FormularioControl({
     }
   }, [confirmando])
 
-  const errores = intentado ? validarControl(f, esPolvo) : {}
+  const validar = (accion: Accion) => validarControl(f, esPolvo, accion === 'rechazar' ? 'rechazado' : 'aprobado')
+  const errores = intentado ? validar(intentado) : {}
   const alertaTexto = errorServidor ?? (bloqueado && Object.keys(errores).length > 0 ? 'Revisá los campos marcados.' : null)
   const set = <K extends keyof FormControl>(k: K, v: FormControl[K]) => setF((x) => ({ ...x, [k]: v }))
 
   function pedir(accion: Accion) {
-    setIntentado(true)
+    setIntentado(accion)
     setErrorServidor(null)
-    if (Object.keys(validarControl(f, esPolvo)).length > 0) {
+    if (Object.keys(validar(accion)).length > 0) {
       setBloqueado(true)
       return
     }
@@ -193,7 +197,10 @@ export function FormularioControl({
             />
             <MensajeError id="fc-perfume-ok-error" texto={errores.perfumeOk} />
             {f.perfumeOk === false && (
-              <Comentario id="fc-perfume-comentario" valor={f.perfumeComentario} onChange={(v) => set('perfumeComentario', v)} error={errores.perfumeComentario} />
+              <Comentario
+                id="fc-perfume-comentario"
+                etiqueta="¿Qué está mal con el perfume?"
+                valor={f.perfumeComentario} onChange={(v) => set('perfumeComentario', v)} error={errores.perfumeComentario} />
             )}
           </div>
 
@@ -207,7 +214,10 @@ export function FormularioControl({
             />
             <MensajeError id="fc-visual-ok-error" texto={errores.visualOk} />
             {f.visualOk === false && (
-              <Comentario id="fc-visual-comentario" valor={f.visualComentario} onChange={(v) => set('visualComentario', v)} error={errores.visualComentario} />
+              <Comentario
+                id="fc-visual-comentario"
+                etiqueta="¿Qué está mal con lo visual?"
+                valor={f.visualComentario} onChange={(v) => set('visualComentario', v)} error={errores.visualComentario} />
             )}
           </div>
 
@@ -215,7 +225,14 @@ export function FormularioControl({
             <label className="fc-etiqueta" htmlFor="fc-observaciones">
               Observaciones (opcional)
             </label>
-            <textarea id="fc-observaciones" className="fc-texto" value={f.observaciones} onChange={(e) => set('observaciones', e.target.value)} />
+            <textarea
+              id="fc-observaciones"
+              className="fc-texto"
+              value={f.observaciones}
+              onChange={(e) => set('observaciones', e.target.value)}
+              {...desc('fc-observaciones-error', errores.observaciones)}
+            />
+            <MensajeError id="fc-observaciones-error" texto={errores.observaciones} />
           </div>
 
           {alertaTexto && (

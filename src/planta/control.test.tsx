@@ -129,11 +129,13 @@ describe('control para liberación en la tablet', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
 
-  it('fabricación rechazada muestra el motivo en «En curso — sumarme» y se puede sumar', () => {
-    const t = tarea({ estado: 'fabricando', operaria_1: 'E2', operarias: [{ empleado_id: 'E2', nombre: 'Rosa Díaz', desde: '' }], control_rechazo: 'pH alto', corriendo: true })
+  it('fabricación rechazada vuelve sin nadie: aparece en «En curso — sumarme» también para quien la empezó', () => {
+    // Tras el rechazo la vista trae operarias = [] y operaria_1 sigue siendo quien la fabricó (E1 = la que mira).
+    const t = tarea({ estado: 'fabricando', operaria_1: 'E1', operarias: [], control_intento: 2, control_rechazo: 'pH alto', corriendo: true })
     montar([t])
     const g = within(screen.getByRole('region', { name: 'En curso para sumarme' }))
     expect(g.getByText('Rechazado: pH alto')).toBeInTheDocument()
     expect(g.getByRole('button', { name: 'Sumarme' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Mis tareas' })).queryByText('Rechazado: pH alto')).toBeNull()
   })
 })
