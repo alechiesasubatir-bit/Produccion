@@ -38,6 +38,29 @@ export type NuevoFraccionado = {
   operaria_id: string | null
 }
 
+// Envasado/fraccionado creado desde la hoja del PDF. El tanque (fabricacion_id) es opcional:
+// sin él queda «esperando fabricación». granel_id sale de crear_granel_stock (granel de stock).
+export type NuevoEnvasadoDocumento = {
+  fabricacion_id: string | null
+  granel_id: string | null
+  presentacion_id: string
+  cantidad: number
+  lote: string
+  codigo: string
+  descripcion: string
+  litros_granel: number | null
+  etiqueta_id: string | null
+}
+export type NuevoFraccionadoDocumento = {
+  producto_id: string | null
+  presentacion_id: string | null
+  cantidad: number
+  lote: string
+  codigo: string
+  descripcion: string
+  etiqueta_id: string | null
+}
+
 type Errores<T> = Partial<Record<keyof T, string>>
 
 const ENTERO = 'Tiene que ser un número entero mayor a 0.'
@@ -87,14 +110,23 @@ export function validarEnvasado(
   if (d.operaria_2 && d.operaria_2 === d.operaria_1) e.operaria_2 = 'Elegí otra operaria.'
   if (d.etiquetar && !d.etiqueta_id) e.etiqueta_id = ETIQUETA
 
-  let advertencia: string | null = null
-  if (entero(d.cantidad) && ctx.litrosRestantes !== null && ctx.litrosEquiv !== null) {
-    const usa = d.cantidad * ctx.litrosEquiv
-    if (usa > ctx.litrosRestantes) {
-      advertencia = `Quedan ${litros(ctx.litrosRestantes)} L sin asignar en el tanque y esta orden usa ${litros(usa)} L.`
-    }
-  }
-  return { errores: e, advertencia }
+  return { errores: e, advertencia: advertenciaSinAsignar(d.cantidad, ctx.litrosEquiv, ctx.litrosRestantes) }
+}
+
+/** Aviso (no bloquea) si el envasado usa más litros de los que quedan sin asignar en el tanque. */
+export function advertenciaSinAsignar(cantidad: number, litrosEquiv: number | null, litrosRestantes: number | null): string | null {
+  if (!entero(cantidad) || litrosRestantes === null || litrosEquiv === null) return null
+  const usa = cantidad * litrosEquiv
+  return usa > litrosRestantes
+    ? `Quedan ${litros(litrosRestantes)} L sin asignar en el tanque y esta orden usa ${litros(usa)} L.`
+    : null
+}
+
+export function validarEnvasadoDocumento(d: NuevoEnvasadoDocumento): Errores<NuevoEnvasadoDocumento> {
+  const e: Errores<NuevoEnvasadoDocumento> = {}
+  if (!d.presentacion_id) e.presentacion_id = 'Elegí una presentación.'
+  if (!entero(d.cantidad)) e.cantidad = ENTERO
+  return e
 }
 
 export function validarFraccionado(d: NuevoFraccionado): Errores<NuevoFraccionado> {

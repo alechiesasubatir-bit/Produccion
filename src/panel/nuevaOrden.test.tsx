@@ -21,6 +21,7 @@ const datos: DatosOrden = {
   asignados: { fab3: 200 },
   estandares: [{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 7.5, muestras: 2, litros_hora_std: null }],
   lotesAbiertos: [],
+  fabricacionesAbiertas: [],
 }
 
 vi.mock('./datosOrden', () => ({

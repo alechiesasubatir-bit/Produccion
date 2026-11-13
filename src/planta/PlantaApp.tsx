@@ -40,7 +40,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
   const tanque = params.get('tanque')
 
   const operarias = useRealtime('v_operarias', cargarOperarias, [])
-  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles'])
+  const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles', 'consumibles'])
   // El cronómetro suma desde el momento en que llegaron los datos.
   const cargadoEn = useMemo(() => Date.now(), [tareas.datos])
 
@@ -166,6 +166,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
             cargadoEn={cargadoEn}
             aviso={aviso}
             recargaMp={recargaMp}
+            recargaConsumibles={cargadoEn}
             operarias={operarias.datos}
             onAccion={(t, a, c) => void accionar(t, a, c)}
             onControlado={controlado}

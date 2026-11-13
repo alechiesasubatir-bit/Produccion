@@ -13,6 +13,11 @@ export const COLUMNAS: { id: Columna; titulo: string }[] = [
   { id: 'terminadas', titulo: 'Terminadas hoy' },
 ]
 
+// Envasado del documento todavía sin fabricación asignada: no está en el kanban ni en los KPI.
+export function esperandoFabricacion(f: FilaFlujo): boolean {
+  return f.entidad === 'envasado' && f.fabricacion_id === null
+}
+
 export function columnaFlujo(f: FilaFlujo): Columna {
   if (f.estado === 'finalizada' || f.estado === 'finalizado') return 'terminadas'
   if (f.entidad === 'fraccionado') return 'fraccionado'
@@ -25,7 +30,7 @@ export function columnaFlujo(f: FilaFlujo): Columna {
 
 export function agruparFlujo(filas: FilaFlujo[]): Record<Columna, FilaFlujo[]> {
   const grupos = Object.fromEntries(COLUMNAS.map((c) => [c.id, [] as FilaFlujo[]])) as Record<Columna, FilaFlujo[]>
-  for (const f of filas) grupos[columnaFlujo(f)].push(f)
+  for (const f of filas.filter((x) => !esperandoFabricacion(x))) grupos[columnaFlujo(f)].push(f)
   for (const c of COLUMNAS) {
     grupos[c.id].sort((a, b) =>
       c.id === 'terminadas'
@@ -38,12 +43,12 @@ export function agruparFlujo(filas: FilaFlujo[]): Record<Columna, FilaFlujo[]> {
 
 export function kpisFlujo(filas: FilaFlujo[]): { cola: number; fabricando: number; envasando: number; litrosHoy: number } {
   const k = { cola: 0, fabricando: 0, envasando: 0, litrosHoy: 0 }
-  for (const f of filas) {
+  for (const f of filas.filter((x) => !esperandoFabricacion(x))) {
     const c = columnaFlujo(f)
     if (c === 'cola') k.cola += 1
     else if (c === 'fabricando') k.fabricando += 1
     else if (c === 'envasando') k.envasando += 1
-    else if (c === 'terminadas' && f.entidad === 'fabricacion') k.litrosHoy += f.litros ?? 0
+    else if (c === 'terminadas' && f.entidad === 'fabricacion' && f.origen !== 'stock') k.litrosHoy += f.litros ?? 0
   }
   return k
 }

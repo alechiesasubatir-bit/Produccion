@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { agruparFlujo, COLUMNAS, columnaFlujo, kpisFlujo, type FilaFlujo } from './flujo'
+import { agruparFlujo, COLUMNAS, columnaFlujo, esperandoFabricacion, kpisFlujo, type FilaFlujo } from './flujo'
 
 let n = 0
 export function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
@@ -15,6 +15,9 @@ export function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
     etiqueta: null,
     control_intento: null,
     control_rechazo: null,
+    lote_doc: null,
+    granel_id: null,
+    origen: null,
     tanque_codigo: 'T-01',
     presentacion: null,
     cantidad: null,
@@ -74,8 +77,32 @@ describe('kpisFlujo', () => {
       fila({ estado: 'fabricando', corriendo: true }),
       fila({ estado: 'pausada' }),
       fila({ estado: 'cola' }),
-      fila({ entidad: 'envasado', estado: 'activo', corriendo: true }),
+      fila({ entidad: 'envasado', estado: 'activo', corriendo: true, fabricacion_id: 'f0' }),
     ])
     expect(k).toEqual({ cola: 1, fabricando: 2, envasando: 1, litrosHoy: 1500 })
+  })
+  it('el granel de stock no suma litros fabricados hoy', () => {
+    const k = kpisFlujo([
+      fila({ estado: 'finalizada', litros: 1000, fin: '2026-10-21T09:00:00Z' }),
+      fila({ estado: 'finalizada', litros: 700, origen: 'stock', fin: '2026-10-21T10:00:00Z' }),
+    ])
+    expect(k.litrosHoy).toBe(1000)
+  })
+})
+
+describe('esperando fabricación', () => {
+  const espera = () => fila({ entidad: 'envasado', estado: 'cola', fabricacion_id: null, tanque_codigo: null, listo: false })
+  it('esperandoFabricacion: solo envasados sin fabricación', () => {
+    expect(esperandoFabricacion(espera())).toBe(true)
+    expect(esperandoFabricacion(fila({ entidad: 'envasado', fabricacion_id: 'f1' }))).toBe(false)
+    expect(esperandoFabricacion(fila({ entidad: 'fabricacion', fabricacion_id: null }))).toBe(false)
+    expect(esperandoFabricacion(fila({ entidad: 'fraccionado', fabricacion_id: null }))).toBe(false)
+  })
+  it('agruparFlujo no los pone en ninguna columna', () => {
+    const g = agruparFlujo([espera(), fila({ estado: 'cola' })])
+    expect(Object.values(g).flat()).toHaveLength(1)
+  })
+  it('kpisFlujo no los cuenta', () => {
+    expect(kpisFlujo([espera(), espera()])).toEqual({ cola: 0, fabricando: 0, envasando: 0, litrosHoy: 0 })
   })
 })

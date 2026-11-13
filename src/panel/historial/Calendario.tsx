@@ -9,6 +9,7 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', '
 function resumen(filas: FilaHistorial[]) {
   const c = { fabricacion: 0, envasado: 0, fraccionado: 0, litros: 0 }
   for (const f of filas) {
+    if (f.origen === 'stock') continue // granel de stock: no es producción de la app
     c[f.entidad] += 1
     if (f.entidad === 'fabricacion' && terminada(f)) c.litros += f.litros ?? 0
   }

@@ -11,6 +11,7 @@ import { Tanque } from '../ui/Tanque'
 import { TablaMp } from './TablaMp'
 import { ControlesOrden } from './ControlesOrden'
 import { DialogoControl } from './DialogoControl'
+import { EditarEnvasado } from './EditarEnvasado'
 import { cargarControles, cargarFabricacion, cargarRecorrido, type DatosFabricacion, type EventoRecorrido } from './datosTanque'
 import { OperariasOrden } from './OperariasOrden'
 import { QrTanque } from './QrTanque'
@@ -45,6 +46,7 @@ function Acciones({
   titulo,
   onHecho,
   onCargarEnvasado,
+  onEditar,
 }: {
   entidad: Entidad
   id: string
@@ -52,6 +54,7 @@ function Acciones({
   titulo: string
   onHecho: (error: string | null) => void
   onCargarEnvasado?: () => void
+  onEditar?: () => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(entidad, estado, 'panel')
@@ -74,6 +77,11 @@ function Acciones({
       {lista && (
         <button type="button" className="boton-mini principal" onClick={onCargarEnvasado}>
           Cargar envasado
+        </button>
+      )}
+      {onEditar && (
+        <button type="button" className="boton-mini discreto" onClick={onEditar}>
+          Editar
         </button>
       )}
       {acciones.map((a) => (
@@ -107,6 +115,7 @@ export function DetalleTanque({
   const [fabricacion, setFabricacion] = useState<DatosFabricacion | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [controlando, setControlando] = useState(false)
+  const [editandoEnv, setEditandoEnv] = useState(false)
   const [intento, setIntento] = useState(1)
   const cerrarControl = useCallback(() => setControlando(false), [])
   const estados = estadosDe(tanque)
@@ -233,7 +242,7 @@ export function DetalleTanque({
             />
           )}
           {estados.envasado && tanque.envasado_id && (
-            <Acciones entidad="envasado" id={tanque.envasado_id} estado={estados.envasado} titulo="Envasado" onHecho={hecho} />
+            <Acciones entidad="envasado" id={tanque.envasado_id} estado={estados.envasado} titulo="Envasado" onHecho={hecho} onEditar={() => setEditandoEnv(true)} />
           )}
         </section>
       )}
@@ -261,6 +270,16 @@ export function DetalleTanque({
         </div>
       )}
 
+      {editandoEnv && tanque.envasado_id && (
+        <EditarEnvasado
+          id={tanque.envasado_id}
+          onCerrar={() => setEditandoEnv(false)}
+          onGuardado={() => {
+            setEditandoEnv(false)
+            hecho(null)
+          }}
+        />
+      )}
       {controlando && tanque.fabricacion_id && (
         <DialogoControl
           fabricacionId={tanque.fabricacion_id}

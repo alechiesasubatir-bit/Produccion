@@ -20,6 +20,10 @@ export type CodigoError =
   | 'ULTIMA_OPERARIA'
   | 'CANTIDAD_REQUERIDA'
   | 'ETIQUETA_INACTIVA'
+  | 'SIN_TANQUE'
+  | 'GRANEL_DISTINTO'
+  | 'NO_EDITABLE'
+  | 'TANQUE_EN_USO'
   | 'RED'
   | 'DESCONOCIDO'
 
@@ -45,6 +49,10 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   ULTIMA_OPERARIA: () => 'Sos la última: pausá o finalizá.',
   CANTIDAD_REQUERIDA: () => 'Falta declarar cuánto se envasó.',
   ETIQUETA_INACTIVA: () => 'Esa etiqueta está desactivada.',
+  SIN_TANQUE: () => 'Este envasado no tiene tanque asignado.',
+  GRANEL_DISTINTO: () => 'Ese tanque tiene otro granel.',
+  NO_EDITABLE: () => 'Este envasado ya terminó: no se puede modificar.',
+  TANQUE_EN_USO: () => 'El envasado ya empezó: para cambiar de tanque cancelalo y creá uno nuevo.',
   RED: () => 'Sin conexión. Revisá el WiFi.',
   DESCONOCIDO: () => 'Algo salió mal. Avisá a la encargada.',
 }

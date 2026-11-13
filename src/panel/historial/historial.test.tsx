@@ -85,7 +85,7 @@ describe('Historial', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
     const lineas = (m.descargar.mock.calls[0][1] as string).split(/\r\n/)
     expect(lineas).toHaveLength(3)
-    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria;pH;Densidad;Perfume;Visual;Liberó;Fecha liberación$/)
+    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria;pH;Densidad;Perfume;Visual;Liberó;Fecha liberación;Lote documento;Consumibles$/)
     expect(lineas[2]).toMatch(/;Ana;/)
     // Las columnas numéricas de la orden van vacías en la 2.ª fila: no se duplican al sumar.
     const [cab, f1, f2] = lineas.map((l) => l.split(';'))
@@ -134,6 +134,58 @@ describe('Historial', () => {
     expect(f1[cab.indexOf('Liberó')]).toBe('María')
     expect(f1[cab.indexOf('Fecha liberación')]).not.toBe('')
     for (const col of ['pH', 'Densidad', 'Perfume', 'Visual', 'Liberó', 'Fecha liberación']) expect(f2[cab.indexOf(col)]).toBe('')
+  })
+
+  it('envasado sin tanque muestra «—» y el detalle lista lote del documento y consumibles con quién y cuándo', async () => {
+    m.cargar.mockResolvedValue([
+      filaH({
+        entidad: 'envasado',
+        estado: 'activo',
+        tanque_codigo: null,
+        lote_doc: 'DOC-77',
+        consumibles: [
+          { codigo: 'ENV-1', descripcion: 'Envase 1 L', cantidad: 100, lote: 'L-9', cargado_nombre: 'Ana', cargado_at: '2026-10-15T12:00:00Z' },
+          { codigo: 'TAP-2', descripcion: 'Tapa', cantidad: 100, lote: null, cargado_nombre: null, cargado_at: null },
+        ],
+      }),
+    ])
+    await montar()
+    const fila = screen.getAllByRole('row')[1]
+    expect(within(fila).getAllByRole('cell')[6]).toHaveTextContent('—')
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const det = document.querySelector('.fila-detalle') as HTMLElement
+    expect(within(det).getByText(/DOC-77/)).toBeInTheDocument()
+    expect(within(det).getByText('ENV-1').closest('li')).toHaveTextContent(/L-9/)
+    expect(within(det).getByText('ENV-1').closest('li')).toHaveTextContent(/Ana/)
+    expect(within(det).getByText('TAP-2').closest('li')).toHaveTextContent('sin lote')
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar detalle' }))
+    expect(document.querySelector('.fila-detalle')).toBeNull()
+  })
+
+  it('fabricación de stock muestra «Granel de stock» en el detalle', async () => {
+    m.cargar.mockResolvedValue([filaH({ origen: 'stock' })])
+    await montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    expect(screen.getByText('Granel de stock')).toBeInTheDocument()
+  })
+
+  it('el CSV suma lote_doc y consumibles', async () => {
+    m.cargar.mockResolvedValue([
+      filaH({
+        entidad: 'envasado',
+        lote_doc: 'DOC-77',
+        consumibles: [
+          { codigo: 'ENV-1', descripcion: 'x', cantidad: 1, lote: 'L-9', cargado_nombre: null, cargado_at: null },
+          { codigo: 'TAP-2', descripcion: 'y', cantidad: 1, lote: null, cargado_nombre: null, cargado_at: null },
+        ],
+      }),
+    ])
+    await montar()
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+    const [cab, f1] = (m.descargar.mock.calls[0][1] as string).split('\r\n')
+    expect(cab).toMatch(/;Lote documento;Consumibles$/)
+    // el texto de consumibles lleva «;» y por eso sale entrecomillado
+    expect(f1).toMatch(/;DOC-77;"ENV-1: L-9; TAP-2: —"$/)
   })
 
   it('el botón Ver MP de una fabricación despliega la tabla de MP debajo de la fila y se puede ocultar', async () => {

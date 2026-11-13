@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Entidad } from '../../domain/acciones'
 import { aCSV, descargarCSV, type ColumnaCSV } from '../../domain/csv'
 import {
+  consumiblesTexto,
   controlAprobado,
   controlTexto,
   okTexto,
@@ -93,7 +94,32 @@ const CSV: ColumnaCSV<FilaCSV>[] = [
   { titulo: 'Visual', valor: ({ fila, repetida }) => { const c = repetida ? null : controlAprobado(fila); return c && okTexto(c.visual_ok, c.visual_comentario) } },
   { titulo: 'Liberó', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.firmado_nombre) },
   { titulo: 'Fecha liberación', valor: ({ fila, repetida }) => (repetida ? null : fechaHoraP(controlAprobado(fila)?.created_at)) },
+  { titulo: 'Lote documento', valor: ({ fila, repetida }) => (repetida ? null : fila.lote_doc) },
+  { titulo: 'Consumibles', valor: ({ fila, repetida }) => (repetida ? null : consumiblesTexto(fila)) },
 ]
+
+const tieneDetalle = (f: FilaHistorial) => f.entidad !== 'fabricacion' || f.origen === 'stock' || !!f.lote_doc || (f.consumibles ?? []).length > 0
+
+function Detalle({ f }: { f: FilaHistorial }) {
+  const cs = f.consumibles ?? []
+  return (
+    <div className="detalle-historial">
+      {f.origen === 'stock' && <p>Granel de stock</p>}
+      {f.lote_doc && <p>Lote del documento: {f.lote_doc}</p>}
+      {cs.length > 0 && (
+        <ul>
+          {cs.map((c) => (
+            <li key={c.codigo}>
+              <strong>{c.codigo}</strong> {c.descripcion} · {c.cantidad} · {c.lote ? `lote ${c.lote}` : 'sin lote'}
+              {c.cargado_nombre ? ` · ${c.cargado_nombre}` : ''}
+              {c.cargado_at ? ` · ${fechaHora(c.cargado_at)}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 const ABIERTA = ['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar']
 
@@ -109,6 +135,7 @@ export function Historial() {
   const [texto, setTexto] = useState('')
   const [orden, setOrden] = useState<{ por: keyof FilaHistorial; asc: boolean } | null>(null)
   const [verMp, setVerMp] = useState<string | null>(null)
+  const [verDetalle, setVerDetalle] = useState<string | null>(null)
 
   useEffect(() => {
     let vigente = true
@@ -235,6 +262,7 @@ export function Historial() {
                 const irAlTanque = f.entidad === 'fabricacion' && ABIERTA.includes(f.estado) && f.tanque_codigo
                 const clave = `${f.entidad}-${f.id}`
                 const mpAbierta = verMp === clave
+                const detAbierto = verDetalle === clave
                 return (
                   <Fragment key={clave}>
                     <tr
@@ -257,8 +285,27 @@ export function Historial() {
                             {mpAbierta ? 'Ocultar MP' : 'Ver MP'}
                           </button>
                         )}
+                        {tieneDetalle(f) && (
+                          <button
+                            type="button"
+                            className="boton-mini"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setVerDetalle(detAbierto ? null : clave)
+                            }}
+                          >
+                            {detAbierto ? 'Ocultar detalle' : 'Ver detalle'}
+                          </button>
+                        )}
                       </td>
                     </tr>
+                    {detAbierto && (
+                      <tr className="fila-mp fila-detalle">
+                        <td colSpan={COLUMNAS.length + 1}>
+                          <Detalle f={f} />
+                        </td>
+                      </tr>
+                    )}
                     {mpAbierta && (
                       <tr className="fila-mp">
                         <td colSpan={COLUMNAS.length + 1}>

@@ -1,0 +1,206 @@
+[
+  {
+    "str": "Datos del Comprobante",
+    "x": 56.64,
+    "y": 796.2,
+    "pagina": 1
+  },
+  {
+    "str": "Movimientos de Produccion",
+    "x": 48.24,
+    "y": 779.76,
+    "pagina": 1
+  },
+  {
+    "str": "LOTE Nº",
+    "x": 258,
+    "y": 784.8,
+    "pagina": 1
+  },
+  {
+    "str": "FECHA",
+    "x": 331.56,
+    "y": 784.8,
+    "pagina": 1
+  },
+  {
+    "str": "Fabrica Envasado",
+    "x": 48.24,
+    "y": 767.64,
+    "pagina": 1
+  },
+  {
+    "str": "99002",
+    "x": 265.2,
+    "y": 773.4,
+    "pagina": 1
+  },
+  {
+    "str": "9/11/2026",
+    "x": 327.36,
+    "y": 773.64,
+    "pagina": 1
+  },
+  {
+    "str": "VENCIMIENTO",
+    "x": 379.8,
+    "y": 773.64,
+    "pagina": 1
+  },
+  {
+    "str": "FECHA",
+    "x": 399.6,
+    "y": 787.68,
+    "pagina": 1
+  },
+  {
+    "str": "Código",
+    "x": 51,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "Cantidad",
+    "x": 110.67,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "Descripción",
+    "x": 164.4,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "Lote",
+    "x": 345.88,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "Pesado",
+    "x": 470.64,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "Deposito",
+    "x": 513.01,
+    "y": 741.36,
+    "pagina": 1
+  },
+  {
+    "str": "900401",
+    "x": 51,
+    "y": 721.32,
+    "pagina": 1
+  },
+  {
+    "str": "Carga Mineral Prueba (Materia Prima) Polvo",
+    "x": 155.76,
+    "y": 721.32,
+    "pagina": 1
+  },
+  {
+    "str": "F",
+    "x": 524.4,
+    "y": 721.32,
+    "pagina": 1
+  },
+  {
+    "str": "(60.000)",
+    "x": 116.4,
+    "y": 721.32,
+    "pagina": 1
+  },
+  {
+    "str": "900402",
+    "x": 51,
+    "y": 701.52,
+    "pagina": 1
+  },
+  {
+    "str": "Pote Prueba x 500 grs. (50g)",
+    "x": 155.76,
+    "y": 701.52,
+    "pagina": 1
+  },
+  {
+    "str": "F",
+    "x": 524.4,
+    "y": 701.52,
+    "pagina": 1
+  },
+  {
+    "str": "(120.000)",
+    "x": 114.24,
+    "y": 701.52,
+    "pagina": 1
+  },
+  {
+    "str": "900403",
+    "x": 51,
+    "y": 681.72,
+    "pagina": 1
+  },
+  {
+    "str": "Etiqueta Prueba Chica X UNIDAD",
+    "x": 155.76,
+    "y": 681.72,
+    "pagina": 1
+  },
+  {
+    "str": "F",
+    "x": 524.4,
+    "y": 681.72,
+    "pagina": 1
+  },
+  {
+    "str": "(120.000)",
+    "x": 114.24,
+    "y": 681.72,
+    "pagina": 1
+  },
+  {
+    "str": "900501",
+    "x": 51,
+    "y": 661.92,
+    "pagina": 1
+  },
+  {
+    "str": "Polvo Prueba pote x 1/2 Kg",
+    "x": 155.76,
+    "y": 661.92,
+    "pagina": 1
+  },
+  {
+    "str": "F",
+    "x": 524.4,
+    "y": 661.92,
+    "pagina": 1
+  },
+  {
+    "str": "120.000",
+    "x": 116.4,
+    "y": 661.92,
+    "pagina": 1
+  },
+  {
+    "str": "Observaciones",
+    "x": 56.64,
+    "y": 614.88,
+    "pagina": 1
+  },
+  {
+    "str": "Verificacion de Tanque Limpio",
+    "x": 272.04,
+    "y": 637.44,
+    "pagina": 1
+  },
+  {
+    "str": "Tanque destinado",
+    "x": 45.36,
+    "y": 637.44,
+    "pagina": 1
+  }
+]

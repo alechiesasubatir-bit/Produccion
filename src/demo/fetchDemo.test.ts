@@ -191,4 +191,57 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
     const c = await db.from('controles').select('*').eq('fabricacion_id', fab)
     expect(c.data).toEqual([expect.objectContaining({ intento: 1, ph: 7.5, resultado: 'aprobado', origen: 'tablet' })])
   })
+
+  it('envasado desde el PDF: crear_*_documento, consumibles, cargar_consumible y el update validado de envasados', async () => {
+    const { db, sim, onCambio } = cliente()
+    const cons = [{ codigo: '900201', descripcion: 'Botella Prueba', cantidad: 600 }]
+    const env = { fabricacion_id: null, granel_id: 'dp15', presentacion_id: 'dr7', cantidad: 600, lote: '99001', codigo: '900301', descripcion: 'Limpiador Prueba x 1.5 L', litros_granel: 900, etiqueta_id: null }
+
+    const g = await db.rpc('crear_granel_stock', { p_tanque_id: 'dt1', p_producto_id: 'dp15', p_litros: 900, p_lote: null } as never)
+    expect(g.data).toEqual({ ok: true, id: expect.any(String) })
+    const fab = (g.data as { id: string }).id
+    const ocupado = await db.rpc('crear_granel_stock', { p_tanque_id: 'dt1', p_producto_id: 'dp15', p_litros: 5, p_lote: null } as never)
+    expect(mensajeError(ocupado.data).codigo).toBe('TANQUE_OCUPADO')
+
+    const malo = await db.rpc('crear_envasado_documento', { p_env: { ...env, cantidad: 0 }, p_consumibles: cons } as never)
+    expect(malo.data).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+    onCambio.mockClear()
+    const sin = await db.rpc('crear_envasado_documento', { p_env: env, p_consumibles: cons } as never)
+    expect(sin.data).toEqual({ ok: true, id: expect.any(String) })
+    expect(onCambio).toHaveBeenCalled()
+    const id = (sin.data as { id: string }).id
+
+    // esperando fabricación: está en v_flujo con los litros del documento y no es tarea
+    const flujo = await db.from('v_flujo').select('*').eq('id', id)
+    expect(flujo.data).toEqual([expect.objectContaining({ fabricacion_id: null, tanque_codigo: null, litros: 900, lote_doc: '99001', granel_id: 'dp15' })])
+    expect((await db.from('v_tareas').select('*').eq('id', id)).data).toEqual([])
+    const iniciar = await db.rpc('accion', { p_entidad: 'envasado', p_id: id, p_accion: 'iniciar', p_empleado_id: 'do1' } as never)
+    expect(mensajeError(iniciar.data).codigo).toBe('SIN_TANQUE')
+
+    // el update de envasados pasa por las reglas del trigger y devuelve el error de PostgREST
+    const cantidad = await db.from('envasados').update({ cantidad: 500 } as never).eq('id', id)
+    expect(cantidad.error).toBeNull()
+    const otro = await db.from('envasados').update({ fabricacion_id: 'nada' } as never).eq('id', id)
+    expect(mensajeError(otro.error).codigo).toBe('TRANSICION_INVALIDA')
+    const asignar = await db.from('envasados').update({ fabricacion_id: fab } as never).eq('id', id)
+    expect(asignar.error).toBeNull()
+    const edicion = await db.from('envasados').select('cantidad, presentacion_id, estado, fabricacion_id, granel_id').eq('id', id).maybeSingle()
+    expect(edicion.data).toMatchObject({ cantidad: 500, presentacion_id: 'dr7', estado: 'cola', fabricacion_id: fab, granel_id: 'dp15' })
+
+    // consumibles: lectura filtrada, carga con rpc y el avance en v_tareas
+    const filas = await db.from('consumibles').select('id, orden, codigo, descripcion, cantidad, lote, cargado_por, cargado_at').eq('entidad', 'envasado').eq('entidad_id', id).order('orden')
+    expect(filas.data).toEqual([expect.objectContaining({ codigo: '900201', cantidad: 600, lote: null })])
+    const cid = (filas.data as { id: string }[])[0].id
+    const antes = await db.rpc('cargar_consumible', { p_id: cid, p_lote: 'B-1', p_empleado_id: 'do1' } as never)
+    expect(mensajeError(antes.data).codigo).toBe('TRANSICION_INVALIDA')
+    sim.accion('envasado', id, 'iniciar', 'do1')
+    const ok = await db.rpc('cargar_consumible', { p_id: cid, p_lote: 'B-1', p_empleado_id: 'do1' } as never)
+    expect(ok.data).toEqual({ ok: true })
+    expect((await db.from('v_tareas').select('*').eq('id', id)).data).toEqual([expect.objectContaining({ consumibles_total: 1, consumibles_con_lote: 1 })])
+    const enUso = await db.from('envasados').update({ fabricacion_id: null } as never).eq('id', id)
+    expect(mensajeError(enUso.error).codigo).toBe('TANQUE_EN_USO')
+
+    const fr = await db.rpc('crear_fraccionado_documento', { p_frac: { producto_id: null, presentacion_id: null, cantidad: 40, lote: '55', codigo: 'P1', descripcion: 'Polvo Prueba', etiqueta_id: null }, p_consumibles: [] } as never)
+    expect(fr.data).toEqual({ ok: true, id: expect.any(String) })
+  })
 })

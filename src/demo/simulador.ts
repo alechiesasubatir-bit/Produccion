@@ -6,7 +6,9 @@ import type { CodigoError } from '../lib/errores'
 import {
   LITROS_ENV_POR_MIN,
   LITROS_FAB_POR_MIN,
+  CODIGOS_INICIALES,
   ETIQUETAS,
+  GRANEL_DOCUMENTO,
   OPERARIAS,
   PRESENTACIONES,
   PRODUCTOS,
@@ -31,7 +33,8 @@ type Fab = Base & {
   tanque_id: string
   producto_id: string
   litros: number
-  lote: string
+  lote: string | null
+  origen: 'formula' | 'stock' // stock: granel que ya estaba en el tanque sin pasar por la app
   operaria: string | null
   envasado: number
   vencimiento: string | null
@@ -84,23 +87,42 @@ type Mp = {
   cargado_at: string | null
 }
 type Env = Base & {
-  fabricacion_id: string
+  fabricacion_id: string | null // null: espera fabricación (envasado cargado desde un PDF sin tanque)
+  granel_id: string | null
   presentacion_id: string
   cantidad: number
   hechas: number
   operaria_1: string | null
   operaria_2: string | null
   etiqueta_id: string | null
+  lote: string | null // lote del documento
+  codigo: string | null
+  descripcion: string | null
+  litros_granel: number | null
 }
 type Frac = Base & {
   producto_id: string | null
   descripcion: string | null
-  presentacion_id: string
+  presentacion_id: string | null
   cantidad: number
   hechas: number
   lote: string | null
+  codigo: string | null
   operaria: string | null
   etiqueta_id: string | null
+}
+// Consumible (envase, tapa, etiqueta…) de un envasado o fraccionado, como produccion.consumibles.
+type Consumible = {
+  id: string
+  entidad: 'envasado' | 'fraccionado'
+  entidad_id: string
+  orden: number
+  codigo: string
+  descripcion: string
+  cantidad: number
+  lote: string | null
+  cargado_por: string | null
+  cargado_at: string | null
 }
 type Evento = { entidad: Entidad; entidad_id: string; accion: string; at: string; empleado_id: string | null; usuario_id: string | null; datos: Fila }
 type Unidad = 'L' | 'kg'
@@ -149,6 +171,16 @@ export type Simulador = {
   registrarControl(d: DatosControl): { ok: true; intento: number } | Rechazo
   /** Como la RPC listar_liberadoras. */
   liberadoras(): { id: string; nombre: string }[]
+  /** Como la RPC crear_granel_stock: granel que no se fabricó en la app, el tanque queda para envasar. */
+  crearGranelStock(d: { tanque_id: string; producto_id: string; litros: number; lote: string | null }): { ok: true; id: string } | Rechazo
+  /** Como la RPC crear_envasado_documento (con o sin tanque) y sus consumibles. */
+  crearEnvasadoDocumento(env: Fila, consumibles?: Fila[] | null): { ok: true; id: string } | Rechazo
+  /** Como la RPC crear_fraccionado_documento. */
+  crearFraccionadoDocumento(frac: Fila, consumibles?: Fila[] | null): { ok: true; id: string } | Rechazo
+  /** Como la RPC cargar_consumible (sin empleado carga la encargada desde el panel). */
+  cargarConsumible(id: string, lote: string | null, empleadoId?: string | null): { ok: true } | Rechazo
+  /** Update directo de un envasado, validado como el trigger envasados_validar_edicion. */
+  editarEnvasado(id: string, cambios: Fila): { ok: true } | Rechazo
 }
 
 // PRNG determinista (mulberry32): la misma semilla da la misma película.
@@ -183,8 +215,9 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const mps: Mp[] = []
   const partes: Participacion[] = []
   const controles: Control[] = []
+  const consumibles: Consumible[] = []
   const etiquetas = ETIQUETAS.map((e, i) => ({ ...e, activo: true, created_at: new Date(opts.inicio - (10 - i) * 24 * 60 * MIN).toISOString() }))
-  const codigos = new Map<string, string>() // producto_id → código de la fórmula
+  const codigos = new Map<string, string>(Object.entries(CODIGOS_INICIALES)) // producto_id → código de la fórmula
 
   const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString())
   const elegir = <T,>(lista: T[]): T => lista[Math.floor(azar() * lista.length)]
@@ -193,10 +226,16 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const evento = (entidad: Entidad, id: string, accion: string, empleado: string | null = null, datos: Fila = {}, usuario: string | null = null) =>
     eventos.push({ entidad, entidad_id: id, accion, at: new Date(t).toISOString(), empleado_id: empleado, usuario_id: usuario, datos })
 
-  const producto = (id: string | null) => [...PRODUCTOS, ...PRODUCTOS_FRACCIONADO].find((p) => p.id === id)
+  const producto = (id: string | null) => [...PRODUCTOS, ...PRODUCTOS_FRACCIONADO, GRANEL_DOCUMENTO].find((p) => p.id === id)
   const presentacion = (id: string) => PRESENTACIONES.find((p) => p.id === id)!
+  // Presentación opcional (un fraccionado del PDF puede venir sin ella).
+  const presOpc = (id: string | null) => (id === null ? undefined : PRESENTACIONES.find((p) => p.id === id))
+  const equivDe = (id: string | null) => presOpc(id)?.litros_equiv ?? 1
   const tanque = (id: string) => TANQUES.find((x) => x.id === id)!
   const fabDe = (id: string) => fabs.find((f) => f.id === id)!
+  const fabDeEnv = (e: Env) => (e.fabricacion_id ? fabDe(e.fabricacion_id) : null)
+  // El granel de un envasado: el de su fabricación o, sin tanque, el del documento.
+  const granelDe = (e: Env) => fabDeEnv(e)?.producto_id ?? e.granel_id
 
   const abiertas = (entidad: Entidad, id: string) => partes.filter((p) => p.entidad === entidad && p.entidad_id === id && p.hasta === null)
   const nombreOperaria = (id: string) => OPERARIAS.find((o) => o.empleado_id === id)?.nombre ?? 'Operaria'
@@ -236,6 +275,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         producto_id: String(d.producto_id),
         litros: Number(d.litros),
         lote: d.lote ? String(d.lote) : `L-${++numLote}`,
+        origen: 'formula',
         operaria: (d.operaria_id as string | null) ?? null,
         envasado: 0,
         vencimiento: (d.vencimiento as string | null) ?? null,
@@ -249,13 +289,18 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       const e: Env = {
         ...base,
         id: nuevoId('de'),
-        fabricacion_id: String(d.fabricacion_id),
+        fabricacion_id: d.fabricacion_id ? String(d.fabricacion_id) : null,
+        granel_id: (d.granel_id as string | null) ?? null,
         presentacion_id: String(d.presentacion_id),
         cantidad: Number(d.cantidad),
         hechas: 0,
         operaria_1: (d.operaria_1 as string | null) ?? null,
         operaria_2: (d.operaria_2 as string | null) ?? null,
         etiqueta_id: (d.etiqueta_id as string | null) ?? null,
+        lote: (d.lote as string | null) ?? null,
+        codigo: (d.codigo as string | null) ?? null,
+        descripcion: (d.descripcion as string | null) ?? null,
+        litros_granel: (d.litros_granel as number | null) ?? null,
       }
       envs.push(e)
       evento('envasado', e.id, 'crear')
@@ -265,10 +310,11 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         id: nuevoId('dx'),
         producto_id: (d.producto_id as string | null) ?? null,
         descripcion: (d.descripcion as string | null) ?? null,
-        presentacion_id: String(d.presentacion_id),
+        presentacion_id: d.presentacion_id ? String(d.presentacion_id) : null,
         cantidad: Number(d.cantidad),
         hechas: 0,
         lote: (d.lote as string | null) ?? `L-${++numLote}`,
+        codigo: (d.codigo as string | null) ?? null,
         operaria: (d.operaria_id as string | null) ?? null,
         etiqueta_id: (d.etiqueta_id as string | null) ?? null,
       }
@@ -331,9 +377,131 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     return { ok: true }
   }
 
+  // ---------- envasado y fraccionado desde el PDF ----------
+  const rech = (codigo: CodigoError, detalle: string | null = null): Rechazo => ({ ok: false, codigo, detalle })
+  const vacio = (x: unknown) => (typeof x === 'string' ? x.trim() : '') === ''
+  const textoONulo = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : null)
+
+  // Como produccion._consumibles_validos: [{codigo, descripcion, cantidad}] con cantidad > 0 (vacío o null vale).
+  function consumiblesValidos(lista: Fila[] | null | undefined): boolean {
+    if (lista === null || lista === undefined) return true
+    if (!Array.isArray(lista)) return false
+    return lista.every(
+      (c) => c !== null && typeof c === 'object' && !Array.isArray(c) && !vacio(c.codigo) && !vacio(c.descripcion) && typeof c.cantidad === 'number' && c.cantidad > 0,
+    )
+  }
+  function guardarConsumibles(entidad: 'envasado' | 'fraccionado', id: string, lista: Fila[] | null | undefined) {
+    ;(lista ?? []).forEach((c, i) => {
+      consumibles.push({
+        id: nuevoId('dk'), entidad, entidad_id: id, orden: i + 1, codigo: String(c.codigo).trim(), descripcion: String(c.descripcion).trim(),
+        cantidad: Number(c.cantidad), lote: null, cargado_por: null, cargado_at: null,
+      })
+    })
+  }
+
+  function crearGranelStock(d: { tanque_id: string; producto_id: string; litros: number; lote: string | null }): { ok: true; id: string } | Rechazo {
+    const tq = TANQUES.find((x) => x.id === d.tanque_id)
+    if (!tq || !producto(d.producto_id) || !(d.litros > 0) || d.litros > tq.capacidad_l) return rech('DATOS_INVALIDOS')
+    if (fabAbierta(tq.id)) return rech('TANQUE_OCUPADO')
+    const f: Fab = {
+      estado: 'para_envasar', creado: t, inicio: t, fin: t, efectivos: 0, reanudarEn: null,
+      id: nuevoId('df'), tanque_id: tq.id, producto_id: d.producto_id, litros: Number(d.litros), lote: textoONulo(d.lote), origen: 'stock',
+      operaria: null, envasado: 0, vencimiento: null, fecha_formula: null, controlEn: null, minExtra: 0,
+    }
+    fabs.push(f)
+    evento('fabricacion', f.id, 'crear')
+    return { ok: true, id: f.id }
+  }
+
+  function crearEnvasadoDocumento(d: Fila, lista: Fila[] | null = []): { ok: true; id: string } | Rechazo {
+    const fabId = d.fabricacion_id ? String(d.fabricacion_id) : null
+    const granel = d.granel_id ? String(d.granel_id) : null
+    const pres = d.presentacion_id ? String(d.presentacion_id) : null
+    const cantidad = d.cantidad === null || d.cantidad === undefined ? NaN : Number(d.cantidad)
+    const litros = d.litros_granel === null || d.litros_granel === undefined ? null : Number(d.litros_granel)
+    if (
+      !granel || !pres || !producto(granel) || !presOpc(pres) || !Number.isInteger(cantidad) || cantidad <= 0 ||
+      (litros !== null && !(litros > 0)) || !consumiblesValidos(lista)
+    ) {
+      return rech('DATOS_INVALIDOS')
+    }
+    if (fabId) {
+      const f = fabs.find((y) => y.id === fabId)
+      if (!f) return rech('NO_ENCONTRADO')
+      if (!ABIERTA_FAB.has(f.estado)) return rech('TRANSICION_INVALIDA', `la fabricación está en estado ${f.estado.replaceAll('_', ' ')}`)
+      if (f.producto_id !== granel) return rech('GRANEL_DISTINTO')
+    }
+    insertar('envasados', {
+      fabricacion_id: fabId, granel_id: granel, presentacion_id: pres, cantidad, lote: textoONulo(d.lote), codigo: textoONulo(d.codigo),
+      descripcion: textoONulo(d.descripcion), litros_granel: litros, etiqueta_id: d.etiqueta_id ? String(d.etiqueta_id) : null,
+    })
+    const e = envs[envs.length - 1]
+    guardarConsumibles('envasado', e.id, lista)
+    return { ok: true, id: e.id }
+  }
+
+  function crearFraccionadoDocumento(d: Fila, lista: Fila[] | null = []): { ok: true; id: string } | Rechazo {
+    const prod = d.producto_id ? String(d.producto_id) : null
+    const pres = d.presentacion_id ? String(d.presentacion_id) : null
+    const cantidad = d.cantidad === null || d.cantidad === undefined ? NaN : Number(d.cantidad)
+    if (!Number.isInteger(cantidad) || cantidad <= 0 || (prod && !producto(prod)) || (pres && !presOpc(pres)) || !consumiblesValidos(lista)) {
+      return rech('DATOS_INVALIDOS')
+    }
+    insertar('fraccionados', {
+      producto_id: prod, presentacion_id: pres, cantidad, lote: textoONulo(d.lote) ?? '', codigo: textoONulo(d.codigo),
+      descripcion: textoONulo(d.descripcion), etiqueta_id: d.etiqueta_id ? String(d.etiqueta_id) : null,
+    })
+    const x = fracs[fracs.length - 1]
+    if (!textoONulo(d.lote)) x.lote = null // un documento sin lote no inventa uno
+    guardarConsumibles('fraccionado', x.id, lista)
+    return { ok: true, id: x.id }
+  }
+
+  function cargarConsumible(id: string, lote: string | null, empleadoId: string | null = null): { ok: true } | Rechazo {
+    if (empleadoId !== null && !OPERARIAS.some((o) => o.empleado_id === empleadoId)) return rech('OPERARIA_INACTIVA')
+    const c = consumibles.find((y) => y.id === id)
+    if (!c) return rech('NO_ENCONTRADO')
+    const tarea = c.entidad === 'envasado' ? envs.find((e) => e.id === c.entidad_id) : fracs.find((x) => x.id === c.entidad_id)
+    if (!tarea) return rech('NO_ENCONTRADO')
+    if (tarea.estado !== 'activo' && tarea.estado !== 'pausado') return rech('TRANSICION_INVALIDA', `está en estado ${tarea.estado.replaceAll('_', ' ')}`)
+    const en = abiertas(c.entidad, c.entidad_id)
+    if (empleadoId !== null && en.length > 0 && !en.some((p) => p.empleado_id === empleadoId)) return rech('NO_PARTICIPA')
+    c.lote = textoONulo(lote)
+    c.cargado_por = empleadoId ?? ('operaria_1' in tarea ? tarea.operaria_1 : tarea.operaria)
+    c.cargado_at = new Date(t).toISOString()
+    return { ok: true }
+  }
+
+  // Como el trigger envasados_validar_edicion: cantidad/presentación no se tocan cerrado; el tanque solo en cola,
+  // a una fabricación abierta del mismo granel.
+  function editarEnvasado(id: string, cambios: Fila): { ok: true } | Rechazo {
+    const e = envs.find((y) => y.id === id)
+    if (!e) return { ok: true } // un update que no encuentra filas no falla
+    const cantidad = 'cantidad' in cambios ? Number(cambios.cantidad) : e.cantidad
+    const pres = 'presentacion_id' in cambios ? String(cambios.presentacion_id) : e.presentacion_id
+    const fabId = 'fabricacion_id' in cambios ? ((cambios.fabricacion_id as string | null) ?? null) : e.fabricacion_id
+    const granel = 'granel_id' in cambios ? ((cambios.granel_id as string | null) ?? null) : e.granel_id
+    if ((cantidad !== e.cantidad || pres !== e.presentacion_id) && (e.estado === 'finalizado' || e.estado === 'cancelado')) return rech('NO_EDITABLE')
+    if (fabId !== e.fabricacion_id) {
+      if (e.estado !== 'cola') return rech('TANQUE_EN_USO')
+      if (fabId === null) return rech('SIN_TANQUE')
+      const dest = fabs.find((f) => f.id === fabId)
+      if (!dest || !ABIERTA_FAB.has(dest.estado)) return rech('TRANSICION_INVALIDA')
+      const viejo = e.fabricacion_id ? fabDe(e.fabricacion_id).producto_id : null
+      if (dest.producto_id !== (granel ?? viejo)) return rech('GRANEL_DISTINTO')
+    }
+    e.cantidad = cantidad
+    e.presentacion_id = pres
+    e.fabricacion_id = fabId
+    e.granel_id = granel
+    return { ok: true }
+  }
+
   // ---------- acciones ----------
   function cerrarSiCorresponde(f: Fab): boolean {
-    if (f.estado === 'para_envasar' && f.envasado >= f.litros - 0.5) {
+    // como accion(): solo si no quedan otros envasados pendientes de la fabricación
+    const pendientes = envs.some((e) => e.fabricacion_id === f.id && ABIERTA_TAREA.has(e.estado))
+    if (f.estado === 'para_envasar' && !pendientes && f.envasado >= f.litros - 0.5) {
       f.estado = 'finalizada'
       f.fin = t
       cerrarPartes('fabricacion', f.id)
@@ -349,7 +517,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     x.hechas = x.cantidad
     if (entidad !== 'envasado') return false
     const e = x as Env
-    const f = fabDe(e.fabricacion_id)
+    const f = fabDeEnv(e)
+    if (!f) return false
     f.envasado += e.cantidad * presentacion(e.presentacion_id).litros_equiv
     return cerrarSiCorresponde(f)
   }
@@ -368,9 +537,10 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     }
   }
 
-  const unidadDe = (productoId: string | null): Unidad => (producto(productoId)?.tipo === 'polvo' ? 'kg' : 'L')
+  // Un fraccionado sin producto (PDF sin coincidencia) es de polvo: va en kg.
+  const unidadDe = (productoId: string | null): Unidad => (productoId === null || producto(productoId)?.tipo === 'polvo' ? 'kg' : 'L')
   const productoDe = (entidad: Entidad, x: Base) =>
-    entidad === 'fabricacion' ? (x as Fab).producto_id : entidad === 'envasado' ? fabDe((x as Env).fabricacion_id).producto_id : (x as Frac).producto_id
+    entidad === 'fabricacion' ? (x as Fab).producto_id : entidad === 'envasado' ? granelDe(x as Env) : (x as Frac).producto_id
   const cantidadValida = (c: CantidadDeclarada | undefined) =>
     !!c && typeof c.cantidad === 'number' && c.cantidad > 0 && (c.unidad === 'L' || c.unidad === 'kg')
   const rechazo = (codigo: CodigoError, detalle = ''): ResultadoAccion => ({ ok: false, codigo, detalle })
@@ -382,6 +552,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     if (planta && !OPERARIAS.some((o) => o.empleado_id === empleadoId)) return rechazo('OPERARIA_INACTIVA')
     const x = lista.find((y) => y.id === id)
     if (!x) return rechazo('NO_ENCONTRADO', id)
+    // un envasado que espera fabricación no se inicia ni admite operarias
+    if (entidad === 'envasado' && (a === 'iniciar' || a === 'sumarse') && (x as Env).fabricacion_id === null) return rechazo('SIN_TANQUE')
     const fab = entidad === 'fabricacion'
     const enCurso = fab ? x.estado === 'fabricando' || x.estado === 'pausada' : x.estado === 'activo' || x.estado === 'pausado'
     const valida = a === 'sumarse' || a === 'salir' ? enCurso : accionesPosibles(entidad, x.estado, 'panel').includes(a)
@@ -407,6 +579,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     const abreQuienAcciona = planta && trabaja && en.length === 0
 
     // una operaria en un solo envasado activo a la vez (los pausados no bloquean)
+    if (entidad === 'envasado' && a === 'iniciar' && fabDeEnv(x as Env)?.estado !== 'para_envasar') return rechazo('TANQUE_NO_LISTO')
     if (entidad === 'envasado' && (a === 'iniciar' || a === 'sumarse' || a === 'reanudar')) {
       const e = x as Env
       const quienes = new Set<string>()
@@ -421,7 +594,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       for (const q of quienes) {
         const otro = envs.find((o) => o.id !== id && o.estado === 'activo' && abiertas('envasado', o.id).some((p) => p.empleado_id === q))
         if (otro) {
-          const nombre = `${producto(fabDe(otro.fabricacion_id).producto_id)?.nombre ?? ''} ${presentacion(otro.presentacion_id).nombre}`
+          const nombre = `${producto(granelDe(otro))?.nombre ?? ''} ${presentacion(otro.presentacion_id).nombre}`
           return rechazo('OPERARIA_OCUPADA', nombre.trim())
         }
       }
@@ -606,11 +779,10 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   // Al terminar sola, lo que falta declarar se reparte entre quienes siguen en la orden.
   function repartirRestante(entidad: Entidad, x: Env | Frac): Map<string, CantidadDeclarada> {
     const en = abiertas(entidad, x.id)
-    const pr = presentacion(x.presentacion_id)
     const yaDeclarado = partes
       .filter((p) => p.entidad === entidad && p.entidad_id === x.id && p.hasta !== null)
       .reduce((suma, p) => suma + (p.cantidad_corregida ?? p.cantidad ?? 0), 0)
-    const resto = Math.max(en.length, Math.round(x.cantidad * pr.litros_equiv - yaDeclarado))
+    const resto = Math.max(en.length, Math.round(x.cantidad * equivDe(x.presentacion_id) - yaDeclarado))
     const unidad = unidadDe(productoDe(entidad, x))
     const porCabeza = Math.max(1, Math.floor(resto / Math.max(1, en.length)))
     return new Map(
@@ -633,7 +805,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
             accion(entidad, x.id, 'salir', sale)
           } else {
             const o = x as Env | Frac
-            const hecho = o.hechas * presentacion(o.presentacion_id).litros_equiv
+            const hecho = o.hechas * equivDe(o.presentacion_id)
             const cantidad = Math.max(1, Math.round(hecho * (0.2 + azar() * 0.3)))
             accion(entidad, x.id, 'salir', sale, [{ empleado_id: sale, cantidad, unidad: unidadDe(productoDe(entidad, x)) }])
           }
@@ -690,7 +862,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         if (azar() < 0.1 && operariaLibre()) accion('fabricacion', f.id, 'iniciar')
       }
     }
-    for (const e of envs) if (e.estado === 'cola' && azar() < 0.3 && operariaLibre()) accion('envasado', e.id, 'iniciar')
+    for (const e of envs) if (e.estado === 'cola' && e.fabricacion_id && azar() < 0.3 && operariaLibre()) accion('envasado', e.id, 'iniciar')
     for (const x of fracs) if (x.estado === 'cola' && azar() < 0.15 && operariaLibre()) accion('fraccionado', x.id, 'iniciar')
     // la operaria va completando el checklist de MP (lote + pesado), de a una
     // (sin MP pendientes no se consume azar: las fabricaciones a mano siguen igual que antes)
@@ -706,7 +878,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     for (const e of envs) if (e.estado === 'activo' && azar() < 0.006) accion('envasado', e.id, 'pausar')
     // tanques listos: cargar el envasado de lo que falta
     for (const f of fabs) {
-      if (f.estado !== 'para_envasar' || envs.some((e) => e.fabricacion_id === f.id && ABIERTA_TAREA.has(e.estado))) continue
+      // el granel de stock se envasa solo desde un PDF o a mano: el piloto no lo toca
+      if (f.estado !== 'para_envasar' || f.origen === 'stock' || envs.some((e) => e.fabricacion_id === f.id && ABIERTA_TAREA.has(e.estado))) continue
       const falta = f.litros - f.envasado
       if (falta <= 0.5) {
         cerrarSiCorresponde(f)
@@ -759,6 +932,9 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     return { control_intento: hechos.length + 1, control_rechazo: motivo }
   }
 
+  const consumiblesDe = (entidad: 'envasado' | 'fraccionado', id: string) =>
+    consumibles.filter((c) => c.entidad === entidad && c.entidad_id === id)
+
   function vFlujo(): Fila[] {
     const filas: Fila[] = []
     for (const f of fabs) {
@@ -770,36 +946,38 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         descripcion: null, operaria_1: f.operaria, operaria_2: null, listo: true, inicio: iso(f.inicio),
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando',
         created_at: iso(f.creado), fin: iso(f.fin), fabricacion_id: null, litros_restantes: restante(f),
-        operarias: operariasDe('fabricacion', f.id), etiqueta: null, ...estadoControl(f),
+        operarias: operariasDe('fabricacion', f.id), etiqueta: null, ...estadoControl(f), lote_doc: null, granel_id: null, origen: f.origen,
       })
     }
     for (const e of envs) {
       if (e.estado === 'cancelado' || !visible(e, 'finalizado')) continue
-      const f = fabDe(e.fabricacion_id)
-      const p = producto(f.producto_id)
+      // sin tanque (esperando fabricación): el producto y los litros salen del documento
+      const f = fabDeEnv(e)
+      const p = producto(granelDe(e))
       const pr = presentacion(e.presentacion_id)
       filas.push({
         entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
-        tanque_codigo: tanque(f.tanque_id).codigo, presentacion: pr.nombre, cantidad: e.cantidad, litros: e.cantidad * pr.litros_equiv,
-        lote: f.lote, descripcion: null, operaria_1: e.operaria_1, operaria_2: e.operaria_2, listo: f.estado === 'para_envasar',
+        tanque_codigo: f ? tanque(f.tanque_id).codigo : null, presentacion: pr.nombre, cantidad: e.cantidad,
+        litros: f ? e.cantidad * pr.litros_equiv : e.litros_granel,
+        lote: f?.lote ?? null, descripcion: e.descripcion, operaria_1: e.operaria_1, operaria_2: e.operaria_2, listo: f?.estado === 'para_envasar',
         inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos, corriendo: e.estado === 'activo',
-        created_at: iso(e.creado), fin: iso(e.fin), fabricacion_id: f.id, litros_restantes: restante(f),
+        created_at: iso(e.creado), fin: iso(e.fin), fabricacion_id: f?.id ?? null, litros_restantes: f ? restante(f) : null,
         operarias: operariasDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id),
-        control_intento: null, control_rechazo: null,
+        control_intento: null, control_rechazo: null, lote_doc: e.lote, granel_id: granelDe(e), origen: null,
       })
     }
     for (const x of fracs) {
       if (x.estado === 'cancelado' || !visible(x, 'finalizado')) continue
       const p = producto(x.producto_id)
-      const pr = presentacion(x.presentacion_id)
+      const pr = presOpc(x.presentacion_id)
       filas.push({
         entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? x.descripcion, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
-        tanque_codigo: null, presentacion: pr.nombre, cantidad: x.cantidad, litros: x.cantidad * pr.litros_equiv, lote: x.lote,
+        tanque_codigo: null, presentacion: pr?.nombre ?? null, cantidad: x.cantidad, litros: pr ? x.cantidad * pr.litros_equiv : null, lote: x.lote,
         descripcion: x.descripcion, operaria_1: x.operaria, operaria_2: null, listo: true, inicio: iso(x.inicio),
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
         fin: iso(x.fin), fabricacion_id: null, litros_restantes: null,
         operarias: operariasDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id),
-        control_intento: null, control_rechazo: null,
+        control_intento: null, control_rechazo: null, lote_doc: x.lote, granel_id: null, origen: null,
       })
     }
     return filas.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
@@ -842,33 +1020,39 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         min_efectivos: f.inicio === null ? null : f.efectivos, corriendo: f.estado === 'fabricando', created_at: iso(f.creado),
         mp_total: mp.length, mp_completas: mp.filter(mpCompleta).length,
         operarias: operariasDe('fabricacion', f.id), etiqueta: null, vencimiento: f.vencimiento, ...estadoControl(f),
+        lote_doc: null, consumibles_total: 0, consumibles_con_lote: 0,
       })
     }
     for (const e of envs) {
-      if (!ABIERTA_TAREA.has(e.estado)) continue
-      const f = fabDe(e.fabricacion_id)
+      // sin tanque no es tarea de planta
+      const f = fabDeEnv(e)
+      if (!ABIERTA_TAREA.has(e.estado) || !f) continue
       const p = producto(f.producto_id)
+      const cons = consumiblesDe('envasado', e.id)
       filas.push({
         entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
         tanque_codigo: tanque(f.tanque_id).codigo, presentacion: presentacion(e.presentacion_id).nombre, cantidad: e.cantidad,
-        litros: f.litros, lote: f.lote, descripcion: null, operaria_1: e.operaria_1, operaria_2: e.operaria_2,
+        litros: f.litros, lote: f.lote, descripcion: e.descripcion, operaria_1: e.operaria_1, operaria_2: e.operaria_2,
         listo: f.estado === 'para_envasar', inicio: iso(e.inicio), min_efectivos: e.inicio === null ? null : e.efectivos,
         corriendo: e.estado === 'activo', created_at: iso(e.creado), mp_total: 0, mp_completas: 0,
         operarias: operariasDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id), vencimiento: f.vencimiento,
         control_intento: null, control_rechazo: null,
+        lote_doc: e.lote, consumibles_total: cons.length, consumibles_con_lote: cons.filter((c) => c.lote !== null).length,
       })
     }
     for (const x of fracs) {
       if (!ABIERTA_TAREA.has(x.estado)) continue
       const p = producto(x.producto_id)
+      const cons = consumiblesDe('fraccionado', x.id)
       filas.push({
         entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? null, color: p?.color ?? null, producto_tipo: p?.tipo ?? null,
-        tanque_codigo: null, presentacion: presentacion(x.presentacion_id).nombre, cantidad: x.cantidad, litros: null,
+        tanque_codigo: null, presentacion: presOpc(x.presentacion_id)?.nombre ?? null, cantidad: x.cantidad, litros: null,
         lote: x.lote, descripcion: x.descripcion, operaria_1: x.operaria, operaria_2: null, listo: true, inicio: iso(x.inicio),
         min_efectivos: x.inicio === null ? null : x.efectivos, corriendo: x.estado === 'activo', created_at: iso(x.creado),
         mp_total: 0, mp_completas: 0,
         operarias: operariasDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id), vencimiento: null,
         control_intento: null, control_rechazo: null,
+        lote_doc: x.lote, consumibles_total: cons.length, consumibles_con_lote: cons.filter((c) => c.lote !== null).length,
       })
     }
     return filas
@@ -897,6 +1081,13 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         cantidad: p.cantidad, unidad: p.unidad, cantidad_corregida: p.cantidad_corregida, minutos: minutosParte(p),
       }))
 
+  // jsonb `consumibles` de v_historial: con quién cargó el lote y cuándo.
+  const consumiblesHistorial = (entidad: 'envasado' | 'fraccionado', id: string) =>
+    consumiblesDe(entidad, id).map((c) => ({
+      codigo: c.codigo, descripcion: c.descripcion, cantidad: c.cantidad, lote: c.lote,
+      cargado_nombre: c.cargado_por ? nombreOperaria(c.cargado_por) : null, cargado_at: c.cargado_at,
+    }))
+
   function vHistorial(): Fila[] {
     const dia = (ms: number) => new Date(ms - 3 * 60 * MIN).toISOString().slice(0, 10) // Montevideo, UTC-3
     const tiempos = (x: Base) => {
@@ -916,30 +1107,33 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         inicio: iso(f.inicio), fin: iso(f.fin), created_at: iso(f.creado), ...tiempos(f), dia: dia(f.fin ?? f.inicio ?? f.creado),
         participaciones: participacionesDe('fabricacion', f.id), etiqueta: null,
         controles: controlesDe(f.id).map(({ id: _id, fabricacion_id: _f, firmado_por: _p, ...c }) => c),
+        lote_doc: null, consumibles: [], origen: f.origen,
       })
     }
     for (const e of envs) {
-      const f = fabDe(e.fabricacion_id)
-      const p = producto(f.producto_id)
+      const f = fabDeEnv(e)
+      const p = producto(granelDe(e))
       const pr = presentacion(e.presentacion_id)
       filas.push({
-        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, tanque_codigo: tanque(f.tanque_id).codigo,
-        presentacion: pr.nombre, cantidad: e.cantidad, litros: e.cantidad * pr.litros_equiv, litros_equiv: pr.litros_equiv, lote: f.lote, descripcion: null,
+        entidad: 'envasado', id: e.id, estado: e.estado, producto: p?.nombre ?? null, color: p?.color ?? null, tanque_codigo: f ? tanque(f.tanque_id).codigo : null,
+        presentacion: pr.nombre, cantidad: e.cantidad, litros: e.cantidad * pr.litros_equiv, litros_equiv: pr.litros_equiv, lote: f?.lote ?? null, descripcion: e.descripcion,
         operaria_1: e.operaria_1, operaria_1_nombre: e.operaria_1 ? nombreOperaria(e.operaria_1) : null,
         operaria_2: e.operaria_2, operaria_2_nombre: e.operaria_2 ? nombreOperaria(e.operaria_2) : null,
         inicio: iso(e.inicio), fin: iso(e.fin), created_at: iso(e.creado), ...tiempos(e), dia: dia(e.fin ?? e.inicio ?? e.creado),
         participaciones: participacionesDe('envasado', e.id), etiqueta: nombreEtiqueta(e.etiqueta_id), controles: [],
+        lote_doc: e.lote, consumibles: consumiblesHistorial('envasado', e.id), origen: null,
       })
     }
     for (const x of fracs) {
       const p = producto(x.producto_id)
-      const pr = presentacion(x.presentacion_id)
+      const pr = presOpc(x.presentacion_id)
       filas.push({
         entidad: 'fraccionado', id: x.id, estado: x.estado, producto: p?.nombre ?? x.descripcion, color: p?.color ?? null, tanque_codigo: null,
-        presentacion: pr.nombre, cantidad: x.cantidad, litros: x.cantidad * pr.litros_equiv, litros_equiv: pr.litros_equiv, lote: x.lote, descripcion: x.descripcion,
+        presentacion: pr?.nombre ?? null, cantidad: x.cantidad, litros: pr ? x.cantidad * pr.litros_equiv : null, litros_equiv: pr?.litros_equiv ?? null, lote: x.lote, descripcion: x.descripcion,
         operaria_1: x.operaria, operaria_1_nombre: x.operaria ? nombreOperaria(x.operaria) : null, operaria_2: null, operaria_2_nombre: null,
         inicio: iso(x.inicio), fin: iso(x.fin), created_at: iso(x.creado), ...tiempos(x), dia: dia(x.fin ?? x.inicio ?? x.creado),
         participaciones: participacionesDe('fraccionado', x.id), etiqueta: nombreEtiqueta(x.etiqueta_id), controles: [],
+        lote_doc: x.lote, consumibles: consumiblesHistorial('fraccionado', x.id), origen: null,
       })
     }
     return filas
@@ -961,17 +1155,24 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         return partes.map((p) => ({ ...p }))
       case 'controles':
         return controles.map((c) => ({ ...c }))
+      case 'consumibles':
+        return consumibles.map((c) => ({ ...c }))
+      case 'fraccionados':
+        return fracs.map((x) => ({
+          id: x.id, lote: x.lote, codigo: x.codigo, estado: x.estado, producto_id: x.producto_id, presentacion_id: x.presentacion_id,
+          cantidad: x.cantidad, etiqueta_id: x.etiqueta_id,
+        }))
       case 'fabricacion_mp':
         return mps.map((m) => ({ ...m }))
       case 'fabricaciones':
         return fabs.map((f) => ({
           id: f.id, tanque_id: f.tanque_id, producto_id: f.producto_id, litros: f.litros, lote: f.lote, estado: f.estado,
-          operaria_id: f.operaria, vencimiento: f.vencimiento, fecha_formula: f.fecha_formula, created_at: iso(f.creado),
+          operaria_id: f.operaria, vencimiento: f.vencimiento, fecha_formula: f.fecha_formula, created_at: iso(f.creado), origen: f.origen,
         }))
       case 'v_operarias':
         return OPERARIAS.map((o) => ({ ...o, foto_url: null, activo: true }))
       case 'productos':
-        return [...PRODUCTOS, ...PRODUCTOS_FRACCIONADO].map((p) => ({
+        return [...PRODUCTOS, ...PRODUCTOS_FRACCIONADO, GRANEL_DOCUMENTO].map((p) => ({
           ...p, codigo: codigos.get(p.id) ?? null, litros_hora_std: null, activo: true,
         }))
       case 'presentaciones':
@@ -988,6 +1189,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       case 'envasados':
         return envs.map((e) => ({
           id: e.id, fabricacion_id: e.fabricacion_id, presentacion_id: e.presentacion_id, cantidad: e.cantidad, estado: e.estado, etiqueta_id: e.etiqueta_id,
+          granel_id: e.granel_id, lote: e.lote, codigo: e.codigo, descripcion: e.descripcion, litros_granel: e.litros_granel,
           presentaciones: { litros_equiv: presentacion(e.presentacion_id).litros_equiv },
         }))
       default:
@@ -999,7 +1201,10 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   if (autonomo) {
     // T-03 arranca siempre con un polvo, para que se vea la bolsa ziplock.
     const polvos = PRODUCTOS.filter((p) => p.tipo === 'polvo')
+    // Granel de stock listo para envasar: lo que sugiere el tanque al subir el PDF de envasado de la demo.
+    crearGranelStock({ tanque_id: GRANEL_DOCUMENTO.tanque_id, producto_id: GRANEL_DOCUMENTO.id, litros: GRANEL_DOCUMENTO.litros, lote: GRANEL_DOCUMENTO.lote })
     TANQUES.forEach((tq, i) => {
+      if (fabAbierta(tq.id)) return
       const forzado = i === 2
       if (forzado || azar() < 0.85) {
         const litros = Math.round((tq.capacidad_l * (0.55 + azar() * 0.35)) / 50) * 50
@@ -1022,5 +1227,6 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     usuarios: () => [{ ...ENCARGADA }],
     registrarControl,
     liberadoras: () => [{ id: ENCARGADA.id, nombre: ENCARGADA.nombre }],
+    crearGranelStock, crearEnvasadoDocumento, crearFraccionadoDocumento, cargarConsumible, editarEnvasado,
   }
 }

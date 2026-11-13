@@ -46,7 +46,22 @@ export const PRESENTACIONES: PresentacionDemo[] = [
   { id: 'dr4', nombre: '5L', litros_equiv: 5 },
   { id: 'dr5', nombre: '10L', litros_equiv: 10 },
   { id: 'dr6', nombre: '1kg', litros_equiv: 1 },
+  { id: 'dr7', nombre: '1.5L', litros_equiv: 1.5 },
 ]
+
+// Granel de stock de la demo, con el código y el nombre del PDF de envasado inventado (e2e/fixtures): ya está en
+// un tanque «para envasar» y no entra en el sorteo de productos, así la tarjeta del PDF siempre sugiere ese tanque.
+export const GRANEL_DOCUMENTO: ProductoDemo & { codigo: string; tanque_id: string; litros: number; lote: string } = {
+  id: 'dp15',
+  nombre: 'Limpiador Prueba (Granel)',
+  color: '#14b8a6',
+  tipo: 'liquido',
+  codigo: 'F9',
+  tanque_id: 'dt16',
+  litros: 900,
+  lote: 'G-9001',
+}
+export const CODIGOS_INICIALES: Record<string, string> = { [GRANEL_DOCUMENTO.id]: GRANEL_DOCUMENTO.codigo }
 
 export const OPERARIAS: OperariaDemo[] = [
   { empleado_id: 'do1', nombre: 'Lucía Méndez', categoria: 'A', color_avatar: '#db2777' },

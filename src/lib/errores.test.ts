@@ -117,3 +117,18 @@ describe('mensajeError: operarias múltiples', () => {
     expect(mensajeError({ codigo })).toEqual({ codigo, texto })
   })
 })
+
+describe('mensajeError: envasado por documento (trigger y RPC)', () => {
+  it.each([
+    ['SIN_TANQUE', 'Este envasado no tiene tanque asignado.'],
+    ['GRANEL_DISTINTO', 'Ese tanque tiene otro granel.'],
+    ['NO_EDITABLE', 'Este envasado ya terminó: no se puede modificar.'],
+    ['TANQUE_EN_USO', 'El envasado ya empezó: para cambiar de tanque cancelalo y creá uno nuevo.'],
+  ])('%s llega como message del trigger (PC001)', (message, texto) => {
+    expect(mensajeError({ message, code: 'PC001' })).toEqual({ codigo: message, texto })
+  })
+
+  it('TRANSICION_INVALIDA del trigger sin detalle', () => {
+    expect(mensajeError({ message: 'TRANSICION_INVALIDA', code: 'PC001' })).toMatchObject({ codigo: 'TRANSICION_INVALIDA' })
+  })
+})

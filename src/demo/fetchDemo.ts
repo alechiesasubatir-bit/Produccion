@@ -95,6 +95,19 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
         return responder(sim.usuarios())
       } else if (ruta === 'rpc/crear_fabricacion_formula') {
         r = sim.crearFormula((args.p_fab ?? {}) as Fila, (args.p_mp ?? []) as Fila[])
+      } else if (ruta === 'rpc/crear_granel_stock') {
+        r = sim.crearGranelStock({
+          tanque_id: String(args.p_tanque_id),
+          producto_id: String(args.p_producto_id),
+          litros: Number(args.p_litros),
+          lote: texto('p_lote'),
+        })
+      } else if (ruta === 'rpc/crear_envasado_documento') {
+        r = sim.crearEnvasadoDocumento((args.p_env ?? {}) as Fila, (args.p_consumibles ?? []) as Fila[])
+      } else if (ruta === 'rpc/crear_fraccionado_documento') {
+        r = sim.crearFraccionadoDocumento((args.p_frac ?? {}) as Fila, (args.p_consumibles ?? []) as Fila[])
+      } else if (ruta === 'rpc/cargar_consumible') {
+        r = sim.cargarConsumible(String(args.p_id), texto('p_lote'), texto('p_empleado_id'))
       } else if (ruta === 'rpc/cargar_mp') {
         r = sim.cargarMp(String(args.p_mp_id), texto('p_lote'), args.p_pesado === true, texto('p_empleado_id'))
       }
@@ -125,6 +138,15 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
       }
       onCambio()
       return responder(null, 201)
+    }
+
+    // Edición de un envasado: el trigger de la base rechaza con PC001 y el código en el mensaje.
+    if (metodo === 'PATCH' && ruta === 'envasados') {
+      const id = url.searchParams.get('id')?.replace(/^eq\./, '')
+      const r = id ? sim.editarEnvasado(id, ((await cuerpo(init)) ?? {}) as Fila) : null
+      if (r && !r.ok) return responder({ code: 'PC001', message: r.codigo, details: r.detalle, hint: null }, 400)
+      onCambio()
+      return responder(null, 204)
     }
 
     // PATCH / DELETE (alertas, catálogos): en la demo no hay nada que guardar.

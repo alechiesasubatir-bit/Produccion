@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { coincidir } from '../domain/escaneo'
+import { tipoDeHoja } from '../domain/envasadoPdf'
 import { leerFormulas, type Formula } from '../domain/formulaPdf'
 import { validarFabricacionFormula, type NuevaFabricacionFormula } from '../domain/ordenes'
 import { useEnLinea } from '../lib/useEnLinea'
@@ -18,6 +19,10 @@ type Tarjeta = {
   tocados: Set<string>
 }
 
+/** Una hoja que no es de esta pestaña: quien la contiene cambia de pestaña y se la devuelve al otro lector. */
+export type OtroTipo = (tipo: 'fabricacion' | 'envasado' | 'fraccionado', aviso: string, archivo: File) => void
+export type ArchivoInicial = { archivo: File; aviso: string }
+
 const SIN_LEER = 'No pude abrir el PDF. Probá con otro archivo o cargá la orden a mano.'
 
 const numero = (n: number) => n.toLocaleString('es-AR', { useGrouping: false, maximumFractionDigits: 3 })
@@ -34,14 +39,21 @@ const ETIQUETAS: [keyof NuevaFabricacionFormula, string][] = [
 ]
 const enumerar = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`)
 
-function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tarjeta {
-  // Primero por código del granel (F8); si no, por nombre normalizado.
-  const porCodigo = productos.find((p) => p.codigo === formula.granel.codigo)
-  const c = porCodigo ? null : coincidir(formula.granel.nombre, productos)
+/** Producto del granel del PDF: primero por código (F8); si no, por nombre normalizado.
+ * `segura`: el código del PDF puede quedar atado al producto para siempre. */
+export function buscarGranel(productos: DatosOrden['productos'], codigo: string, nombre: string) {
+  const porCodigo = productos.find((p) => p.codigo === codigo)
+  const c = porCodigo ? null : coincidir(nombre, productos)
   const porNombre = c && 'item' in c ? c : null
-  const producto = porCodigo ?? porNombre?.item
-  // El código del PDF queda atado al producto para siempre: solo si la coincidencia es segura.
-  const segura = Boolean(porCodigo) || Boolean(porNombre?.exacta)
+  return {
+    producto: porCodigo ?? porNombre?.item,
+    segura: Boolean(porCodigo) || Boolean(porNombre?.exacta),
+    aproximada: Boolean(porNombre && !porNombre.exacta),
+  }
+}
+
+function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tarjeta {
+  const { producto, segura, aproximada } = buscarGranel(productos, formula.granel.codigo, formula.granel.nombre)
   return {
     formula,
     fab: {
@@ -55,7 +67,7 @@ function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tar
       codigo_producto: segura ? formula.granel.codigo : '',
     },
     productoEncontrado: Boolean(producto),
-    aproximada: Boolean(porNombre && !porNombre.exacta),
+    aproximada,
     estado: 'pendiente',
     error: null,
     tocados: new Set(),
@@ -68,18 +80,25 @@ export function SubirFormula({
   datos,
   onCreadas,
   onAlgunaCreada,
+  onOtroTipo,
+  inicial,
 }: {
   datos: DatosOrden
   /** Todas las tarjetas quedaron creadas. */
   onCreadas: () => void
   /** Se creó una (aunque otras sigan pendientes): quien cierre el modal tiene que recargar. */
   onAlgunaCreada?: () => void
+  /** Era una hoja de envasado: se abre en esa pestaña. */
+  onOtroTipo?: OtroTipo
+  /** Archivo que llegó desde otra pestaña, con el aviso de por qué. */
+  inicial?: ArchivoInicial
 }) {
   const enLinea = useEnLinea()
   const [leyendo, setLeyendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>([])
   const avisado = useRef(false)
+  const inicialLeido = useRef(false)
 
   const todasCreadas = tarjetas.length > 0 && tarjetas.every((t) => t.estado === 'creada')
   useEffect(() => {
@@ -96,7 +115,12 @@ export function SubirFormula({
     setTarjetas([])
     avisado.current = false
     try {
-      const r = leerFormulas(await extraerFragmentos(archivo))
+      const fr = await extraerFragmentos(archivo)
+      if (onOtroTipo && tipoDeHoja(fr) === 'envasado') {
+        onOtroTipo('envasado', 'Es una hoja de envasado: la abrí en Envasado.', archivo)
+        return
+      }
+      const r = leerFormulas(fr)
       if (r.ok) setTarjetas(r.formulas.map((f) => nuevaTarjeta(f, datos.productos)))
       else setError(r.error)
     } catch {
@@ -105,6 +129,12 @@ export function SubirFormula({
       setLeyendo(false)
     }
   }
+
+  useEffect(() => {
+    if (!inicial || inicialLeido.current) return
+    inicialLeido.current = true
+    void elegir(inicial.archivo)
+  }, [])
 
   const cambiar = (i: number, cambios: Partial<NuevaFabricacionFormula>) =>
     setTarjetas((ts) =>
@@ -165,6 +195,11 @@ export function SubirFormula({
           onChange={(e) => void elegir(e.target.files?.[0])}
         />
       </label>
+      {inicial && (
+        <p className="advertencia" role="status">
+          {inicial.aviso}
+        </p>
+      )}
       {error && (
         <p className="aviso-panel" role="alert">
           {error}

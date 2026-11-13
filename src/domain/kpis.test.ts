@@ -77,4 +77,9 @@ describe('fabricación terminada', () => {
     expect(r.fabricaciones).toBe(1)
     expect(r.litrosFabricados).toBe(800)
   })
+  it('el granel de stock no cuenta como fabricación ni suma litros', () => {
+    const r = resumenOperaciones([filaH({ estado: 'para_envasar', origen: 'stock', litros: 800, min_efectivos: 40 })])
+    expect(r.fabricaciones).toBe(0)
+    expect(r.litrosFabricados).toBe(0)
+  })
 })

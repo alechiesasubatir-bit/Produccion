@@ -52,6 +52,9 @@ const suya: Tarea = {
   etiqueta: null,
   control_intento: null,
   control_rechazo: null,
+  lote_doc: null,
+  consumibles_total: 0,
+  consumibles_con_lote: 0,
   vencimiento: null,
 }
 

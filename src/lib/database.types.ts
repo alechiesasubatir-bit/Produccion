@@ -7,6 +7,15 @@ import type { OperariaEnOrden, Participacion } from '../domain/participaciones'
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
+export type ConsumibleHistorial = {
+  codigo: string
+  descripcion: string
+  cantidad: number
+  lote: string | null
+  cargado_nombre: string | null
+  cargado_at: string | null
+}
+
 type Ts = string // timestamptz en ISO
 type Uuid = string
 
@@ -105,6 +114,7 @@ export type Database = {
           lote: string | null
           vencimiento: string | null
           fecha_formula: string | null
+          origen: 'formula' | 'stock'
           estado: EstadoFabricacion
           operaria_id: Uuid | null
           inicio: Ts | null
@@ -116,6 +126,7 @@ export type Database = {
         | 'lote'
         | 'vencimiento'
         | 'fecha_formula'
+        | 'origen'
         | 'estado'
         | 'operaria_id'
         | 'inicio'
@@ -162,9 +173,14 @@ export type Database = {
         Tabla<
         {
           id: Uuid
-          fabricacion_id: Uuid
+          fabricacion_id: Uuid | null
           presentacion_id: Uuid
           cantidad: number
+          lote: string | null
+          codigo: string | null
+          descripcion: string | null
+          granel_id: Uuid | null
+          litros_granel: number | null
           etiquetado: string | null
           etiqueta_id: Uuid | null
           operaria_1: Uuid | null
@@ -175,7 +191,7 @@ export type Database = {
           creado_por: Uuid | null
           created_at: Ts
         },
-        'id' | 'etiquetado' | 'etiqueta_id' | 'operaria_1' | 'operaria_2' | 'estado' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
+        'id' | 'lote' | 'codigo' | 'descripcion' | 'granel_id' | 'litros_granel' | 'etiquetado' | 'etiqueta_id' | 'operaria_1' | 'operaria_2' | 'estado' | 'inicio' | 'fin' | 'creado_por' | 'created_at'
         >,
         [
           {
@@ -196,6 +212,7 @@ export type Database = {
           presentacion_id: Uuid | null
           cantidad: number
           lote: string | null
+          codigo: string | null
           etiquetado: string | null
           etiqueta_id: Uuid | null
           operaria_id: Uuid | null
@@ -210,6 +227,7 @@ export type Database = {
         | 'producto_id'
         | 'presentacion_id'
         | 'lote'
+        | 'codigo'
         | 'etiquetado'
         | 'etiqueta_id'
         | 'operaria_id'
@@ -218,6 +236,21 @@ export type Database = {
         | 'fin'
         | 'creado_por'
         | 'created_at'
+      >
+      consumibles: Tabla<
+        {
+          id: Uuid
+          entidad: 'envasado' | 'fraccionado'
+          entidad_id: Uuid
+          orden: number
+          codigo: string
+          descripcion: string
+          cantidad: number
+          lote: string | null
+          cargado_por: Uuid | null
+          cargado_at: Ts | null
+        },
+        'id' | 'lote' | 'cargado_por' | 'cargado_at'
       >
       participaciones: Tabla<
         {
@@ -325,6 +358,9 @@ export type Database = {
         etiqueta: string | null
         control_intento: number | null
         control_rechazo: string | null
+        lote_doc: string | null
+        granel_id: Uuid | null
+        origen: 'formula' | 'stock' | null
       }>
       v_tareas: Vista<{
         entidad: EntidadEvento
@@ -353,6 +389,9 @@ export type Database = {
         vencimiento: string | null
         control_intento: number | null
         control_rechazo: string | null
+        lote_doc: string | null
+        consumibles_total: number
+        consumibles_con_lote: number
       }>
       v_historial: Vista<{
         entidad: EntidadEvento
@@ -381,6 +420,9 @@ export type Database = {
         participaciones: Participacion[]
         etiqueta: string | null
         controles: ControlHistorial[]
+        lote_doc: string | null
+        consumibles: ConsumibleHistorial[]
+        origen: 'formula' | 'stock' | null
       }>
       v_tiempos_estandar: Vista<{
         entidad: 'fabricacion' | 'envasado'
@@ -461,6 +503,46 @@ export type Database = {
           p_empleado_id?: Uuid
           p_pin?: string
         }
+        Returns: Json
+      }
+      crear_granel_stock: {
+        Args: { p_tanque_id: Uuid; p_producto_id: Uuid; p_litros: number; p_lote: string }
+        Returns: Json
+      }
+      crear_envasado_documento: {
+        Args: {
+          p_env: {
+            fabricacion_id: Uuid | null
+            granel_id: Uuid | null
+            presentacion_id: Uuid
+            cantidad: number
+            lote: string
+            codigo: string
+            descripcion: string
+            litros_granel: number | null
+            etiqueta_id: Uuid | null
+          }
+          p_consumibles?: { codigo: string; descripcion: string; cantidad: number }[]
+        }
+        Returns: Json
+      }
+      crear_fraccionado_documento: {
+        Args: {
+          p_frac: {
+            producto_id: Uuid | null
+            presentacion_id: Uuid | null
+            cantidad: number
+            lote: string
+            codigo: string
+            descripcion: string
+            etiqueta_id: Uuid | null
+          }
+          p_consumibles?: { codigo: string; descripcion: string; cantidad: number }[]
+        }
+        Returns: Json
+      }
+      cargar_consumible: {
+        Args: { p_id: Uuid; p_lote: string; p_empleado_id?: Uuid }
         Returns: Json
       }
       listar_usuarios: {

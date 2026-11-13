@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Participacion } from './participaciones'
 import { filaH } from '../test/fabricas'
-import { controlTexto, diasDelMes, filasPorParticipacion, filtrarHistorial, operariasTexto, moverRango, ordenarHistorial, porDia, rangoDe } from './historial'
+import { consumiblesTexto, controlTexto, diasDelMes, filasPorParticipacion, filtrarHistorial, operariasTexto, moverRango, ordenarHistorial, porDia, rangoDe } from './historial'
 
 describe('porDia', () => {
   it('cada tarea cae en un solo día (el de la vista)', () => {
@@ -125,5 +125,15 @@ describe('controlTexto', () => {
   it('sin controles o de otro tipo: raya', () => {
     expect(controlTexto(filaH())).toBe('—')
     expect(controlTexto(filaH({ entidad: 'envasado', controles: [c(1, 'aprobado')] }))).toBe('—')
+  })
+})
+
+describe('consumiblesTexto', () => {
+  const c = (codigo: string, lote: string | null) => ({ codigo, descripcion: codigo, cantidad: 1, lote, cargado_nombre: null, cargado_at: null })
+  it('une «codigo: lote» en orden; sin lote queda «codigo: —»', () => {
+    expect(consumiblesTexto(filaH({ consumibles: [c('ENV-1', 'L1'), c('TAP-2', null)] }))).toBe('ENV-1: L1; TAP-2: —')
+  })
+  it('vacío si no hay consumibles', () => {
+    expect(consumiblesTexto(filaH())).toBe('')
   })
 })

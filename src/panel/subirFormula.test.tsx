@@ -61,6 +61,7 @@ const base: DatosOrden = {
   asignados: {},
   estandares: [],
   lotesAbiertos: [],
+  fabricacionesAbiertas: [],
 }
 
 async function subir(datos: DatosOrden = base, fr: Fragmento[] = fragmentos) {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, corregirCantidad, ejecutarAccion, guardarMp, listarLiberadoras, registrarControl, setVencimiento } from './acciones'
+import { accionPanel, corregirCantidad, ejecutarAccion, guardarConsumible, guardarMp, listarLiberadoras, registrarControl, setVencimiento } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -196,5 +196,17 @@ describe('listarLiberadoras', () => {
   it('lanza si la RPC falla (42501)', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'no autorizado', code: '42501' } })
     await expect(listarLiberadoras()).rejects.toMatchObject({ code: '42501' })
+  })
+})
+
+describe('guardarConsumible', () => {
+  it('llama a cargar_consumible con los parámetros exactos', async () => {
+    rpc.mockResolvedValue({ data: { ok: true }, error: null })
+    expect(await guardarConsumible('c1', 'L9', 'E1')).toEqual({ ok: true })
+    expect(rpc).toHaveBeenLastCalledWith('cargar_consumible', { p_id: 'c1', p_lote: 'L9', p_empleado_id: 'E1' })
+  })
+  it('rechazo de negocio', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'TRANSICION_INVALIDA' }, error: null })
+    expect(await guardarConsumible('c1', 'L9')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
   })
 })

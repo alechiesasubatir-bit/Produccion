@@ -148,6 +148,7 @@ export function TarjetaTarea({
           {tarea.tanque_codigo && <span className="tarea-tanque">{tarea.tanque_codigo}</span>}
           <Chip estado={tarea.entidad === 'fraccionado' && tarea.estado === 'activo' ? 'fraccionado' : tarea.estado} />
           {tarea.lote && <span className="tarea-lote">Lote {tarea.lote}</span>}
+          {tarea.lote_doc && tarea.lote_doc !== tarea.lote && <span className="tarea-lote">Lote doc. {tarea.lote_doc}</span>}
           {enControl && tarea.control_intento !== null && <span className="tarea-intento">Intento {tarea.control_intento}</span>}
           {otras.length > 0 && <span className="tarea-con">Con: {otras.join(' · ')}</span>}
         </span>

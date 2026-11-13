@@ -30,6 +30,9 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     etiqueta: null,
     control_intento: null,
     control_rechazo: null,
+    lote_doc: null,
+    consumibles_total: 0,
+    consumibles_con_lote: 0,
     vencimiento: null,
     tanque_codigo: 'T-01',
     presentacion: null,
@@ -119,6 +122,14 @@ describe('textos', () => {
     expect(tituloTarea(tarea({ entidad: 'envasado', producto: 'Lavandina', cantidad: 120, presentacion: '5L' }))).toBe(
       'Lavandina · 120 × 5L',
     )
+  })
+})
+
+describe('título de envasado con descripción', () => {
+  it('usa la descripción del producto terminado y la cantidad', () => {
+    expect(
+      tituloTarea(tarea({ entidad: 'envasado', producto: 'Limpiador', cantidad: 630, presentacion: '1.5 L', descripcion: 'Limpiador Prueba x 1.5 L' })),
+    ).toBe('Limpiador Prueba x 1.5 L · 630')
   })
 })
 

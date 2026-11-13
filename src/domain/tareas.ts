@@ -130,6 +130,7 @@ export function pasadoAccion(accion: Accion): string {
 
 export function tituloTarea(t: Pick<Tarea, 'entidad' | 'producto' | 'litros' | 'cantidad' | 'presentacion' | 'descripcion'>): string {
   if (t.entidad === 'fabricacion') return `${t.producto ?? 'Fabricación'} · ${t.litros ?? '?'} L`
+  if (t.entidad === 'envasado' && t.descripcion) return `${t.descripcion} · ${t.cantidad ?? '?'}`
   if (t.entidad === 'envasado') return `${t.producto ?? 'Envasado'} · ${t.cantidad ?? '?'} × ${t.presentacion ?? '?'}`
   return t.descripcion ?? t.producto ?? 'Fraccionado'
 }

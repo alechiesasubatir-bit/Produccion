@@ -42,6 +42,11 @@ export function controlTexto(f: FilaHistorial): string {
   return `${c.resultado === 'aprobado' ? 'Aprobado' : 'Rechazado'} (${quien}, ${c.intento}.º intento)`
 }
 
+/** «codigo: lote; …» en orden; un consumible sin lote queda «codigo: —». */
+export function consumiblesTexto(f: FilaHistorial): string {
+  return (f.consumibles ?? []).map((c) => `${c.codigo}: ${c.lote ?? '—'}`).join('; ')
+}
+
 /** Control aprobado de la fábricación (el que la liberó), si lo hay. */
 export function controlAprobado(f: FilaHistorial) {
   return (f.controles ?? []).filter((c) => c.resultado === 'aprobado').at(-1) ?? null

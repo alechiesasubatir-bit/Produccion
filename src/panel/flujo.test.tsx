@@ -55,6 +55,9 @@ function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
     etiqueta: null,
     control_intento: null,
     control_rechazo: null,
+    lote_doc: null,
+    granel_id: null,
+    origen: null,
     tanque_codigo: 'T-01',
     presentacion: null,
     cantidad: null,
@@ -227,5 +230,19 @@ describe('Flujo', () => {
     expect(m.accionPanel).not.toHaveBeenCalled()
     await act(async () => fireEvent.click(within(col).getByRole('button', { name: '¿Cerrar sin envasar?' })))
     expect(m.accionPanel).toHaveBeenCalledWith({ entidad: 'fabricacion', id: 'p1', accion: 'finalizar' })
+  })
+  it('un envasado esperando fabricación va a su sección: no ocupa columnas ni KPIs', () => {
+    m.filas = [fila({ id: 'w1', entidad: 'envasado', estado: 'cola', fabricacion_id: null, tanque_codigo: null, cantidad: 4, presentacion: '5L', descripcion: 'Lavandina 5L' })]
+    render(<Flujo />)
+    expect(screen.getByRole('region', { name: 'Esperando fabricación' })).toBeInTheDocument()
+    for (const t of ['Cola', 'Fabricando', 'Para envasar', 'Envasando']) expect(within(columna(t)).queryByRole('article')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Asignar tanque' })).toBeInTheDocument()
+  })
+
+  it('sin esperando no hay sección y un envasado en curso ofrece Editar', () => {
+    m.filas = [fila({ id: 'e1', entidad: 'envasado', estado: 'activo', fabricacion_id: 'f9', cantidad: 4, presentacion: '5L' })]
+    render(<Flujo />)
+    expect(screen.queryByRole('region', { name: 'Esperando fabricación' })).toBeNull()
+    expect(within(columna('Envasando')).getByRole('button', { name: 'Editar' })).toBeInTheDocument()
   })
 })

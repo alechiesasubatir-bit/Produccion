@@ -2638,3 +2638,46 @@ th[aria-sort='descending'] .th-orden::after {
 .detalle-plegables > details[open] {
   flex-basis: 100%;
 }
+
+.formula-stock {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 0 12px;
+  border-left: 2px solid var(--tinta-2);
+}
+
+.formula details {
+  font-size: 14px;
+}
+
+/* envasados del documento que todavía esperan fabricación */
+.esperando {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px dashed var(--linea-2);
+  border-radius: 10px;
+}
+
+.esperando h2,
+.esperando h3 {
+  margin: 0 0 8px;
+}
+
+.esperando ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.esperando-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.esperando-nombre {
+  font-weight: 600;
+}

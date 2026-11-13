@@ -11,7 +11,8 @@ import { proyeccionEnvasado, proyeccionFabricacion, textoProyeccion } from '../d
 import { mensajeError } from '../lib/errores'
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarDatosOrden, crearOrden, type DatosOrden } from './datosOrden'
-import { SubirFormula } from './SubirFormula'
+import { SubirEnvasado } from './SubirEnvasado'
+import { SubirFormula, type ArchivoInicial } from './SubirFormula'
 
 export type TipoOrden = 'fabricacion' | 'envasado' | 'fraccionado'
 
@@ -90,6 +91,8 @@ export function NuevaOrden({
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conPdf, setConPdf] = useState(false)
+  // Hoja subida en la pestaña equivocada: la pestaña correcta la lee sola y explica por qué.
+  const [pendiente, setPendiente] = useState<ArchivoInicial | null>(null)
   // Desde el PDF se pueden crear algunas y dejar otras con error: al cerrar hay que recargar igual.
   const algunaCreada = useRef(false)
 
@@ -102,6 +105,7 @@ export function NuevaOrden({
     setTocados(new Set())
     setError(null)
     setConPdf(false)
+    setPendiente(null)
     algunaCreada.current = false
     cargarDatosOrden().then(setDatos, (e: unknown) => setError(mensajeError(e).texto))
   }, [abierta, tipoInicial, tanqueInicial, fabricacionInicial])
@@ -146,6 +150,12 @@ export function NuevaOrden({
   const hayErrores = Object.values(errores).some(Boolean)
   const err = (c: string) => (tocados.has(c) ? errores[c] : undefined)
   const tocar = (c: string) => setTocados((t) => new Set(t).add(c))
+
+  const cambiarPestana = (t: TipoOrden, aviso: string, archivo: File) => {
+    setTipo(t)
+    setTocados(new Set())
+    setPendiente({ archivo, aviso })
+  }
 
   const cerrar = () => (algunaCreada.current ? onCreada() : onCerrar())
 
@@ -199,6 +209,7 @@ export function NuevaOrden({
               aria-pressed={tipo === t.id}
               onClick={() => {
                 setTipo(t.id)
+                setPendiente(null)
                 setTocados(new Set())
               }}
             >
@@ -207,20 +218,35 @@ export function NuevaOrden({
           ))}
         </div>
 
-        {tipo === 'fabricacion' && (
-          <button type="button" className="boton boton-sec subir-formula-boton" onClick={() => setConPdf((v) => !v)} disabled={!datos}>
-            {conPdf ? 'Cargar a mano' : 'Subir PDF de fórmula'}
-          </button>
-        )}
+        <button type="button" className="boton boton-sec subir-formula-boton" onClick={() => setConPdf((v) => !v)} disabled={!datos}>
+          {conPdf ? 'Cargar a mano' : tipo === 'fabricacion' ? 'Subir PDF de fórmula' : 'Subir PDF'}
+        </button>
 
-        {tipo === 'fabricacion' && conPdf && datos ? (
-          <SubirFormula
-            datos={datos}
-            onCreadas={onCreada}
-            onAlgunaCreada={() => {
-              algunaCreada.current = true
-            }}
-          />
+        {conPdf && datos ? (
+          tipo === 'fabricacion' ? (
+            <SubirFormula
+              key={`fab-${pendiente ? 'p' : ''}`}
+              datos={datos}
+              onCreadas={onCreada}
+              onAlgunaCreada={() => {
+                algunaCreada.current = true
+              }}
+              onOtroTipo={cambiarPestana}
+              inicial={pendiente ?? undefined}
+            />
+          ) : (
+            <SubirEnvasado
+              key={`${tipo}-${pendiente ? 'p' : ''}`}
+              datos={datos}
+              tipo={tipo}
+              onCreadas={onCreada}
+              onAlgunaCreada={() => {
+                algunaCreada.current = true
+              }}
+              onOtroTipo={cambiarPestana}
+              inicial={pendiente ?? undefined}
+            />
+          )
         ) : (
           <form
             className="formulario"

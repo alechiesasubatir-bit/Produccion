@@ -183,6 +183,7 @@ export async function simularSupabase(
       return r.fulfill({ json: etiquetas.filter((e) => !activo || String(e.activo) === activo.replace(/^eq\./, '')) })
     }
     if (ruta === 'participaciones') return r.fulfill({ json: [] })
+    if ((ruta === 'fraccionados' || ruta === 'consumibles') && metodo === 'GET') return r.fulfill({ json: [] })
     if (ruta === 'controles') return r.fulfill({ json: [] })
     if (ruta === 'rpc/listar_liberadoras') return r.fulfill({ json: [{ id: 'L1', nombre: 'Marta Gil' }, { id: 'L2', nombre: 'Elena Soto' }] })
     if (ruta === 'rpc/registrar_control') {

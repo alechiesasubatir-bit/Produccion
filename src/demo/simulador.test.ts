@@ -67,6 +67,7 @@ describe('simulador de la demo', () => {
     const id = flujo(s).find((f) => f.lote === 'L-2')!.id
     s.accion('fabricacion', id, 'iniciar')
     s.avanzar(55)
+    s.registrarControl({ ...CONTROL_OK, fabricacionId: id })
     s.insertar('envasados', { fabricacion_id: id, presentacion_id: 'dr4', cantidad: 200 })
     const env = flujo(s).find((f) => f.entidad === 'envasado')!
     s.accion('envasado', env.id, 'iniciar')
@@ -386,6 +387,198 @@ describe('simulador de la demo', () => {
       const rechazos = (s.consultar('eventos') as Ev[]).filter((e) => e.accion === 'rechazar')
       expect(rechazos.every((e) => !!e.datos.motivo)).toBe(true)
       expect(correr().consultar('controles')).toEqual(cs)
+    })
+  })
+
+  describe('envasado y fraccionado desde el PDF', () => {
+    const nuevo = () => crearSimulador({ inicio: INICIO, semilla: 5, calentar: 0, autonomo: false })
+    const CONS = [
+      { codigo: '900201', descripcion: 'Botella Prueba x 1.500 cc (40g)', cantidad: 600 },
+      { codigo: '900202', descripcion: 'Tapas Prueba Rosca 28 (Caja)', cantidad: 600 },
+    ]
+    const env = (extra: Record<string, unknown> = {}) => ({
+      fabricacion_id: null, granel_id: 'dp15', presentacion_id: 'dr7', cantidad: 600, lote: '99001', codigo: '900301',
+      descripcion: 'Limpiador Prueba x 1.5 L', litros_granel: 900, etiqueta_id: null, ...extra,
+    })
+    type Fila = Record<string, unknown>
+    const fila = (s: ReturnType<typeof crearSimulador>, vista: string, id: string) => (s.consultar(vista) as Fila[]).find((f) => f.id === id)
+    const granel = (s: ReturnType<typeof crearSimulador>, tanque = 'dt1', litros = 900) => {
+      const r = s.crearGranelStock({ tanque_id: tanque, producto_id: 'dp15', litros, lote: ' S-1 ' })
+      if (!r.ok) throw new Error(r.codigo)
+      return r.id
+    }
+    const creado = (r: { ok: boolean; id?: string }) => {
+      expect(r).toMatchObject({ ok: true })
+      return (r as { id: string }).id
+    }
+
+    it('arranca con un granel de stock «Limpiador Prueba» (F9) para envasar que el piloto no toca', () => {
+      const s = crearSimulador({ inicio: INICIO, semilla: 5 })
+      const t16 = tanques(s).find((t) => t.codigo === 'T-16')!
+      expect(t16).toMatchObject({ estado: 'para_envasar', litros: 900, producto: 'Limpiador Prueba (Granel)' })
+      const prod = (s.consultar('productos') as { id: string; codigo: string | null }[]).find((p) => p.id === 'dp15')
+      expect(prod?.codigo).toBe('F9')
+      expect((s.consultar('presentaciones') as { nombre: string }[]).map((p) => p.nombre)).toEqual(expect.arrayContaining(['1.5L', '5L', '10L']))
+      const fabs = s.consultar('fabricaciones') as { id: string; producto_id: string; estado: string; origen: string }[]
+      expect(fabs.filter((f) => f.producto_id === 'dp15')).toEqual([expect.objectContaining({ estado: 'para_envasar', origen: 'stock' })])
+      s.avanzar(24 * 60)
+      expect(envs(s).filter((e) => e.fabricacion_id === t16.fabricacion_id)).toEqual([])
+      expect(tanques(s).find((t) => t.codigo === 'T-16')?.estado).toBe('para_envasar')
+    })
+
+    const envs = (s: ReturnType<typeof crearSimulador>) => s.consultar('envasados') as { id: string; fabricacion_id: string | null }[]
+
+    it('crear_granel_stock: deja el tanque para envasar y valida tanque, producto, litros y ocupación', () => {
+      const s = nuevo()
+      const id = granel(s, 'dt1', 900)
+      expect(tanques(s).find((t) => t.tanque_id === 'dt1')).toMatchObject({ estado: 'para_envasar', fabricacion_id: id, litros: 900 })
+      expect(s.consultar('fabricaciones')).toEqual([expect.objectContaining({ id, lote: 'S-1', origen: 'stock', estado: 'para_envasar' })])
+      expect(s.consultar('v_flujo').find((f) => f.id === id)).toMatchObject({ entidad: 'fabricacion', origen: 'stock' })
+      expect(s.crearGranelStock({ tanque_id: 'dt1', producto_id: 'dp15', litros: 10, lote: null })).toMatchObject({ ok: false, codigo: 'TANQUE_OCUPADO' })
+      expect(s.crearGranelStock({ tanque_id: 'dt2', producto_id: 'dp15', litros: 2001, lote: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.crearGranelStock({ tanque_id: 'dt2', producto_id: 'nada', litros: 100, lote: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.crearGranelStock({ tanque_id: 'nada', producto_id: 'dp15', litros: 100, lote: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.crearGranelStock({ tanque_id: 'dt2', producto_id: 'dp15', litros: 0, lote: null })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      // un tanque de stock cuenta como abierto: ocupa el lote de fabricaciones
+      expect(s.consultar('v_historial').find((f) => f.id === id)).toMatchObject({ origen: 'stock', lote_doc: null })
+    })
+
+    it('un envasado sin tanque espera fabricación: está en el flujo con los litros del documento, no es tarea y no se inicia', () => {
+      const s = nuevo()
+      const id = creado(s.crearEnvasadoDocumento(env(), CONS))
+      expect(fila(s, 'v_flujo', id)).toMatchObject({
+        entidad: 'envasado', estado: 'cola', fabricacion_id: null, tanque_codigo: null, producto: 'Limpiador Prueba (Granel)', granel_id: 'dp15',
+        litros: 900, lote: null, lote_doc: '99001', descripcion: 'Limpiador Prueba x 1.5 L', presentacion: '1.5L', cantidad: 600, listo: false,
+      })
+      expect(fila(s, 'v_tareas', id)).toBeUndefined()
+      expect(s.accion('envasado', id, 'iniciar', 'do1')).toMatchObject({ ok: false, codigo: 'SIN_TANQUE' })
+      expect(s.accion('envasado', id, 'iniciar')).toMatchObject({ ok: false, codigo: 'SIN_TANQUE' })
+      expect(s.accion('envasado', id, 'sumarse', 'do1')).toMatchObject({ ok: false, codigo: 'SIN_TANQUE' })
+      expect(s.consultar('consumibles')).toHaveLength(2)
+      expect(fila(s, 'v_historial', id)).toMatchObject({ tanque_codigo: null, producto: 'Limpiador Prueba (Granel)', lote_doc: '99001', origen: null })
+      expect(s.consultar('envasados')).toEqual([expect.objectContaining({ id, lote: '99001', codigo: '900301', granel_id: 'dp15', litros_granel: 900, fabricacion_id: null })])
+      // sin tanque no hay litros comprometidos: cancelar sí se puede
+      expect(s.accion('envasado', id, 'cancelar')).toMatchObject({ ok: true })
+    })
+
+    it('crear con tanque valida la fabricación y el granel; datos inválidos se rechazan', () => {
+      const s = nuevo()
+      const fab = granel(s, 'dt1')
+      s.insertar('fabricaciones', { tanque_id: 'dt2', producto_id: 'dp2', litros: 100, lote: 'L-1' })
+      const otra = (s.consultar('fabricaciones') as { id: string; producto_id: string }[]).find((f) => f.producto_id === 'dp2')!.id
+      expect(s.crearEnvasadoDocumento(env({ fabricacion_id: otra }), CONS)).toMatchObject({ ok: false, codigo: 'GRANEL_DISTINTO' })
+      expect(s.crearEnvasadoDocumento(env({ fabricacion_id: 'nada' }), CONS)).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+      for (const malo of [
+        env({ granel_id: null }), env({ granel_id: 'nada' }), env({ presentacion_id: null }), env({ cantidad: 1.5 }), env({ cantidad: 0 }), env({ litros_granel: 0 }),
+      ]) {
+        expect(s.crearEnvasadoDocumento(malo, CONS), JSON.stringify(malo)).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      }
+      expect(s.crearEnvasadoDocumento(env(), [{ codigo: 'X', descripcion: '', cantidad: 1 }])).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.crearEnvasadoDocumento(env(), [{ codigo: 'X', descripcion: 'x', cantidad: 0 }])).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(envs(s)).toEqual([])
+      const id = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab }), null))
+      expect(fila(s, 'v_tareas', id)).toMatchObject({ tanque_codigo: 'T-01', lote_doc: '99001', consumibles_total: 0, consumibles_con_lote: 0, listo: true })
+      s.insertar('fabricaciones', { tanque_id: 'dt3', producto_id: 'dp15', litros: 100, lote: 'L-3' })
+      const cancelada = (s.consultar('fabricaciones') as { id: string; tanque_id: string }[]).find((f) => f.tanque_id === 'dt3')!.id
+      s.accion('fabricacion', cancelada, 'cancelar')
+      expect(s.crearEnvasadoDocumento(env({ fabricacion_id: cancelada }), CONS)).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    })
+
+    it('cargar_consumible: solo con la tarea activa o pausada, vacío guarda null y queda en la tarea y el historial', () => {
+      const s = nuevo()
+      const fab = granel(s)
+      const id = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab }), CONS))
+      const [c1, c2] = (s.consultar('consumibles') as { id: string; orden: number; lote: string | null }[]).sort((a, b) => a.orden - b.orden)
+      expect(s.cargarConsumible(c1.id, 'A-1', 'do1')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+      s.accion('envasado', id, 'iniciar', 'do1')
+      expect(s.cargarConsumible('nada', 'x', 'do1')).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO' })
+      expect(s.cargarConsumible(c1.id, 'x', 'nadie')).toMatchObject({ ok: false, codigo: 'OPERARIA_INACTIVA' })
+      expect(s.cargarConsumible(c1.id, 'x', 'do2')).toMatchObject({ ok: false, codigo: 'NO_PARTICIPA' })
+      expect(s.cargarConsumible(c1.id, '  BOT-77 ', 'do1')).toEqual({ ok: true })
+      expect(fila(s, 'v_tareas', id)).toMatchObject({ consumibles_total: 2, consumibles_con_lote: 1 })
+      expect((s.consultar('consumibles') as { id: string; lote: string | null; cargado_por: string | null }[]).find((c) => c.id === c1.id)).toMatchObject({
+        lote: 'BOT-77', cargado_por: 'do1', cargado_at: expect.any(String),
+      })
+      // desde el panel (sin operaria) carga cualquiera; el lote vacío lo deja sin lote
+      expect(s.cargarConsumible(c2.id, 'TAP-1')).toEqual({ ok: true })
+      expect(s.cargarConsumible(c2.id, '  ')).toEqual({ ok: true })
+      expect(fila(s, 'v_tareas', id)).toMatchObject({ consumibles_con_lote: 1 })
+      expect((fila(s, 'v_historial', id)?.consumibles as unknown[])).toEqual([
+        { codigo: '900201', descripcion: 'Botella Prueba x 1.500 cc (40g)', cantidad: 600, lote: 'BOT-77', cargado_nombre: 'Lucía Méndez', cargado_at: expect.any(String) },
+        expect.objectContaining({ codigo: '900202', lote: null }),
+      ])
+      s.accion('envasado', id, 'pausar', 'do1')
+      expect(s.cargarConsumible(c2.id, 'TAP-2', 'do1')).toEqual({ ok: true })
+      s.accion('envasado', id, 'reanudar', 'do1')
+      s.accion('envasado', id, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 900, unidad: 'L' }])
+      expect(s.cargarConsumible(c2.id, 'TAP-3', 'do1')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+    })
+
+    it('envasar todo el granel desde el documento cierra la fabricación; con otro envasado pendiente, no', () => {
+      const s = nuevo()
+      const fab = granel(s)
+      const a = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab, cantidad: 300, litros_granel: 450 }), CONS))
+      const b = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab, cantidad: 300, litros_granel: 450 }), CONS))
+      s.accion('envasado', a, 'iniciar', 'do1')
+      expect(s.accion('envasado', a, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 450, unidad: 'L' }])).toEqual({ ok: true, fabricacion_cerrada: false })
+      expect(tanques(s).find((t) => t.tanque_id === 'dt1')?.litros_restantes).toBe(450)
+      s.accion('envasado', b, 'iniciar', 'do1')
+      expect(s.accion('envasado', b, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 450, unidad: 'L' }])).toEqual({ ok: true, fabricacion_cerrada: true })
+      expect(tanques(s).find((t) => t.tanque_id === 'dt1')?.estado).toBe('libre')
+    })
+
+    it('iniciar un envasado cuyo tanque aún no está para envasar da TANQUE_NO_LISTO', () => {
+      const s = nuevo()
+      s.insertar('fabricaciones', { tanque_id: 'dt2', producto_id: 'dp15', litros: 900, lote: 'L-5' })
+      const fab = (s.consultar('fabricaciones') as { id: string }[])[0].id
+      const id = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab }), CONS))
+      expect(s.accion('envasado', id, 'iniciar', 'do1')).toMatchObject({ ok: false, codigo: 'TANQUE_NO_LISTO' })
+    })
+
+    it('editar un envasado valida como el trigger: tanque solo en cola y del mismo granel, cantidad no si está cerrado', () => {
+      const s = nuevo()
+      const fab = granel(s, 'dt1')
+      s.insertar('fabricaciones', { tanque_id: 'dt2', producto_id: 'dp2', litros: 100, lote: 'L-2' })
+      const otra = (s.consultar('fabricaciones') as { id: string; producto_id: string }[]).find((f) => f.producto_id === 'dp2')!.id
+      const id = creado(s.crearEnvasadoDocumento(env(), CONS))
+      expect(s.editarEnvasado(id, { fabricacion_id: null })).toEqual({ ok: true })
+      expect(s.editarEnvasado(id, { fabricacion_id: otra })).toMatchObject({ ok: false, codigo: 'GRANEL_DISTINTO' })
+      expect(s.editarEnvasado(id, { fabricacion_id: 'nada' })).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+      expect(s.editarEnvasado(id, { cantidad: 500, presentacion_id: 'dr4' })).toEqual({ ok: true })
+      expect(fila(s, 'v_flujo', id)).toMatchObject({ cantidad: 500, presentacion: '5L' })
+      expect(s.editarEnvasado(id, { fabricacion_id: fab })).toEqual({ ok: true })
+      expect(fila(s, 'v_flujo', id)).toMatchObject({ fabricacion_id: fab, tanque_codigo: 'T-01', listo: true })
+      expect(fila(s, 'v_tareas', id)).toBeDefined()
+      s.accion('envasado', id, 'iniciar', 'do1')
+      expect(s.editarEnvasado(id, { fabricacion_id: null })).toMatchObject({ ok: false, codigo: 'TANQUE_EN_USO' })
+      expect(s.editarEnvasado(id, { cantidad: 10 })).toEqual({ ok: true }) // en curso se puede corregir la cantidad
+      s.accion('envasado', id, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 10, unidad: 'L' }])
+      expect(s.editarEnvasado(id, { cantidad: 11 })).toMatchObject({ ok: false, codigo: 'NO_EDITABLE' })
+      expect(s.editarEnvasado(id, { presentacion_id: 'dr5' })).toMatchObject({ ok: false, codigo: 'NO_EDITABLE' })
+    })
+
+    it('soltar el tanque de un envasado en cola da SIN_TANQUE', () => {
+      const s = nuevo()
+      const fab = granel(s, 'dt1')
+      const id = creado(s.crearEnvasadoDocumento(env({ fabricacion_id: fab }), CONS))
+      expect(s.editarEnvasado(id, { fabricacion_id: null })).toMatchObject({ ok: false, codigo: 'SIN_TANQUE' })
+    })
+
+    it('fraccionado desde el documento: producto y presentación opcionales, código, consumibles y sin lote inventado', () => {
+      const s = nuevo()
+      const id = creado(s.crearFraccionadoDocumento({ producto_id: null, presentacion_id: null, cantidad: 40, lote: '', codigo: 'P1', descripcion: 'Polvo Prueba x 1 kg', etiqueta_id: null }, CONS))
+      expect(fila(s, 'v_flujo', id)).toMatchObject({ entidad: 'fraccionado', presentacion: null, litros: null, lote: null, lote_doc: null, descripcion: 'Polvo Prueba x 1 kg' })
+      expect(fila(s, 'v_tareas', id)).toMatchObject({ consumibles_total: 2, consumibles_con_lote: 0, presentacion: null })
+      expect(s.consultar('fraccionados')).toEqual([expect.objectContaining({ id, codigo: 'P1' })])
+      expect(s.accion('fraccionado', id, 'iniciar', 'do1')).toMatchObject({ ok: true })
+      const c = (s.consultar('consumibles') as { id: string; entidad: string }[]).find((x) => x.entidad === 'fraccionado')!
+      expect(s.cargarConsumible(c.id, 'F-1', 'do1')).toEqual({ ok: true })
+      expect(s.accion('fraccionado', id, 'finalizar', 'do1', [{ empleado_id: 'do1', cantidad: 40, unidad: 'kg' }])).toMatchObject({ ok: true })
+      expect(fila(s, 'v_historial', id)).toMatchObject({ lote_doc: null, presentacion: null, litros: null })
+      expect(s.crearFraccionadoDocumento({ cantidad: 2.5 })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      expect(s.crearFraccionadoDocumento({ cantidad: 5, producto_id: 'nada' })).toMatchObject({ ok: false, codigo: 'DATOS_INVALIDOS' })
+      const con = creado(s.crearFraccionadoDocumento({ producto_id: 'dp22', presentacion_id: 'dr6', cantidad: 5, lote: '7' }, []))
+      expect(fila(s, 'v_flujo', con)).toMatchObject({ lote: '7', presentacion: '1kg', producto: 'Percarbonato' })
     })
   })
 })

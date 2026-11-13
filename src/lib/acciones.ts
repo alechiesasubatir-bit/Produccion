@@ -10,7 +10,7 @@ type Respuesta = { ok?: boolean; fabricacion_cerrada?: boolean } | null
 // Las RPC de produccion no lanzan errores de negocio: devuelven {ok:false, codigo, detalle}.
 // Acá se unifican con los errores de PostgREST y de red en un solo formato.
 async function llamar(
-  nombre: 'accion' | 'cargar_mp' | 'corregir_cantidad' | 'set_vencimiento' | 'registrar_control',
+  nombre: 'accion' | 'cargar_mp' | 'cargar_consumible' | 'corregir_cantidad' | 'set_vencimiento' | 'registrar_control',
   args: Record<string, unknown>,
 ): Promise<Respuesta | Resultado> {
   try {
@@ -57,6 +57,12 @@ export async function guardarMp(p: {
     p_pesado: p.pesado,
     p_empleado_id: p.empleadoId,
   })
+  return r && 'codigo' in r ? r : { ok: true }
+}
+
+// Carga el lote de un consumible (envase, tapa, etiqueta…) de un envasado o fraccionado.
+export async function guardarConsumible(id: string, lote: string, empleadoId?: string): Promise<Resultado> {
+  const r = await llamar('cargar_consumible', { p_id: id, p_lote: lote, p_empleado_id: empleadoId })
   return r && 'codigo' in r ? r : { ok: true }
 }
 

@@ -52,6 +52,7 @@ export function TarjetaFlujo({
   soloLectura = false,
   onAccion,
   onCargarEnvasado,
+  onEditar,
 }: {
   fila: FilaFlujo
   nombres: Map<string, string>
@@ -64,6 +65,8 @@ export function TarjetaFlujo({
   onAccion: (a: Accion) => void
   /** Fabricación lista: abre Nueva orden → Envasado con este tanque. */
   onCargarEnvasado?: () => void
+  /** Envasado sin terminar: abre el diálogo de edición. */
+  onEditar?: () => void
 }) {
   const [confirmando, setConfirmando] = useState<Accion | null>(null)
   const acciones = accionesPosibles(fila.entidad, fila.estado, 'panel')
@@ -145,6 +148,11 @@ export function TarjetaFlujo({
           {lista && (
             <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={onCargarEnvasado}>
               Cargar envasado
+            </button>
+          )}
+          {onEditar && fila.entidad === 'envasado' && fila.estado !== 'finalizado' && fila.estado !== 'cancelado' && (
+            <button type="button" className="boton-mini discreto" disabled={!habilitado} onClick={onEditar}>
+              Editar
             </button>
           )}
           {acciones.map((a) => (

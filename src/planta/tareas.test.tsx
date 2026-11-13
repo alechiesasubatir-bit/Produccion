@@ -23,6 +23,9 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
     etiqueta: null,
     control_intento: null,
     control_rechazo: null,
+    lote_doc: null,
+    consumibles_total: 0,
+    consumibles_con_lote: 0,
     vencimiento: null,
     tanque_codigo: 'T-01',
     presentacion: null,
@@ -147,6 +150,17 @@ describe('operarias múltiples', () => {
 })
 
 describe('TarjetaTarea', () => {
+  it('el lote del documento no se repite cuando es el mismo lote (fraccionados)', () => {
+    render(<TarjetaTarea tarea={tarea({ entidad: 'fraccionado', lote: '99003', lote_doc: '99003' })} disponible habilitado cargadoEn={Date.now()} onAccion={() => {}} />)
+    expect(screen.getAllByText(/99003/)).toHaveLength(1)
+  })
+
+  it('el lote del documento se muestra aparte si difiere del de la fabricación', () => {
+    render(<TarjetaTarea tarea={tarea({ entidad: 'envasado', lote: 'L-FAB', lote_doc: '99001' })} disponible habilitado cargadoEn={Date.now()} onAccion={() => {}} />)
+    expect(screen.getByText('Lote L-FAB')).toBeInTheDocument()
+    expect(screen.getByText('Lote doc. 99001')).toBeInTheDocument()
+  })
+
   it('disponible: botón Tomar que inicia', () => {
     const onAccion = vi.fn()
     render(<TarjetaTarea tarea={tarea()} disponible habilitado cargadoEn={Date.now()} onAccion={onAccion} />)

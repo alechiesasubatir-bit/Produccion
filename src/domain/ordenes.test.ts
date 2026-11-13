@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validarEnvasado, validarFabricacion, validarFabricacionFormula, validarFraccionado } from './ordenes'
+import { validarEnvasado, validarEnvasadoDocumento, validarFabricacion, validarFabricacionFormula, validarFraccionado } from './ordenes'
 
 const fab = { tanque_id: 't1', producto_id: 'p1', litros: 1000, lote: '', operaria_id: null }
 
@@ -97,5 +97,18 @@ describe('validarFabricacionFormula', () => {
     const e = validarFabricacionFormula({ ...formula, lote: ' ', fecha_formula: '' }, ctxFormula)
     expect(e.lote).toBe('Poné el lote')
     expect(e.fecha_formula).toBe('Poné la fecha de la fórmula')
+  })
+})
+
+describe('validarEnvasadoDocumento', () => {
+  const ok = { fabricacion_id: null, granel_id: null, presentacion_id: 'p1', cantidad: 10, lote: 'L1', codigo: 'C1', descripcion: 'X', litros_granel: 15, etiqueta_id: null }
+  it('sin tanque es válido', () => {
+    expect(validarEnvasadoDocumento(ok)).toEqual({})
+  })
+  it('exige presentación y cantidad entera mayor a 0', () => {
+    const e = validarEnvasadoDocumento({ ...ok, presentacion_id: '', cantidad: 0 })
+    expect(e.presentacion_id).toBe('Elegí una presentación.')
+    expect(e.cantidad).toBeTruthy()
+    expect(validarEnvasadoDocumento({ ...ok, cantidad: 1.5 }).cantidad).toBeTruthy()
   })
 })

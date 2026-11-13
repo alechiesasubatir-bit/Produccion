@@ -7,6 +7,7 @@ import { registrarControl } from '../lib/acciones'
 import { FormularioControl } from '../ui/FormularioControl'
 import { mensajeError } from '../lib/errores'
 import type { OperariaFila } from './QuienTrabaja'
+import { ChecklistConsumibles } from './ChecklistConsumibles'
 import { ChecklistMp } from './ChecklistMp'
 import { DeclararCantidad } from './DeclararCantidad'
 import { QuienControla } from './QuienControla'
@@ -15,6 +16,12 @@ import { TarjetaTarea } from './TarjetaTarea'
 // Fabricación propia en curso con fórmula: lleva checklist de materias primas.
 const llevaChecklist = (t: Tarea) =>
   t.entidad === 'fabricacion' && (t.estado === 'fabricando' || t.estado === 'pausada') && t.mp_total > 0
+
+// Envasado o fraccionado en curso con consumibles: lote opcional, nunca bloquea finalizar.
+const llevaConsumibles = (t: Tarea) =>
+  (t.entidad === 'envasado' || t.entidad === 'fraccionado') &&
+  (t.estado === 'activo' || t.estado === 'pausado') &&
+  t.consumibles_total > 0
 
 // Paso intermedio antes de mandar la acción: confirmar o declarar cantidades.
 type Paso =
@@ -32,6 +39,7 @@ export function MisTareas({
   cargadoEn,
   aviso,
   recargaMp = 0,
+  recargaConsumibles = 0,
   operarias = [],
   onAccion,
   onControlado,
@@ -45,6 +53,8 @@ export function MisTareas({
   cargadoEn: number
   aviso: string | null
   recargaMp?: number
+  // Cambia cuando llegan datos nuevos de la base: los consumibles abiertos se vuelven a leer.
+  recargaConsumibles?: number
   // Todas las operarias (para nombrar a quien marcó cada MP, aunque ya haya salido de la orden).
   operarias?: OperariaFila[]
   onAccion: (t: Tarea, a: Accion, cantidades?: Cantidad[]) => void
@@ -139,7 +149,17 @@ export function MisTareas({
               onAccion={(a) => accionar(t, a)}
               bloqueoFinalizar={bloqueo(t)}
               checklist={
-                llevaChecklist(t) && (
+                llevaConsumibles(t) ? (
+                  <ChecklistConsumibles
+                    entidad={t.entidad as 'envasado' | 'fraccionado'}
+                    entidadId={t.id}
+                    empleadoId={empleadoId}
+                    habilitado={conectado}
+                    nombres={nombresDe(t)}
+                    recarga={recargaConsumibles}
+                  />
+                ) : (
+                  llevaChecklist(t) && (
                   <ChecklistMp
                     fabricacionId={t.id}
                     empleadoId={empleadoId}
@@ -148,6 +168,7 @@ export function MisTareas({
                     nombres={nombresDe(t)}
                     onCambio={(n) => setCompletasLocal((c) => (c[t.id] === n ? c : { ...c, [t.id]: n }))}
                   />
+                  )
                 )
               }
             />

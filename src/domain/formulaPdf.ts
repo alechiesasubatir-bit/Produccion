@@ -14,12 +14,12 @@ export type Formula = {
 
 const ERROR_FORMATO = 'Este PDF no tiene el formato de Movimientos de Produccion. Cargá la orden a mano.'
 
-const RE_LOTE_HEADER = /^LOTE/i
+export const RE_LOTE_HEADER = /^LOTE/i
 const RE_FECHA_HEADER = /^FECHA$/i
 const RE_VENCIMIENTO = /^VENCIMIENTO/i
-const RE_FECHA = /^(\d{2})\/(\d{2})\/(\d{4})$/
-const RE_CODIGO = /^(F\d+|\d+)$/i
-const RE_GRANEL = /^F\d+$/i
+const RE_FECHA = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+export const RE_CODIGO = /^(F\d+|\d+)$/i
+export const RE_GRANEL = /^F\d+$/i
 const RE_CANTIDAD = /^\(?[\d,]+\.\d+\)?$/
 const RE_CODIGO_HEADER = /^C.digo/i
 const RE_CANTIDAD_HEADER = /^Cantidad/i
@@ -27,7 +27,7 @@ const RE_DESCRIPCION_HEADER = /^Descripci/i
 const RE_LOTE_TABLA_HEADER = /^Lote$/i
 const RE_FIN_TANQUE = /^Tanque destinado/i
 const RE_FIN_OBSERVACIONES = /^Observaciones/i
-const RE_SUFIJO_GRANEL = /\s*\(granel\)\s*$/i
+export const RE_SUFIJO_GRANEL = /\s*\(granel\)\s*$/i
 
 const TOLERANCIA_LOTE_Y = 30
 const TOLERANCIA_LOTE_X = 40
@@ -39,11 +39,11 @@ const MARGEN_LOTE_TABLA = 5
 function fechaIso(s: string): string {
   const m = RE_FECHA.exec(s)
   if (!m) return ''
-  return `${m[3]}-${m[2]}-${m[1]}`
+  return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
 }
 
 /** Agrupa fragmentos ya ordenados por y desc en filas, con tolerancia ±2 pt. */
-function agruparPorFila(fragmentos: Fragmento[]): Fragmento[][] {
+export function agruparPorFila(fragmentos: Fragmento[]): Fragmento[][] {
   const grupos: Fragmento[][] = []
   for (const f of fragmentos) {
     const grupo = grupos.find((g) => Math.abs(g[0].y - f.y) <= TOLERANCIA_FILA_Y)
@@ -55,7 +55,7 @@ function agruparPorFila(fragmentos: Fragmento[]): Fragmento[][] {
 
 /** Fecha de la fórmula: la que está debajo del «FECHA» del comprobante (en la fila de «LOTE Nº»),
  * no la de «FECHA VENCIMIENTO». Sin ese rótulo, la primera con forma de fecha. */
-function leerFecha(bloque: Fragmento[], loteHeader: Fragmento): string {
+export function leerFecha(bloque: Fragmento[], loteHeader: Fragmento): string {
   const vencimientos = bloque.filter((f) => RE_VENCIMIENTO.test(f.str.trim()))
   const deVencimiento = (r: Fragmento) =>
     vencimientos.some((v) => Math.abs(v.x - r.x) < TOLERANCIA_LOTE_X && Math.abs(v.y - r.y) <= TOLERANCIA_LOTE_Y)
@@ -80,10 +80,10 @@ function leerFecha(bloque: Fragmento[], loteHeader: Fragmento): string {
   return debajo ? fechaIso(debajo.str.trim()) : ''
 }
 
-type Par = { codigo: string; cantidad: number; descripcion: string; conParentesis: boolean }
+export type Par = { codigo: string; cantidad: number; descripcion: string; conParentesis: boolean }
 
-/** Extrae la fórmula de un bloque de fragmentos (todos los de un mismo LOTE). */
-function leerBloque(bloque: Fragmento[]): Formula | null {
+/** Lote y fecha (YYYY-MM-DD) del comprobante de un bloque de fragmentos. */
+export function leerCabecera(bloque: Fragmento[]): { lote: string; fecha: string } | null {
   const loteHeader = bloque.find((f) => RE_LOTE_HEADER.test(f.str.trim()))
   if (!loteHeader) return null
 
@@ -96,8 +96,11 @@ function leerBloque(bloque: Fragmento[]): Formula | null {
   )
   const lote = loteNum?.str.trim() ?? ''
 
-  const fecha = leerFecha(bloque, loteHeader)
+  return { lote, fecha: leerFecha(bloque, loteHeader) }
+}
 
+/** Renglones (código, cantidad, descripción) de la tabla de un comprobante, de arriba hacia abajo. */
+export function leerRenglones(bloque: Fragmento[]): Par[] | null {
   const headerCantidad = bloque.find((f) => RE_CANTIDAD_HEADER.test(f.str.trim()))
   const headerDescripcion = bloque.find((f) => RE_DESCRIPCION_HEADER.test(f.str.trim()))
   const headerCodigo = bloque.find((f) => RE_CODIGO_HEADER.test(f.str.trim()))
@@ -153,6 +156,16 @@ function leerBloque(bloque: Fragmento[]): Formula | null {
     })
   }
 
+  return pares
+}
+
+/** Extrae la fórmula de un bloque de fragmentos (todos los de un mismo LOTE). */
+function leerBloque(bloque: Fragmento[]): Formula | null {
+  const cabecera = leerCabecera(bloque)
+  const pares = leerRenglones(bloque)
+  if (!cabecera || !pares) return null
+  const { lote, fecha } = cabecera
+
   const granelPar = pares.find((p) => RE_GRANEL.test(p.codigo))
   if (!granelPar) return null
 
@@ -173,7 +186,7 @@ function leerBloque(bloque: Fragmento[]): Formula | null {
 /** Divide los fragmentos de una página en bloques, uno por cada «LOTE» (de su y hacia abajo).
  * «Lote» también es el encabezado de una columna de la tabla (a la misma altura que «Código»):
  * se excluye para no confundirlo con el «LOTE Nº» del comprobante. */
-function bloquesDePagina(fragmentos: Fragmento[]): Fragmento[][] {
+export function bloquesDePagina(fragmentos: Fragmento[]): Fragmento[][] {
   const yEncabezadosTabla = fragmentos.filter((f) => RE_CODIGO_HEADER.test(f.str.trim())).map((f) => f.y)
   const lotes = fragmentos
     .filter((f) => RE_LOTE_HEADER.test(f.str.trim()) && !yEncabezadosTabla.some((y) => Math.abs(y - f.y) <= TOLERANCIA_FILA_Y))

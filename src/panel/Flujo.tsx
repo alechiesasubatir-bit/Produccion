@@ -8,6 +8,8 @@ import { accionPanel } from '../lib/acciones'
 import { useRealtime } from '../lib/useRealtime'
 import { cargarFlujo, cargarOperarias } from './datosFlujo'
 import { cargarEstandares } from './historial/datosHistorial'
+import { EditarEnvasado } from './EditarEnvasado'
+import { EsperandoFabricacion } from './EsperandoFabricacion'
 import { KpisFlujo } from './KpisFlujo'
 import { NuevaOrden } from './NuevaOrden'
 import { TarjetaFlujo } from './TarjetaFlujo'
@@ -53,6 +55,7 @@ export function Flujo() {
   const [nuevaAbierta, setNuevaAbierta] = useState(false)
   // "Cargar envasado" de una fabricación lista: Nueva orden → Envasado con ese tanque.
   const [envasarFab, setEnvasarFab] = useState<string | null>(null)
+  const [editando, setEditando] = useState<string | null>(null)
   const cerrarNueva = () => {
     setNuevaAbierta(false)
     setEnvasarFab(null)
@@ -74,6 +77,7 @@ export function Flujo() {
       proyeccionMin={proyeccion(f)}
       onAccion={(a) => void accionar(f, a)}
       onCargarEnvasado={() => setEnvasarFab(f.id)}
+      onEditar={() => setEditando(f.id)}
     />
   )
 
@@ -91,6 +95,7 @@ export function Flujo() {
           {aviso ?? flujo.error}
         </p>
       )}
+      <EsperandoFabricacion filas={flujo.datos} habilitado={flujo.conectado} onCambio={flujo.recargar} />
       <LayoutGroup>
         <div className="kanban">
           {COLUMNAS.filter((c) => c.id !== 'terminadas').map((c) => (
@@ -129,6 +134,16 @@ export function Flujo() {
           </section>
         </div>
       </LayoutGroup>
+      {editando && (
+        <EditarEnvasado
+          id={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={() => {
+            setEditando(null)
+            flujo.recargar()
+          }}
+        />
+      )}
       <NuevaOrden
         abierta={nuevaAbierta || envasarFab !== null}
         tipoInicial={envasarFab ? 'envasado' : 'fabricacion'}
