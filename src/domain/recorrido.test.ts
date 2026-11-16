@@ -32,6 +32,14 @@ describe('textoEventoOperaria', () => {
     expect(textoEventoOperaria(ev({ accion: 'rechazar', usuario: 'María', datos }))).toBe('María rechazó el control: perfume No OK (muy suave)')
     expect(textoEventoOperaria(ev({ accion: 'rechazar', usuario: 'María', datos: { motivo: '' } }))).toBe('María rechazó el control')
   })
+  it('eventos de la pausa general', () => {
+    const datos = { pausa_general: 'p1' }
+    expect(textoEventoOperaria(ev({ accion: 'pausar', datos }))).toBe('Pausa general')
+    expect(textoEventoOperaria(ev({ accion: 'reanudar', datos }))).toBe('Arranque')
+    expect(textoEventoOperaria(ev({ accion: 'salir', quien: 'Marta', datos: { ...datos, cantidad: 120, unidad: 'L' } }))).toBe('Marta salió por la pausa general (120 L)')
+    expect(textoEventoOperaria(ev({ accion: 'salir', quien: 'Marta', datos }))).toBe('Marta salió por la pausa general')
+    expect(textoEventoOperaria(ev({ accion: 'sumarse', quien: 'Ana', datos }))).toBe('Ana se sumó en el arranque')
+  })
   it('otros eventos quedan para el armado común', () => {
     expect(textoEventoOperaria(ev({ accion: 'editar', datos: {} }))).toBeNull()
     expect(textoEventoOperaria(ev({ accion: 'pausar' }))).toBeNull()

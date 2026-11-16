@@ -113,7 +113,8 @@ test('demo: envasado desde el PDF → tanque sugerido → crear → tablet: inic
   await d.getByLabel('PDF de envasado').setInputFiles('e2e/fixtures/ENVASADO-PRUEBA.pdf')
 
   const tarjeta = d.getByRole('region', { name: /x 1\.5 L/ })
-  await expect(tarjeta.getByRole('heading')).toHaveText('Lote 99001 · Limpiador Prueba x 1.5 L · 600')
+  // leer el PDF (pdf.js en el navegador) puede pasar de los 5 s por defecto en una máquina cargada
+  await expect(tarjeta.getByRole('heading')).toHaveText('Lote 99001 · Limpiador Prueba x 1.5 L · 600', { timeout: 20_000 })
   await expect(tarjeta.getByLabel('Producto del granel')).toHaveText(/Limpiador Prueba \(Granel\)/)
   await expect(tarjeta.getByLabel('Presentación')).toHaveValue('dr7')
   // el tanque con ese granel aparece sugerido, con los litros sin asignar
@@ -148,4 +149,39 @@ test('demo: envasado desde el PDF → tanque sugerido → crear → tablet: inic
   // la fabricación quedó cerrada: el tanque vuelve a estar libre
   await page.getByRole('link', { name: 'Tanques' }).click()
   await expect(page.getByRole('button', { name: 'Tanque T-16' })).toContainText(/libre/i)
+})
+
+test('demo: Pausa General → la planta queda en pausa → Arranque la levanta', async ({ page }) => {
+  await page.goto('demo')
+  await page.getByRole('button', { name: 'Pausa', exact: true }).click()
+  const franja = page.getByRole('status').filter({ hasText: 'Planta en pausa general desde' })
+  await expect(franja).toHaveCount(0)
+
+  // la demo siempre arranca con órdenes en marcha: cargar la cantidad de cada operaria y confirmar
+  await page.getByRole('button', { name: 'Pausa General' }).click()
+  const pausa = page.getByRole('dialog', { name: 'Pausa General' })
+  await expect(pausa.locator('.pg-orden').first()).toBeVisible()
+  for (const campo of await pausa.getByLabel(/^Cantidad de /).all()) await campo.fill('10')
+  await pausa.getByRole('button', { name: 'Confirmar pausa' }).click()
+  await expect(pausa).toHaveCount(0)
+  await expect(franja).toBeVisible()
+  await expect(page.getByRole('button', { name: /Arranque/ })).toContainText('en pausa desde')
+  await page.screenshot({ path: 'test-results/demo-pausa-general-1440.png' })
+
+  // la tablet de la demo queda bloqueada igual
+  await page.getByRole('link', { name: 'Tablet' }).click()
+  await expect(page.getByText('— la encargada la levanta con Arranque', { exact: false })).toBeVisible()
+  await page.getByRole('link', { name: 'Flujo' }).click()
+
+  // Arranque: se reanuda lo que estaba en curso con sus operarias; una orden sin operarias no se reanuda
+  await page.getByRole('button', { name: /Arranque/ }).click()
+  const arranque = page.getByRole('dialog', { name: 'Arranque' })
+  await expect(arranque.locator('.pg-orden').first()).toBeVisible()
+  for (const orden of await arranque.locator('.pg-orden').filter({ has: page.locator('.campo-error') }).all()) {
+    await orden.getByRole('checkbox', { name: 'Reanudar' }).uncheck()
+  }
+  await arranque.getByRole('button', { name: 'Confirmar arranque' }).click()
+  await expect(arranque).toHaveCount(0)
+  await expect(franja).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Pausa General' })).toBeVisible()
 })

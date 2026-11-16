@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { accionPanel, corregirCantidad, ejecutarAccion, guardarConsumible, guardarMp, listarLiberadoras, registrarControl, setVencimiento } from './acciones'
+import { accionPanel, arranqueGeneral, corregirCantidad, ejecutarAccion, guardarConsumible, guardarMp, listarLiberadoras, pausaGeneral, registrarControl, setVencimiento } from './acciones'
 
 const rpc = vi.fn()
 vi.mock('./supabase', () => ({ db: { rpc: (...args: unknown[]) => rpc(...args) } }))
@@ -208,5 +208,65 @@ describe('guardarConsumible', () => {
   it('rechazo de negocio', async () => {
     rpc.mockResolvedValue({ data: { ok: false, codigo: 'TRANSICION_INVALIDA' }, error: null })
     expect(await guardarConsumible('c1', 'L9')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
+  })
+})
+
+describe('pausaGeneral', () => {
+  it('manda p_cantidades con entidad, entidad_id, empleado_id, cantidad y unidad', async () => {
+    rpc.mockResolvedValue({ data: { ok: true, pausa_id: 'P1', ordenes: 2 }, error: null })
+    const r = await pausaGeneral([{ entidad: 'envasado', id: 'e1', empleadoId: 'E1', cantidad: 12, unidad: 'kg' }])
+    expect(r).toEqual({ ok: true, pausaId: 'P1' })
+    expect(rpc).toHaveBeenLastCalledWith('pausa_general', {
+      p_cantidades: [{ entidad: 'envasado', entidad_id: 'e1', empleado_id: 'E1', cantidad: 12, unidad: 'kg' }],
+    })
+  })
+
+  it('rechazo PAUSA_GENERAL_ACTIVA', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'PAUSA_GENERAL_ACTIVA' }, error: null })
+    expect(await pausaGeneral([])).toMatchObject({ ok: false, codigo: 'PAUSA_GENERAL_ACTIVA' })
+  })
+})
+
+describe('arranqueGeneral', () => {
+  it('manda p_ordenes con entidad, entidad_id y empleados', async () => {
+    rpc.mockResolvedValue({ data: { ok: true, reanudadas: 1 }, error: null })
+    expect(await arranqueGeneral([{ entidad: 'envasado', id: 'e1', empleados: ['E1', 'E2'] }])).toEqual({ ok: true })
+    expect(rpc).toHaveBeenLastCalledWith('arranque_general', {
+      p_ordenes: [{ entidad: 'envasado', entidad_id: 'e1', empleados: ['E1', 'E2'] }],
+    })
+  })
+
+  it('TRANSICION_INVALIDA con detalle dice que se cerró durante la noche', async () => {
+    rpc.mockResolvedValue({
+      data: { ok: false, codigo: 'TRANSICION_INVALIDA', detalle: 'Lavandina 5 L' },
+      error: null,
+    })
+    expect(await arranqueGeneral([])).toEqual({
+      ok: false,
+      codigo: 'TRANSICION_INVALIDA',
+      texto: 'Lavandina 5 L se cerró durante la noche.',
+    })
+  })
+
+  it('OPERARIA_INACTIVA y OPERARIA_OCUPADA con texto para la encargada', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'OPERARIA_INACTIVA', detalle: null }, error: null })
+    expect(await arranqueGeneral([])).toEqual({
+      ok: false,
+      codigo: 'OPERARIA_INACTIVA',
+      texto: 'Una de las operarias elegidas ya no está activa.',
+    })
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'OPERARIA_OCUPADA', detalle: 'Lavandina 5 L' }, error: null })
+    expect(await arranqueGeneral([])).toEqual({
+      ok: false,
+      codigo: 'OPERARIA_OCUPADA',
+      texto: 'Una operaria elegida ya está en otro envasado (Lavandina 5 L).',
+    })
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'OPERARIA_OCUPADA', detalle: null }, error: null })
+    expect(await arranqueGeneral([])).toMatchObject({ texto: 'Una operaria elegida ya está en otro envasado.' })
+  })
+
+  it('otros rechazos usan el texto genérico', async () => {
+    rpc.mockResolvedValue({ data: { ok: false, codigo: 'SIN_PAUSA_GENERAL' }, error: null })
+    expect(await arranqueGeneral([])).toMatchObject({ ok: false, codigo: 'SIN_PAUSA_GENERAL', texto: 'No hay ninguna pausa general en curso.' })
   })
 })

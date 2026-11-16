@@ -124,6 +124,9 @@ type Consumible = {
   cargado_por: string | null
   cargado_at: string | null
 }
+// Pausa general (produccion.pausas_generales) y las órdenes que tomó (produccion.pausa_general_ordenes).
+type PausaGeneral = { id: string; inicio: number; fin: number | null; iniciada_por: string; terminada_por: string | null }
+type PausaOrden = { pausa_id: string; entidad: Entidad; entidad_id: string; estaba: 'en_curso' | 'pausada'; operarias: string[] }
 type Evento = { entidad: Entidad; entidad_id: string; accion: string; at: string; empleado_id: string | null; usuario_id: string | null; datos: Fila }
 type Unidad = 'L' | 'kg'
 // Tramo de una operaria en una orden, como produccion.participaciones.
@@ -181,6 +184,10 @@ export type Simulador = {
   cargarConsumible(id: string, lote: string | null, empleadoId?: string | null): { ok: true } | Rechazo
   /** Update directo de un envasado, validado como el trigger envasados_validar_edicion. */
   editarEnvasado(id: string, cambios: Fila): { ok: true } | Rechazo
+  /** Como la RPC pausa_general: pausa todo lo que está en marcha y saca a las operarias con su cantidad. */
+  pausaGeneral(cantidades: Fila[] | null): { ok: true; pausa_id: string; ordenes: number } | Rechazo
+  /** Como la RPC arranque_general: reanuda las elegidas con sus operarias y cierra la pausa. */
+  arranqueGeneral(ordenes: Fila[] | null): { ok: true; reanudadas: number } | Rechazo
 }
 
 // PRNG determinista (mulberry32): la misma semilla da la misma película.
@@ -200,6 +207,10 @@ const TAREA_FAB = new Set(['cola', 'fabricando', 'pausada', 'en_control'])
 const CORRIENDO = new Set(['fabricando', 'activo'])
 const PAUSA = new Set(['pausada', 'pausado'])
 const ABIERTA_TAREA = new Set(['cola', 'activo', 'pausado'])
+// Orden fijo de la RPC (envasado, fabricacion, fraccionado), para que los rechazos coincidan.
+const ORDEN_ENTIDAD: Record<Entidad, number> = { envasado: 1, fabricacion: 2, fraccionado: 3 }
+// HH:MM de Montevideo, como to_char(… at time zone 'America/Montevideo', 'HH24:MI').
+const HORA_MVD = new Intl.DateTimeFormat('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Montevideo' })
 
 export function crearSimulador(opts: { inicio: number; semilla?: number; calentar?: number; autonomo?: boolean }): Simulador {
   const azar = azarCon(opts.semilla ?? Date.now())
@@ -216,6 +227,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const partes: Participacion[] = []
   const controles: Control[] = []
   const consumibles: Consumible[] = []
+  const pausas: PausaGeneral[] = []
+  const pausaOrdenes: PausaOrden[] = []
   const etiquetas = ETIQUETAS.map((e, i) => ({ ...e, activo: true, created_at: new Date(opts.inicio - (10 - i) * 24 * 60 * MIN).toISOString() }))
   const codigos = new Map<string, string>(Object.entries(CODIGOS_INICIALES)) // producto_id → código de la fórmula
 
@@ -261,6 +274,13 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   const mpDe = (fabId: string) => mps.filter((m) => m.fabricacion_id === fabId)
   const mpCompleta = (m: Mp) => !!m.lote?.trim() && m.pesado
   const mpFaltan = (fabId: string) => mpDe(fabId).filter((m) => !mpCompleta(m)).length
+
+  // Con una pausa general abierta la planta (con empleado) no opera: PAUSA_GENERAL con la hora de inicio.
+  const pausaAbierta = () => pausas.find((p) => p.fin === null) ?? null
+  const bloqueoPlanta = (empleadoId: string | null): Rechazo | null => {
+    const p = empleadoId === null ? null : pausaAbierta()
+    return p ? { ok: false, codigo: 'PAUSA_GENERAL', detalle: HORA_MVD.format(p.inicio) } : null
+  }
 
   // ---------- altas ----------
   function insertar(tabla: string, d: Fila) {
@@ -364,6 +384,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   }
 
   function cargarMp(mpId: string, lote: string | null, pesado: boolean, empleadoId: string | null = null): { ok: true } | Rechazo {
+    const bloqueo = bloqueoPlanta(empleadoId)
+    if (bloqueo) return bloqueo
     const m = mps.find((x) => x.id === mpId)
     if (!m) return { ok: false, codigo: 'NO_ENCONTRADO', detalle: null }
     const f = fabDe(m.fabricacion_id)
@@ -458,6 +480,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   }
 
   function cargarConsumible(id: string, lote: string | null, empleadoId: string | null = null): { ok: true } | Rechazo {
+    const bloqueo = bloqueoPlanta(empleadoId)
+    if (bloqueo) return bloqueo
     if (empleadoId !== null && !OPERARIAS.some((o) => o.empleado_id === empleadoId)) return rech('OPERARIA_INACTIVA')
     const c = consumibles.find((y) => y.id === id)
     if (!c) return rech('NO_ENCONTRADO')
@@ -495,6 +519,136 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     e.fabricacion_id = fabId
     e.granel_id = granel
     return { ok: true }
+  }
+
+  // ---------- pausa general ----------
+  const ordenesDe = (entidad: Entidad): Base[] => (entidad === 'fabricacion' ? fabs : entidad === 'envasado' ? envs : fracs)
+  // Nombre de la orden en los detalles de error, como los concat_ws de la RPC.
+  function nombreOrden(entidad: Entidad, x: Base): string {
+    if (entidad === 'fabricacion') {
+      const f = x as Fab
+      return [producto(f.producto_id)?.nombre, tanque(f.tanque_id).codigo].filter(Boolean).join(' ')
+    }
+    if (entidad === 'envasado') {
+      const e = x as Env
+      return [producto(granelDe(e))?.nombre, presOpc(e.presentacion_id)?.nombre].filter(Boolean).join(' ')
+    }
+    const r = x as Frac
+    return [producto(r.producto_id)?.nombre ?? r.descripcion ?? 'fraccionado', presOpc(r.presentacion_id)?.nombre].filter(Boolean).join(' ')
+  }
+
+  function pausaGeneral(cantidades: Fila[] | null): { ok: true; pausa_id: string; ordenes: number } | Rechazo {
+    if (cantidades !== null && !Array.isArray(cantidades)) return rech('CANTIDAD_REQUERIDA')
+    if (pausaAbierta()) return rech('PAUSA_GENERAL_ACTIVA')
+    const enAlcance = (['envasado', 'fabricacion', 'fraccionado'] as const).flatMap((entidad) =>
+      ordenesDe(entidad)
+        .filter((x) => (entidad === 'fabricacion' ? x.estado === 'fabricando' || x.estado === 'pausada' : x.estado === 'activo' || x.estado === 'pausado'))
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((x) => ({ entidad, x, ps: abiertas(entidad, x.id).sort((a, b) => a.empleado_id.localeCompare(b.empleado_id)) })),
+    )
+    // primero se valida todo (todo o nada): envasado/fraccionado exigen la cantidad de cada operaria abierta
+    const declarado = new Map<Participacion, { cantidad: number; unidad: Unidad }>()
+    for (const { entidad, x, ps } of enAlcance) {
+      if (entidad === 'fabricacion') continue
+      for (const p of ps) {
+        const c = (cantidades ?? []).find(
+          (y) => y !== null && typeof y === 'object' && y.entidad === entidad && y.entidad_id === x.id && y.empleado_id === p.empleado_id,
+        )
+        if (!c || typeof c.cantidad !== 'number' || !(c.cantidad > 0) || (c.unidad !== 'L' && c.unidad !== 'kg')) {
+          return rech('CANTIDAD_REQUERIDA', `${nombreOperaria(p.empleado_id)} en ${nombreOrden(entidad, x)}`)
+        }
+        declarado.set(p, { cantidad: c.cantidad, unidad: c.unidad })
+      }
+    }
+    if (enAlcance.length === 0) return rech('SIN_ORDENES')
+
+    const pausa: PausaGeneral = { id: nuevoId('dpg'), inicio: t, fin: null, iniciada_por: ENCARGADA.id, terminada_por: null }
+    pausas.push(pausa)
+    const datos = { pausa_general: pausa.id }
+    for (const { entidad, x, ps } of enAlcance) {
+      const corriendo = CORRIENDO.has(x.estado)
+      pausaOrdenes.push({ pausa_id: pausa.id, entidad, entidad_id: x.id, estaba: corriendo ? 'en_curso' : 'pausada', operarias: ps.map((p) => p.empleado_id) })
+      x.reanudarEn = null // queda pausada hasta el Arranque (o hasta que la encargada la reanude)
+      if (corriendo) {
+        x.estado = entidad === 'fabricacion' ? 'pausada' : 'pausado'
+        evento(entidad, x.id, 'pausar', null, datos, ENCARGADA.id)
+      }
+      for (const p of ps) {
+        const d = declarado.get(p)
+        cierre(p, d?.cantidad ?? null, d?.unidad ?? null)
+        evento(entidad, x.id, 'salir', p.empleado_id, d ? { ...datos, cantidad: d.cantidad, unidad: d.unidad } : datos, ENCARGADA.id)
+      }
+    }
+    return { ok: true, pausa_id: pausa.id, ordenes: enAlcance.length }
+  }
+
+  function arranqueGeneral(ordenes: Fila[] | null): { ok: true; reanudadas: number } | Rechazo {
+    const lista = ordenes ?? []
+    if (!Array.isArray(lista)) return rech('DATOS_INVALIDOS')
+    const pausa = pausaAbierta()
+    if (!pausa) return rech('SIN_PAUSA_GENERAL')
+    // normalizada en el orden fijo de la RPC, con empleados sin repetir
+    const pedidas = lista
+      .map((o) => ({
+        entidad: String(o?.entidad) as Entidad,
+        id: String(o?.entidad_id),
+        empleados: [...new Set((Array.isArray(o?.empleados) ? (o.empleados as unknown[]) : []).filter((u): u is string => typeof u === 'string'))].sort(),
+      }))
+      .sort((a, b) => (ORDEN_ENTIDAD[a.entidad] ?? 9) - (ORDEN_ENTIDAD[b.entidad] ?? 9) || a.id.localeCompare(b.id))
+
+    // 1. validar cada orden
+    const vistas = new Set<string>()
+    const plan: { entidad: Entidad; x: Base; empleados: string[] }[] = []
+    for (const o of pedidas) {
+      const k = `${o.entidad}:${o.id}`
+      if (vistas.has(k)) return rech('DATOS_INVALIDOS')
+      vistas.add(k)
+      if (!pausaOrdenes.some((g) => g.pausa_id === pausa.id && g.entidad === o.entidad && g.entidad_id === o.id)) return rech('NO_ENCONTRADO')
+      const x = ordenesDe(o.entidad).find((y) => y.id === o.id)
+      if (!x) return rech('NO_ENCONTRADO')
+      // finalizada o cancelada por la encargada en la noche (o reanudada a mano)
+      if (!PAUSA.has(x.estado)) return rech('TRANSICION_INVALIDA', nombreOrden(o.entidad, x))
+      if (o.empleados.length === 0) return rech('SIN_OPERARIAS', nombreOrden(o.entidad, x))
+      if (o.empleados.some((e) => !OPERARIAS.some((op) => op.empleado_id === e))) return rech('OPERARIA_INACTIVA')
+      plan.push({ entidad: o.entidad, x, empleados: o.empleados })
+    }
+
+    // 2. una operaria en un solo envasado activo (misma regla que la RPC): contra los activos fuera de la
+    // lista (participación abierta, o su operaria_1/2 si no tiene ninguna) y los de la lista ya reanudados
+    const reanudados = new Map<string, Set<string>>() // envasado de la lista → quienes quedan en él
+    for (const { entidad, x, empleados } of plan) {
+      if (entidad !== 'envasado') continue
+      const quienes = new Set([...empleados, ...abiertas('envasado', x.id).map((p) => p.empleado_id)])
+      for (const q of [...quienes].sort()) {
+        const otro = envs.find((v) => {
+          if (v.id === x.id) return false
+          const ya = reanudados.get(v.id)
+          if (ya) return ya.has(q)
+          if (v.estado !== 'activo') return false
+          const en = abiertas('envasado', v.id)
+          return en.some((p) => p.empleado_id === q) || (en.length === 0 && (v.operaria_1 === q || v.operaria_2 === q))
+        })
+        if (otro) return rech('OPERARIA_OCUPADA', nombreOrden('envasado', otro))
+      }
+      reanudados.set(x.id, quienes)
+    }
+
+    // 3. reanudar cada orden con sus operarias y cerrar la pausa (las que no vinieron quedan pausadas)
+    const datos = { pausa_general: pausa.id }
+    for (const { entidad, x, empleados } of plan) {
+      x.estado = entidad === 'fabricacion' ? 'fabricando' : 'activo'
+      x.reanudarEn = null
+      evento(entidad, x.id, 'reanudar', null, datos, ENCARGADA.id)
+      for (const e of empleados) {
+        // la encargada pudo sumarla a mano en la noche: no se duplica
+        if (abiertas(entidad, x.id).some((p) => p.empleado_id === e)) continue
+        abrirParte(entidad, x.id, e)
+        evento(entidad, x.id, 'sumarse', e, datos, ENCARGADA.id)
+      }
+    }
+    pausa.fin = t
+    pausa.terminada_por = ENCARGADA.id
+    return { ok: true, reanudadas: plan.length }
   }
 
   // ---------- acciones ----------
@@ -548,6 +702,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   function accion(entidad: Entidad, id: string, a: Accion, empleadoId: string | null = null, cantidades: CantidadDeclarada[] | null = null): ResultadoAccion {
     const lista: Base[] = entidad === 'fabricacion' ? fabs : entidad === 'envasado' ? envs : fracs
     const planta = empleadoId !== null
+    const bloqueo = bloqueoPlanta(empleadoId)
+    if (bloqueo) return rechazo(bloqueo.codigo, bloqueo.detalle ?? '')
     if (!planta && (a === 'sumarse' || a === 'salir')) return rechazo('NO_AUTORIZADO')
     if (planta && !OPERARIAS.some((o) => o.empleado_id === empleadoId)) return rechazo('OPERARIA_INACTIVA')
     const x = lista.find((y) => y.id === id)
@@ -907,7 +1063,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
   function avanzar(minutos: number) {
     for (let i = 0; i < minutos; i++) {
       progreso()
-      if (autonomo) piloto()
+      // con la planta en pausa general el piloto no hace nada (ni pausas, ni controles, ni altas)
+      if (autonomo && !pausaAbierta()) piloto()
       t += MIN
     }
   }
@@ -1186,6 +1343,10 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         ]
       case 'eventos':
         return eventos.map((e) => ({ ...e }))
+      case 'pausas_generales':
+        return pausas.map((p) => ({ ...p, inicio: iso(p.inicio), fin: iso(p.fin) }))
+      case 'pausa_general_ordenes':
+        return pausaOrdenes.map((g) => ({ ...g, operarias: [...g.operarias] }))
       case 'envasados':
         return envs.map((e) => ({
           id: e.id, fabricacion_id: e.fabricacion_id, presentacion_id: e.presentacion_id, cantidad: e.cantidad, estado: e.estado, etiqueta_id: e.etiqueta_id,
@@ -1228,5 +1389,6 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     registrarControl,
     liberadoras: () => [{ id: ENCARGADA.id, nombre: ENCARGADA.nombre }],
     crearGranelStock, crearEnvasadoDocumento, crearFraccionadoDocumento, cargarConsumible, editarEnvasado,
+    pausaGeneral, arranqueGeneral,
   }
 }

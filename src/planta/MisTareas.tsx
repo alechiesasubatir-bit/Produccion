@@ -36,6 +36,7 @@ export function MisTareas({
   empleadoId,
   tanque,
   conectado,
+  enPausa = false,
   cargadoEn,
   aviso,
   recargaMp = 0,
@@ -50,6 +51,8 @@ export function MisTareas({
   empleadoId: string
   tanque: string | null
   conectado: boolean
+  // Planta en pausa general: acciones, MP y consumibles bloqueados (el control sigue).
+  enPausa?: boolean
   cargadoEn: number
   aviso: string | null
   recargaMp?: number
@@ -145,6 +148,7 @@ export function MisTareas({
               disponible={false}
               empleadoId={empleadoId}
               habilitado={conectado}
+              bloqueadaPorPausa={enPausa}
               cargadoEn={cargadoEn}
               onAccion={(a) => accionar(t, a)}
               bloqueoFinalizar={bloqueo(t)}
@@ -154,7 +158,7 @@ export function MisTareas({
                     entidad={t.entidad as 'envasado' | 'fraccionado'}
                     entidadId={t.id}
                     empleadoId={empleadoId}
-                    habilitado={conectado}
+                    habilitado={conectado && !enPausa}
                     nombres={nombresDe(t)}
                     recarga={recargaConsumibles}
                   />
@@ -163,7 +167,7 @@ export function MisTareas({
                   <ChecklistMp
                     fabricacionId={t.id}
                     empleadoId={empleadoId}
-                    habilitado={conectado}
+                    habilitado={conectado && !enPausa}
                     recarga={recargaMp}
                     nombres={nombresDe(t)}
                     onCambio={(n) => setCompletasLocal((c) => (c[t.id] === n ? c : { ...c, [t.id]: n }))}
@@ -203,6 +207,7 @@ export function MisTareas({
               enCurso
               empleadoId={empleadoId}
               habilitado={conectado}
+              bloqueadaPorPausa={enPausa}
               cargadoEn={cargadoEn}
               onAccion={(a) => accionar(t, a)}
             />
@@ -220,6 +225,7 @@ export function MisTareas({
               tarea={t}
               disponible
               habilitado={conectado}
+              bloqueadaPorPausa={enPausa}
               cargadoEn={cargadoEn}
               onAccion={(a) => accionar(t, a)}
             />

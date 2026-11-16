@@ -20,6 +20,15 @@ const cant = (n: unknown, unidad: unknown) => (typeof n === 'number' ? `${nf.for
 /** Texto de los eventos de operarias; null si es un evento común (se arma con verbo y autor). */
 export function textoEventoOperaria(e: EventoRecorrido): string | null {
   const d = obj(e.datos)
+  if (d.pausa_general) {
+    if (e.accion === 'pausar') return 'Pausa general'
+    if (e.accion === 'reanudar') return 'Arranque'
+    if (e.accion === 'sumarse') return `${e.quien} se sumó en el arranque`
+    if (e.accion === 'salir') {
+      const c = cant(d.cantidad, d.unidad)
+      return `${e.quien} salió por la pausa general${c ? ` (${c})` : ''}`
+    }
+  }
   if (e.accion === 'sumarse') return `${e.quien} se sumó`
   if (e.accion === 'salir') {
     const c = cant(d.cantidad, d.unidad)

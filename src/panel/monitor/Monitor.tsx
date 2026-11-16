@@ -8,6 +8,8 @@ import { useRealtime } from '../../lib/useRealtime'
 import { useTanques } from '../../pages/ParedTanques'
 import { Tanque } from '../../ui/Tanque'
 import { cargarFlujo, cargarOperarias } from '../datosFlujo'
+import { usePausaGeneral } from '../datosPausaGeneral'
+import { FranjaPausa } from '../PausaGeneral'
 import { KpisFlujo } from '../KpisFlujo'
 import { TarjetaFlujo } from '../TarjetaFlujo'
 
@@ -34,6 +36,7 @@ export function Monitor({ salir }: { salir: string }) {
   const kpis = useMemo(() => kpisFlujo(flujo.datos), [flujo.datos])
   const cargadoEn = useMemo(() => Date.now(), [flujo.datos])
   const hora = useHora()
+  const pausa = usePausaGeneral()
 
   const pantallaCompleta = () => {
     if (document.fullscreenElement) void document.exitFullscreen?.()
@@ -66,6 +69,7 @@ export function Monitor({ salir }: { salir: string }) {
             </div>
           </div>
         </header>
+        {pausa && <FranjaPausa pausa={pausa} />}
 
         <LayoutGroup>
           <div className="monitor-kanban">

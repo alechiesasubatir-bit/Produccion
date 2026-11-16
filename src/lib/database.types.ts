@@ -304,6 +304,14 @@ export type Database = {
         },
         'id' | 'entidad' | 'entidad_id' | 'creada' | 'leida' | 'pospuesta_hasta'
       >
+      pausas_generales: Tabla<
+        { id: Uuid; inicio: Ts; fin: Ts | null; iniciada_por: Uuid | null; terminada_por: Uuid | null },
+        'id' | 'inicio' | 'fin' | 'iniciada_por' | 'terminada_por'
+      >
+      pausa_general_ordenes: Tabla<
+        { pausa_id: Uuid; entidad: EntidadEvento; entidad_id: Uuid; estaba: 'en_curso' | 'pausada'; operarias: Uuid[] },
+        'operarias'
+      >
     }
     Views: {
       v_operarias: Vista<{
@@ -543,6 +551,14 @@ export type Database = {
       }
       cargar_consumible: {
         Args: { p_id: Uuid; p_lote: string; p_empleado_id?: Uuid }
+        Returns: Json
+      }
+      pausa_general: {
+        Args: { p_cantidades: { entidad: EntidadEvento; entidad_id: Uuid; empleado_id: Uuid; cantidad: number; unidad: 'L' | 'kg' }[] }
+        Returns: Json
+      }
+      arranque_general: {
+        Args: { p_ordenes: { entidad: EntidadEvento; entidad_id: Uuid; empleados: Uuid[] }[] }
         Returns: Json
       }
       listar_usuarios: {

@@ -11,6 +11,8 @@ const m = vi.hoisted(() => ({
   recargar: vi.fn(),
   error: null as string | null,
   mpTotal: 0,
+  pausa: null as { id: string; inicio: string } | null,
+  override: {} as Record<string, unknown>,
   canales: {} as Record<string, string[]>,
 }))
 
@@ -18,6 +20,7 @@ vi.mock('../lib/acciones', () => ({
   ejecutarAccion: m.ejecutarAccion,
   guardarMp: m.guardarMp,
 }))
+vi.mock('../panel/datosPausaGeneral', () => ({ usePausaGeneral: () => m.pausa }))
 vi.mock('../lib/datosMp', () => ({ cargarMpDe: m.cargarMpDe }))
 vi.mock('../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../auth/useSesion', () => ({ salir: vi.fn() }))
@@ -61,7 +64,7 @@ const suya: Tarea = {
 vi.mock('../lib/useRealtime', () => ({
   useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
     ...(m.canales[tabla] = canales, {}),
-    datos: tabla === 'v_operarias' ? operarias : [{ ...suya, mp_total: m.mpTotal }],
+    datos: tabla === 'v_operarias' ? operarias : [{ ...suya, mp_total: m.mpTotal, ...m.override }],
     conectado: true,
     enVivo: true,
     error: tabla === 'v_tareas' ? m.error : null,
@@ -87,6 +90,8 @@ describe('PlantaApp', () => {
   afterEach(() => {
     vi.useRealTimers()
     m.mpTotal = 0
+    m.pausa = null
+    m.override = {}
   })
 
   it('escucha los cambios de participaciones para ver el equipo al día', () => {
@@ -210,5 +215,57 @@ describe('PlantaApp', () => {
     m.ejecutarAccion.mockResolvedValue({ ok: false, codigo: 'ULTIMA_OPERARIA', texto: 'Sos la última: pausá o finalizá.' })
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Finalizar' })))
     expect(screen.getByRole('alert')).toHaveTextContent('Sos la última: pausá o finalizá.')
+  })
+
+  describe('pausa general', () => {
+    const abierta = { id: 'P1', inicio: '2026-11-16T15:30:00Z' }
+
+    it('muestra la franja y bloquea acciones y casillas de MP', async () => {
+      m.mpTotal = 1
+      m.cargarMpDe.mockReset().mockResolvedValue([
+        { id: 'mp1', orden: 1, codigo: '900101', descripcion: 'Bacterias', cantidad: 6.5, lote: null, pesado: false, cargado_por: null, cargado_at: null },
+      ])
+      m.pausa = abierta
+      montar()
+      await entrarComoLaura()
+      expect(screen.getByText('Planta en pausa general desde 12:30 — la encargada la levanta con Arranque')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Finalizar' })).toBeDisabled()
+      expect(await screen.findByRole('checkbox', { name: 'Pesado 900101' })).toBeDisabled()
+    })
+
+    it('bloquea las casillas de consumibles', async () => {
+      m.pausa = abierta
+      m.override = { entidad: 'envasado', estado: 'activo', consumibles_total: 1, operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz', desde: '' }] }
+      montar()
+      await entrarComoLaura()
+      for (const c of screen.queryAllByRole('checkbox')) expect(c).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Finalizar' })).toBeDisabled()
+    })
+
+    it('sin pausa no hay franja y las acciones andan', async () => {
+      montar()
+      await entrarComoLaura()
+      expect(screen.queryByText(/Planta en pausa general/)).toBeNull()
+      expect(screen.getByRole('button', { name: 'Finalizar' })).toBeEnabled()
+    })
+
+    it('con el teclado de cantidad abierto cae la pausa: mensaje amable y tarjeta bloqueada', async () => {
+      m.override = { entidad: 'envasado', estado: 'activo', operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz', desde: '' }] }
+      const { mensajeError } = await import('../lib/errores')
+      m.ejecutarAccion.mockResolvedValue({ ok: false, ...mensajeError({ codigo: 'PAUSA_GENERAL', detalle: '12:30' }) })
+      const v = montar()
+      await entrarComoLaura()
+      fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+      fireEvent.change(screen.getByLabelText('Laura Paz'), { target: { value: '100' } })
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Confirmar' })))
+      expect(screen.getByRole('alert')).toHaveTextContent('La planta está en pausa general desde las 12:30. La encargada la levanta con Arranque.')
+      m.pausa = abierta
+      v.rerender(
+        <MemoryRouter initialEntries={['/planta?tanque=T-03']}>
+          <PlantaApp />
+        </MemoryRouter>,
+      )
+      expect(screen.getByRole('button', { name: 'Finalizar' })).toBeDisabled()
+    })
   })
 })

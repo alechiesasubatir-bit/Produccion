@@ -57,6 +57,8 @@ export function crearMotor(opts: { semilla?: number } = {}): Motor {
       crearFraccionadoDocumento: (frac, cons) => sim.crearFraccionadoDocumento(frac, cons),
       cargarConsumible: (id, lote, emp) => sim.cargarConsumible(id, lote, emp),
       editarEnvasado: (id, cambios) => sim.editarEnvasado(id, cambios),
+      pausaGeneral: (cant) => sim.pausaGeneral(cant),
+      arranqueGeneral: (ordenes) => sim.arranqueGeneral(ordenes),
     },
     ahora: () => sim.ahora(),
     velocidad: () => velocidad,

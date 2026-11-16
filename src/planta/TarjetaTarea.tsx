@@ -94,6 +94,7 @@ export function TarjetaTarea({
   enCurso = false,
   empleadoId,
   onControlar,
+  bloqueadaPorPausa = false,
 }: {
   tarea: Tarea
   disponible: boolean
@@ -110,6 +111,8 @@ export function TarjetaTarea({
   empleadoId?: string
   // Fabricación en control: la única acción es Controlar.
   onControlar?: () => void
+  // Planta en pausa general: las acciones quedan deshabilitadas (Controlar no).
+  bloqueadaPorPausa?: boolean
 }) {
   const enControl = tarea.estado === 'en_control'
   const propia = !disponible && !enCurso && !enControl
@@ -175,7 +178,7 @@ export function TarjetaTarea({
               key={a}
               type="button"
               className={`accion accion-${a}`}
-              disabled={!habilitado || bloqueada}
+              disabled={!habilitado || bloqueada || bloqueadaPorPausa}
               aria-describedby={salirUltima ? idUltima : bloqueada ? idBloqueo : undefined}
               onClick={() => onAccion(a)}
             >

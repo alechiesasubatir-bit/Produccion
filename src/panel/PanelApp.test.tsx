@@ -13,6 +13,12 @@ vi.mock('../planta/PlantaApp', () => ({
 vi.mock('../demo/BarraDemo', () => ({ BarraDemo: () => <p>controles de la demo</p> }))
 vi.mock('./alertas/useAlertas', () => ({ useAlertas: () => ({ todas: [], activas: [{ id: 'a' }, { id: 'b' }], recargar: vi.fn() }) }))
 vi.mock('./alertas/useAvisoSonoro', () => ({ useAvisoSonoro: () => {} }))
+const pausa = vi.hoisted(() => ({ abierta: null as { id: string; inicio: string } | null }))
+vi.mock('./datosPausaGeneral', () => ({ usePausaGeneralEnVivo: () => ({ pausa: pausa.abierta, recargar: () => {} }) }))
+vi.mock('./PausaGeneral', async (original) => ({
+  ...(await original<typeof import('./PausaGeneral')>()),
+  BotonPausaGeneral: ({ pausa: p }: { pausa: unknown }) => <button type="button">{p ? 'Arranque' : 'Pausa General'}</button>,
+}))
 vi.mock('../auth/useSesion', () => ({ useSesion: () => ({ usuario: { email: 'enc@x.uy' } }), salir: vi.fn() }))
 
 function montar(ruta: string) {
@@ -27,7 +33,10 @@ function montar(ruta: string) {
 }
 
 describe('PanelApp', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    pausa.abierta = null
+  })
 
   it('muestra la vista de la ruta y marca su pestaña', () => {
     montar('/panel/tanques')
@@ -87,5 +96,18 @@ describe('PanelApp', () => {
     expect(screen.getByRole('link', { name: 'Tanques' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText('controles de la demo')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument()
+  })
+
+  it('con pausa general abierta muestra la franja y el botón Arranque', () => {
+    pausa.abierta = { id: 'p1', inicio: '2026-11-16T21:30:00Z' }
+    montar('/panel')
+    expect(screen.getByRole('status')).toHaveTextContent('Planta en pausa general desde 18:30')
+    expect(screen.getByRole('button', { name: 'Arranque' })).toBeInTheDocument()
+  })
+
+  it('sin pausa no hay franja; el botón Pausa General está también en la demo', () => {
+    montar('/demo')
+    expect(screen.queryByText(/Planta en pausa general/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pausa General' })).toBeInTheDocument()
   })
 })

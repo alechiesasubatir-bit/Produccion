@@ -5,6 +5,8 @@ import type { Accion } from '../domain/acciones'
 import type { Cantidad } from '../domain/participaciones'
 import { pasadoAccion, tituloTarea, type Tarea } from '../domain/tareas'
 import { ejecutarAccion } from '../lib/acciones'
+import { usePausaGeneral } from '../panel/datosPausaGeneral'
+import { FranjaPausa } from '../panel/PausaGeneral'
 import { db, fetchAll } from '../lib/supabase'
 import { useRealtime } from '../lib/useRealtime'
 import { AnilloInactividad } from './AnilloInactividad'
@@ -41,6 +43,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
 
   const operarias = useRealtime('v_operarias', cargarOperarias, [])
   const tareas = useRealtime('v_tareas', cargarTareas, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles', 'consumibles'])
+  const pausa = usePausaGeneral()
   // El cronómetro suma desde el momento en que llegaron los datos.
   const cargadoEn = useMemo(() => Date.now(), [tareas.datos])
 
@@ -145,6 +148,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
         </div>
       )}
       <main className="planta-cuerpo">
+        {pausa && <FranjaPausa pausa={pausa} planta />}
         {errorCarga && (
           <p className="aviso-planta" role="alert">
             {errorCarga}
@@ -163,6 +167,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
             empleadoId={operaria.empleado_id}
             tanque={tanque}
             conectado={tareas.conectado}
+            enPausa={pausa !== null}
             cargadoEn={cargadoEn}
             aviso={aviso}
             recargaMp={recargaMp}

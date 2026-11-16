@@ -108,6 +108,10 @@ export function crearFetchDemo(sim: Simulador, onCambio: () => void): typeof fet
         r = sim.crearFraccionadoDocumento((args.p_frac ?? {}) as Fila, (args.p_consumibles ?? []) as Fila[])
       } else if (ruta === 'rpc/cargar_consumible') {
         r = sim.cargarConsumible(String(args.p_id), texto('p_lote'), texto('p_empleado_id'))
+      } else if (ruta === 'rpc/pausa_general') {
+        r = sim.pausaGeneral((args.p_cantidades ?? null) as Fila[] | null)
+      } else if (ruta === 'rpc/arranque_general') {
+        r = sim.arranqueGeneral((args.p_ordenes ?? null) as Fila[] | null)
       } else if (ruta === 'rpc/cargar_mp') {
         r = sim.cargarMp(String(args.p_mp_id), texto('p_lote'), args.p_pesado === true, texto('p_empleado_id'))
       }

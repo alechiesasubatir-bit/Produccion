@@ -5,8 +5,9 @@ import type { FilaFlujo } from '../../domain/flujo'
 import type { EstadoTanqueFila } from '../../pages/ParedTanques'
 import { Monitor } from './Monitor'
 
-const m = vi.hoisted(() => ({ flujo: [] as unknown[], tanques: [] as unknown[], canales: {} as Record<string, string[]> }))
+const m = vi.hoisted(() => ({ pausa: null as { id: string; inicio: string } | null, flujo: [] as unknown[], tanques: [] as unknown[], canales: {} as Record<string, string[]> }))
 
+vi.mock('../datosPausaGeneral', () => ({ usePausaGeneral: () => m.pausa }))
 vi.mock('../../lib/supabase', () => ({ db: {}, fetchAll: vi.fn() }))
 vi.mock('../../lib/useRealtime', () => ({
   useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
@@ -46,7 +47,21 @@ const montar = () =>
   )
 
 describe('Monitor (TV)', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    m.pausa = null
+  })
+
+  it('con la planta en pausa general muestra la franja; sin pausa, no', () => {
+    m.flujo = []
+    m.tanques = []
+    const v = montar()
+    expect(screen.queryByText(/Planta en pausa general/)).not.toBeInTheDocument()
+    v.unmount()
+    m.pausa = { id: 'P1', inicio: '2026-11-16T15:30:00Z' }
+    montar()
+    expect(screen.getByText('Planta en pausa general desde 12:30')).toBeInTheDocument()
+  })
 
   it('muestra el flujo en 5 columnas (sin Terminadas hoy), sin botones de acción', () => {
     m.flujo = [fila({}), fila({ estado: 'cola', corriendo: false, min_efectivos: null, inicio: null })]

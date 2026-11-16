@@ -132,3 +132,32 @@ describe('mensajeError: envasado por documento (trigger y RPC)', () => {
     expect(mensajeError({ message: 'TRANSICION_INVALIDA', code: 'PC001' })).toMatchObject({ codigo: 'TRANSICION_INVALIDA' })
   })
 })
+
+describe('mensajeError: pausa general', () => {
+  it('CANTIDAD_REQUERIDA de pausa_general nombra a la operaria y la orden', () => {
+    expect(mensajeError({ codigo: 'CANTIDAD_REQUERIDA', detalle: 'Ana Gómez en Lavandina 5 L' }).texto).toBe(
+      'Falta la cantidad de Ana Gómez en Lavandina 5 L.',
+    )
+    expect(mensajeError({ codigo: 'CANTIDAD_REQUERIDA', detalle: null }).texto).toBe('Falta declarar cuánto se envasó.')
+  })
+
+  it('PAUSA_GENERAL incluye la hora', () => {
+    const r = mensajeError({ codigo: 'PAUSA_GENERAL', detalle: '18:05' })
+    expect(r.codigo).toBe('PAUSA_GENERAL')
+    expect(r.texto).toBe('La planta está en pausa general desde las 18:05. La encargada la levanta con Arranque.')
+  })
+
+  it.each([
+    ['PAUSA_GENERAL_ACTIVA', 'Ya hay una pausa general en curso.'],
+    ['SIN_PAUSA_GENERAL', 'No hay ninguna pausa general en curso.'],
+    ['SIN_ORDENES', 'No hay órdenes en marcha para pausar.'],
+  ])('%s', (codigo, texto) => {
+    expect(mensajeError({ codigo })).toEqual({ codigo, texto })
+  })
+
+  it('SIN_OPERARIAS nombra la orden', () => {
+    expect(mensajeError({ codigo: 'SIN_OPERARIAS', detalle: 'Lavandina 5 L' }).texto).toBe(
+      'Cada orden que se reanuda necesita al menos una operaria (Lavandina 5 L).',
+    )
+  })
+})

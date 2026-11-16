@@ -1,4 +1,5 @@
 import type { Accion, Entidad } from '../domain/acciones'
+import type { CantidadOrden, OrdenArranque } from '../domain/pausaGeneral'
 import type { Cantidad, Unidad } from '../domain/participaciones'
 import { mensajeError, type CodigoError } from './errores'
 import { db } from './supabase'
@@ -10,7 +11,7 @@ type Respuesta = { ok?: boolean; fabricacion_cerrada?: boolean } | null
 // Las RPC de produccion no lanzan errores de negocio: devuelven {ok:false, codigo, detalle}.
 // Acá se unifican con los errores de PostgREST y de red en un solo formato.
 async function llamar(
-  nombre: 'accion' | 'cargar_mp' | 'cargar_consumible' | 'corregir_cantidad' | 'set_vencimiento' | 'registrar_control',
+  nombre: 'accion' | 'cargar_mp' | 'cargar_consumible' | 'corregir_cantidad' | 'set_vencimiento' | 'registrar_control' | 'pausa_general' | 'arranque_general',
   args: Record<string, unknown>,
 ): Promise<Respuesta | Resultado> {
   try {
@@ -140,4 +141,54 @@ export async function listarLiberadoras(): Promise<{ id: string; nombre: string 
   const { data, error } = await db.rpc('listar_liberadoras')
   if (error) throw error
   return (data ?? []) as { id: string; nombre: string }[]
+}
+
+// Pausa General: pausa todas las órdenes en marcha; las cantidades son las de las operarias que salen.
+export async function pausaGeneral(cantidades: CantidadOrden[]): Promise<Resultado<{ pausaId: string }>> {
+  const r = await llamar('pausa_general', {
+    p_cantidades: cantidades.map((c) => ({
+      entidad: c.entidad,
+      entidad_id: c.id,
+      empleado_id: c.empleadoId,
+      cantidad: c.cantidad,
+      unidad: c.unidad,
+    })),
+  })
+  if (r && 'codigo' in r) return r
+  return { ok: true, pausaId: String((r as { pausa_id?: string } | null)?.pausa_id ?? '') }
+}
+
+// Arranque: levanta la pausa general y reanuda las órdenes marcadas con sus operarias.
+export async function arranqueGeneral(ordenes: OrdenArranque[]): Promise<Resultado> {
+  const args = {
+    p_ordenes: ordenes.map((o) => ({ entidad: o.entidad, entidad_id: o.id, empleados: o.empleados })),
+  }
+  try {
+    const { data, error } = await db.rpc('arranque_general', args as never)
+    if (error) return { ok: false, ...mensajeError(error) }
+    const r = data as { ok?: boolean; codigo?: string; detalle?: string } | null
+    if (!r?.ok) {
+      // Una orden marcada se cerró durante la noche: el texto genérico de accion() no sirve acá.
+      if (r?.codigo === 'TRANSICION_INVALIDA' && r.detalle) {
+        return { ok: false, codigo: 'TRANSICION_INVALIDA', texto: `${r.detalle} se cerró durante la noche.` }
+      }
+      // Los textos de accion() le hablan a la operaria; acá lee la encargada.
+      if (r?.codigo === 'OPERARIA_INACTIVA') {
+        return { ok: false, codigo: 'OPERARIA_INACTIVA', texto: 'Una de las operarias elegidas ya no está activa.' }
+      }
+      if (r?.codigo === 'OPERARIA_OCUPADA') {
+        return {
+          ok: false,
+          codigo: 'OPERARIA_OCUPADA',
+          texto: r.detalle
+            ? `Una operaria elegida ya está en otro envasado (${r.detalle}).`
+            : 'Una operaria elegida ya está en otro envasado.',
+        }
+      }
+      return { ok: false, ...mensajeError(r) }
+    }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, ...mensajeError(e) }
+  }
 }

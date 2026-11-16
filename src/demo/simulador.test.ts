@@ -581,4 +581,186 @@ describe('simulador de la demo', () => {
       expect(fila(s, 'v_flujo', con)).toMatchObject({ lote: '7', presentacion: '1kg', producto: 'Percarbonato' })
     })
   })
+
+  describe('pausa general', () => {
+    type Sim = ReturnType<typeof crearSimulador>
+    type Part = { entidad: string; entidad_id: string; empleado_id: string; hasta: string | null; cantidad: number | null; unidad: string | null }
+    type Ev = { entidad: string; entidad_id: string; accion: string; empleado_id: string | null; datos: Record<string, unknown> }
+    const estado = (s: Sim, id: string) => flujo(s).find((f) => f.id === id)?.estado
+    const partes = (s: Sim) => s.consultar('participaciones') as Part[]
+    const abiertas = (s: Sim, id: string) => partes(s).filter((p) => p.entidad_id === id && p.hasta === null).map((p) => p.empleado_id)
+    const no = (codigo: string, detalle: string | null = null) => ({ ok: false, codigo, detalle })
+    // envasado E (do2 + do3) de la fabricación L-1, fabricación L-2 (do1) y un fraccionado (do4), todos en curso
+    const planta = () => {
+      const s = crearSimulador({ inicio: INICIO, semilla: 21, calentar: 0, autonomo: false })
+      s.insertar('fabricaciones', { tanque_id: 'dt1', producto_id: 'dp1', litros: 100, lote: 'L-1' })
+      const listo = flujo(s)[0].id
+      s.accion('fabricacion', listo, 'iniciar', 'do1')
+      s.avanzar(10)
+      s.registrarControl({ ...CONTROL_OK, fabricacionId: listo })
+      s.insertar('envasados', { fabricacion_id: listo, presentacion_id: 'dr4', cantidad: 20 })
+      const env = flujo(s).find((f) => f.entidad === 'envasado')!.id
+      s.accion('envasado', env, 'iniciar', 'do2')
+      s.accion('envasado', env, 'sumarse', 'do3')
+      s.insertar('fabricaciones', { tanque_id: 'dt2', producto_id: 'dp2', litros: 1000, lote: 'L-2' })
+      const fab = flujo(s).find((f) => f.lote === 'L-2')!.id
+      s.accion('fabricacion', fab, 'iniciar', 'do1')
+      s.insertar('fraccionados', { producto_id: 'dp22', presentacion_id: 'dr6', cantidad: 500 })
+      const frac = flujo(s).find((f) => f.entidad === 'fraccionado')!.id
+      s.accion('fraccionado', frac, 'iniciar', 'do4')
+      return { s, listo, env, fab, frac }
+    }
+    const cantidades = (env: string, frac: string) => [
+      { entidad: 'envasado', entidad_id: env, empleado_id: 'do2', cantidad: 30, unidad: 'L' },
+      { entidad: 'envasado', entidad_id: env, empleado_id: 'do3', cantidad: 20, unidad: 'L' },
+      { entidad: 'fraccionado', entidad_id: frac, empleado_id: 'do4', cantidad: 12, unidad: 'kg' },
+    ]
+
+    it('pausa las órdenes en marcha, cierra las participaciones con su cantidad y guarda la pausa', () => {
+      const { s, env, fab, frac } = planta()
+      const r = s.pausaGeneral(cantidades(env, frac))
+      expect(r).toEqual({ ok: true, pausa_id: expect.any(String), ordenes: 3 })
+      const id = (r as { pausa_id: string }).pausa_id
+      expect([estado(s, env), estado(s, fab), estado(s, frac)]).toEqual(['pausado', 'pausada', 'pausado'])
+      expect(abiertas(s, env)).toEqual([])
+      expect(partes(s).filter((p) => p.entidad_id === env).map((p) => [p.empleado_id, p.cantidad, p.unidad])).toEqual([
+        ['do2', 30, 'L'],
+        ['do3', 20, 'L'],
+      ])
+      expect(partes(s).find((p) => p.entidad_id === fab)).toMatchObject({ empleado_id: 'do1', cantidad: null, hasta: expect.any(String) })
+      expect(s.consultar('pausas_generales')).toEqual([
+        expect.objectContaining({ id, inicio: new Date(s.ahora()).toISOString(), fin: null, iniciada_por: expect.any(String), terminada_por: null }),
+      ])
+      expect(s.consultar('pausa_general_ordenes')).toEqual(
+        expect.arrayContaining([
+          { pausa_id: id, entidad: 'envasado', entidad_id: env, estaba: 'en_curso', operarias: ['do2', 'do3'] },
+          { pausa_id: id, entidad: 'fabricacion', entidad_id: fab, estaba: 'en_curso', operarias: ['do1'] },
+          { pausa_id: id, entidad: 'fraccionado', entidad_id: frac, estaba: 'en_curso', operarias: ['do4'] },
+        ]),
+      )
+      const evs = (s.consultar('eventos') as Ev[]).filter((e) => e.datos.pausa_general === id)
+      expect(evs.filter((e) => e.accion === 'pausar')).toHaveLength(3)
+      expect(evs.find((e) => e.accion === 'salir' && e.empleado_id === 'do4')?.datos).toEqual({ pausa_general: id, cantidad: 12, unidad: 'kg' })
+      expect(evs.find((e) => e.accion === 'salir' && e.empleado_id === 'do1')?.datos).toEqual({ pausa_general: id })
+    })
+
+    it('una orden ya pausada entra como «pausada»; falta una cantidad → CANTIDAD_REQUERIDA sin aplicar nada', () => {
+      const { s, env, fab, frac } = planta()
+      s.accion('fabricacion', fab, 'pausar')
+      const falta = s.pausaGeneral(cantidades(env, frac).filter((c) => c.empleado_id !== 'do3'))
+      expect(falta).toEqual(no('CANTIDAD_REQUERIDA', 'Andrea Silva en Suavizante Clasico (Granel) 5L'))
+      const cero = s.pausaGeneral(cantidades(env, frac).map((c) => (c.empleado_id === 'do4' ? { ...c, cantidad: 0 } : c)))
+      expect(cero).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      expect(s.consultar('pausas_generales')).toEqual([])
+      expect(estado(s, env)).toBe('activo')
+      expect(abiertas(s, env)).toEqual(['do2', 'do3'])
+      const ok = s.pausaGeneral(cantidades(env, frac)) as { pausa_id: string }
+      expect(s.consultar('pausa_general_ordenes')).toContainEqual({ pausa_id: ok.pausa_id, entidad: 'fabricacion', entidad_id: fab, estaba: 'pausada', operarias: ['do1'] })
+    })
+
+    it('segunda pausa → PAUSA_GENERAL_ACTIVA; sin órdenes → SIN_ORDENES', () => {
+      const { s, env, frac } = planta()
+      expect(s.pausaGeneral(cantidades(env, frac))).toMatchObject({ ok: true })
+      expect(s.pausaGeneral([])).toEqual(no('PAUSA_GENERAL_ACTIVA'))
+      const vacia = crearSimulador({ inicio: INICIO, semilla: 1, calentar: 0, autonomo: false })
+      expect(vacia.pausaGeneral([])).toEqual(no('SIN_ORDENES'))
+    })
+
+    it('con la pausa abierta la planta queda bloqueada (accion, cargar_mp, cargar_consumible); el panel no', () => {
+      const { s, env, fab, frac } = planta()
+      s.crearFormula({ tanque_id: 'dt3', producto_id: 'dp3', litros: 200, lote: 'L-3' }, [{ codigo: 'A', descripcion: 'Agua', cantidad: 100 }])
+      const conMp = flujo(s).find((f) => f.lote === 'L-3')!.id
+      s.accion('fabricacion', conMp, 'iniciar', 'do5')
+      const mp = (s.consultar('fabricacion_mp') as { id: string }[])[0].id
+      s.pausaGeneral(cantidades(env, frac))
+      const hora = new Intl.DateTimeFormat('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Montevideo' }).format(s.ahora())
+      expect(s.accion('fabricacion', fab, 'reanudar', 'do1')).toEqual({ ok: false, codigo: 'PAUSA_GENERAL', detalle: hora })
+      expect(s.cargarMp(mp, 'X-1', true, 'do5')).toEqual(no('PAUSA_GENERAL', hora))
+      expect(s.cargarConsumible('nada', 'B-1', 'do2')).toEqual(no('PAUSA_GENERAL', hora))
+      expect(s.cargarMp(mp, 'X-1', true)).toEqual({ ok: true })
+      expect(s.accion('fabricacion', fab, 'reanudar')).toMatchObject({ ok: true })
+    })
+
+    it('el modo autónomo no actúa mientras hay pausa', () => {
+      const s = crearSimulador({ inicio: INICIO, semilla: 5 })
+      type Orden = FilaFlujo & { operarias: { empleado_id: string }[] }
+      const enMarcha = (flujo(s) as Orden[]).filter((o) => ['fabricando', 'activo', 'pausada', 'pausado'].includes(o.estado))
+      const lista = enMarcha
+        .filter((o) => o.entidad !== 'fabricacion')
+        .flatMap((o) => o.operarias.map((op) => ({ entidad: o.entidad, entidad_id: o.id, empleado_id: op.empleado_id, cantidad: 5, unidad: 'L' })))
+      expect(s.pausaGeneral(lista)).toMatchObject({ ok: true })
+      const antes = s.consultar('eventos').length
+      const tareas = () => (s.consultar('v_tareas') as { id: string; estado: string }[]).map((f) => [f.id, f.estado])
+      const estados = tareas()
+      s.avanzar(120)
+      expect(s.consultar('eventos')).toHaveLength(antes)
+      expect(tareas()).toEqual(estados)
+    })
+
+    it('arranque reanuda las elegidas con sus operarias, deja las otras pausadas y cierra la pausa', () => {
+      const { s, env, fab, frac } = planta()
+      const { pausa_id: id } = s.pausaGeneral(cantidades(env, frac)) as { pausa_id: string }
+      expect(
+        s.arranqueGeneral([
+          { entidad: 'fabricacion', entidad_id: fab, empleados: ['do1'] },
+          { entidad: 'envasado', entidad_id: env, empleados: ['do5', 'do2', 'do5'] },
+        ]),
+      ).toEqual({ ok: true, reanudadas: 2 })
+      expect([estado(s, env), estado(s, fab), estado(s, frac)]).toEqual(['activo', 'fabricando', 'pausado'])
+      expect(abiertas(s, env)).toEqual(['do2', 'do5'])
+      expect(abiertas(s, frac)).toEqual([])
+      expect(s.consultar('pausas_generales')).toEqual([
+        expect.objectContaining({ id, fin: new Date(s.ahora()).toISOString(), terminada_por: expect.any(String) }),
+      ])
+      const evs = (s.consultar('eventos') as Ev[]).filter((e) => e.datos.pausa_general === id && ['reanudar', 'sumarse'].includes(e.accion))
+      expect(evs.map((e) => [e.entidad, e.accion, e.empleado_id])).toEqual([
+        ['envasado', 'reanudar', null],
+        ['envasado', 'sumarse', 'do2'],
+        ['envasado', 'sumarse', 'do5'],
+        ['fabricacion', 'reanudar', null],
+        ['fabricacion', 'sumarse', 'do1'],
+      ])
+      // la planta vuelve a operar; ya no hay pausa para levantar
+      expect(s.accion('envasado', env, 'sumarse', 'do6')).toMatchObject({ ok: true })
+      expect(s.arranqueGeneral([])).toEqual(no('SIN_PAUSA_GENERAL'))
+    })
+
+    it('arranque con lista vacía levanta la pausa sin reanudar nada', () => {
+      const { s, env, frac } = planta()
+      s.pausaGeneral(cantidades(env, frac))
+      expect(s.arranqueGeneral([])).toEqual({ ok: true, reanudadas: 0 })
+      expect(estado(s, env)).toBe('pausado')
+      expect(s.accion('envasado', env, 'reanudar', 'do2')).toMatchObject({ ok: true })
+    })
+
+    it('arranque valida todo o nada: SIN_OPERARIAS, OPERARIA_INACTIVA, NO_ENCONTRADO, OPERARIA_OCUPADA, TRANSICION_INVALIDA', () => {
+      const { s, listo, env, fab, frac } = planta()
+      s.insertar('envasados', { fabricacion_id: listo, presentacion_id: 'dr4', cantidad: 5 })
+      const otro = flujo(s).filter((f) => f.entidad === 'envasado').find((f) => f.id !== env)!.id
+      s.accion('envasado', otro, 'iniciar', 'do6')
+      s.pausaGeneral([...cantidades(env, frac), { entidad: 'envasado', entidad_id: otro, empleado_id: 'do6', cantidad: 3, unidad: 'L' }])
+      const nombreFab = `${flujo(s).find((f) => f.id === fab)!.producto} T-02`
+      expect(s.arranqueGeneral([{ entidad: 'fabricacion', entidad_id: fab, empleados: [] }])).toEqual(no('SIN_OPERARIAS', nombreFab))
+      expect(s.arranqueGeneral([{ entidad: 'fabricacion', entidad_id: fab, empleados: ['nadie'] }])).toEqual(no('OPERARIA_INACTIVA'))
+      expect(s.arranqueGeneral([{ entidad: 'fabricacion', entidad_id: 'df999', empleados: ['do1'] }])).toEqual(no('NO_ENCONTRADO'))
+      // la misma operaria en dos envasados de la lista
+      expect(
+        s.arranqueGeneral([
+          { entidad: 'envasado', entidad_id: env, empleados: ['do2'] },
+          { entidad: 'envasado', entidad_id: otro, empleados: ['do2'] },
+        ]),
+      ).toEqual(no('OPERARIA_OCUPADA', 'Suavizante Clasico (Granel) 5L'))
+      // un envasado que la encargada reanudó a mano en la noche (sin participaciones: cuenta su operaria_1)
+      s.accion('envasado', otro, 'reanudar')
+      expect(s.arranqueGeneral([{ entidad: 'envasado', entidad_id: env, empleados: ['do6'] }])).toEqual(no('OPERARIA_OCUPADA', 'Suavizante Clasico (Granel) 5L'))
+      expect(s.arranqueGeneral([{ entidad: 'envasado', entidad_id: otro, empleados: ['do6'] }])).toEqual(no('TRANSICION_INVALIDA', 'Suavizante Clasico (Granel) 5L'))
+      // la encargada cancela una orden en la noche
+      s.accion('fraccionado', frac, 'cancelar')
+      expect(s.arranqueGeneral([{ entidad: 'fraccionado', entidad_id: frac, empleados: ['do4'] }])).toEqual(no('TRANSICION_INVALIDA', 'Percarbonato 1kg'))
+      // nada quedó aplicado
+      expect([estado(s, env), estado(s, fab)]).toEqual(['pausado', 'pausada'])
+      expect(abiertas(s, env)).toEqual([])
+      expect(s.consultar('pausas_generales')).toEqual([expect.objectContaining({ fin: null })])
+    })
+  })
 })

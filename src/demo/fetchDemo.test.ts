@@ -244,4 +244,33 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
     const fr = await db.rpc('crear_fraccionado_documento', { p_frac: { producto_id: null, presentacion_id: null, cantidad: 40, lote: '55', codigo: 'P1', descripcion: 'Polvo Prueba', etiqueta_id: null }, p_consumibles: [] } as never)
     expect(fr.data).toEqual({ ok: true, id: expect.any(String) })
   })
+
+  it('pausa general: rpc/pausa_general y rpc/arranque_general; pausas_generales y pausa_general_ordenes se leen como el front', async () => {
+    const { db, sim, onCambio } = cliente()
+    sim.insertar('fabricaciones', { tanque_id: 'dt5', producto_id: 'dp1', litros: 300, lote: 'L-5' })
+    const fab = sim.consultar('v_flujo')[0].id as string
+    sim.accion('fabricacion', fab, 'iniciar', 'do1')
+    const sinPausa = await db.from('pausas_generales').select('id, inicio').is('fin', null).order('inicio', { ascending: false }).limit(1)
+    expect(sinPausa.data).toEqual([])
+
+    const r = await db.rpc('pausa_general', { p_cantidades: [] } as never)
+    expect(r.data).toEqual({ ok: true, pausa_id: expect.any(String), ordenes: 1 })
+    expect(onCambio).toHaveBeenCalled()
+    const id = (r.data as { pausa_id: string }).pausa_id
+    const abierta = await db.from('pausas_generales').select('id, inicio').is('fin', null).order('inicio', { ascending: false }).limit(1)
+    expect(abierta.data).toEqual([expect.objectContaining({ id, inicio: expect.any(String) })])
+    const ordenes = await db.from('pausa_general_ordenes').select('*').eq('pausa_id', id)
+    expect(ordenes.data).toEqual([{ pausa_id: id, entidad: 'fabricacion', entidad_id: fab, estaba: 'en_curso', operarias: ['do1'] }])
+    const otra = await db.rpc('pausa_general', { p_cantidades: [] } as never)
+    expect(mensajeError(otra.data).codigo).toBe('PAUSA_GENERAL_ACTIVA')
+    const planta = await db.rpc('accion', { p_entidad: 'fabricacion', p_id: fab, p_accion: 'reanudar', p_empleado_id: 'do1' } as never)
+    expect(mensajeError(planta.data).codigo).toBe('PAUSA_GENERAL')
+
+    const sinOps = await db.rpc('arranque_general', { p_ordenes: [{ entidad: 'fabricacion', entidad_id: fab, empleados: [] }] } as never)
+    expect(mensajeError(sinOps.data).codigo).toBe('SIN_OPERARIAS')
+    const ok = await db.rpc('arranque_general', { p_ordenes: [{ entidad: 'fabricacion', entidad_id: fab, empleados: ['do2'] }] } as never)
+    expect(ok.data).toEqual({ ok: true, reanudadas: 1 })
+    expect((await db.from('pausas_generales').select('id, inicio').is('fin', null)).data).toEqual([])
+    expect(sim.consultar('v_flujo')[0]).toMatchObject({ estado: 'fabricando', operarias: [expect.objectContaining({ empleado_id: 'do2' })] })
+  })
 })

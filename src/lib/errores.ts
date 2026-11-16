@@ -24,6 +24,11 @@ export type CodigoError =
   | 'GRANEL_DISTINTO'
   | 'NO_EDITABLE'
   | 'TANQUE_EN_USO'
+  | 'PAUSA_GENERAL'
+  | 'PAUSA_GENERAL_ACTIVA'
+  | 'SIN_PAUSA_GENERAL'
+  | 'SIN_ORDENES'
+  | 'SIN_OPERARIAS'
   | 'RED'
   | 'DESCONOCIDO'
 
@@ -47,12 +52,19 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   YA_PARTICIPA: () => 'Ya estás en esta orden.',
   NO_PARTICIPA: () => 'No estás en esta orden.',
   ULTIMA_OPERARIA: () => 'Sos la última: pausá o finalizá.',
-  CANTIDAD_REQUERIDA: () => 'Falta declarar cuánto se envasó.',
+  // detalle solo desde pausa_general(): «<operaria> en <producto> <presentación>»
+  CANTIDAD_REQUERIDA: (d) => (d ? `Falta la cantidad de ${d}.` : 'Falta declarar cuánto se envasó.'),
   ETIQUETA_INACTIVA: () => 'Esa etiqueta está desactivada.',
   SIN_TANQUE: () => 'Este envasado no tiene tanque asignado.',
   GRANEL_DISTINTO: () => 'Ese tanque tiene otro granel.',
   NO_EDITABLE: () => 'Este envasado ya terminó: no se puede modificar.',
   TANQUE_EN_USO: () => 'El envasado ya empezó: para cambiar de tanque cancelalo y creá uno nuevo.',
+  PAUSA_GENERAL: (d) =>
+    `La planta está en pausa general${d ? ` desde las ${d}` : ''}. La encargada la levanta con Arranque.`,
+  PAUSA_GENERAL_ACTIVA: () => 'Ya hay una pausa general en curso.',
+  SIN_PAUSA_GENERAL: () => 'No hay ninguna pausa general en curso.',
+  SIN_ORDENES: () => 'No hay órdenes en marcha para pausar.',
+  SIN_OPERARIAS: (d) => `Cada orden que se reanuda necesita al menos una operaria${d ? ` (${d})` : ''}.`,
   RED: () => 'Sin conexión. Revisá el WiFi.',
   DESCONOCIDO: () => 'Algo salió mal. Avisá a la encargada.',
 }

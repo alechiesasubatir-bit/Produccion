@@ -6,10 +6,12 @@ import { Alertas } from './alertas/Alertas'
 import { useAlertas } from './alertas/useAlertas'
 import { useAvisoSonoro } from './alertas/useAvisoSonoro'
 import { Configuracion } from './config/Configuracion'
+import { usePausaGeneralEnVivo } from './datosPausaGeneral'
 import { Flujo } from './Flujo'
 import { Historial } from './historial/Historial'
 import { Kpis } from './kpis/Kpis'
 import { Monitor } from './monitor/Monitor'
+import { BotonPausaGeneral, FranjaPausa } from './PausaGeneral'
 import { Tanques } from './Tanques'
 import { VistaTablet } from './VistaTablet'
 import './panel.css'
@@ -35,6 +37,7 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
   // Una sola suscripción a alertas para todo el panel (contador, sonido y la vista).
   const alertas = useAlertas()
   useAvisoSonoro(alertas.activas.map((a) => a.id), alertas.cargado)
+  const { pausa, recargar: recargarPausa } = usePausaGeneralEnVivo()
 
   return (
     <div className={`app panel${demo ? ' es-demo' : ''}`}>
@@ -59,18 +62,22 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
             )}
           </nav>
         </div>
-        {demo ? (
-          <BarraDemo />
-        ) : (
-          <div className="encabezado-usuario">
-            <span>{usuario?.email}</span>
-            <button type="button" className="boton boton-sec" onClick={() => void salir()}>
-              Salir
-            </button>
-          </div>
-        )}
+        <div className="encabezado-derecha">
+          {demo ? (
+            <BarraDemo />
+          ) : (
+            <div className="encabezado-usuario">
+              <span>{usuario?.email}</span>
+              <button type="button" className="boton boton-sec" onClick={() => void salir()}>
+                Salir
+              </button>
+            </div>
+          )}
+          <BotonPausaGeneral pausa={pausa} onCambio={recargarPausa} />
+        </div>
       </header>
       <main className="contenido">
+        {pausa && <FranjaPausa pausa={pausa} />}
         {!enLinea && !demo && (
           <div className="banda-offline" role="status">
             Sin conexión — no se pueden guardar cambios.
