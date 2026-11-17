@@ -77,10 +77,15 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
         </div>
       </header>
       <main className="contenido">
-        {pausa && <FranjaPausa pausa={pausa} />}
-        {!enLinea && !demo && (
-          <div className="banda-offline" role="status">
-            Sin conexión — no se pueden guardar cambios.
+        {/* una sola caja fija arriba: la franja de pausa y la de sin conexión se apilan, no se tapan */}
+        {(pausa || (!enLinea && !demo)) && (
+          <div className="avisos-fijos">
+            {pausa && <FranjaPausa pausa={pausa} />}
+            {!enLinea && !demo && (
+              <div className="banda-offline" role="status">
+                Sin conexión — no se pueden guardar cambios.
+              </div>
+            )}
           </div>
         )}
         <Routes>

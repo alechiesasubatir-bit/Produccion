@@ -186,6 +186,20 @@
   letter-spacing: 0.04em;
 }
 
+/* Franja de pausa general y banda sin conexión juntas: una sola caja fija, apiladas. */
+.avisos-fijos {
+  position: sticky;
+  top: 60px;
+  z-index: 4;
+  margin: -32px -28px 24px;
+}
+
+.avisos-fijos > .franja-pausa,
+.avisos-fijos > .banda-offline {
+  position: static;
+  margin: 0;
+}
+
 .aviso-error {
   margin: 0;
   color: #8f1d0f;

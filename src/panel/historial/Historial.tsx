@@ -98,7 +98,8 @@ const CSV: ColumnaCSV<FilaCSV>[] = [
   { titulo: 'Consumibles', valor: ({ fila, repetida }) => (repetida ? null : consumiblesTexto(fila)) },
 ]
 
-const tieneDetalle = (f: FilaHistorial) => f.entidad !== 'fabricacion' || f.origen === 'stock' || !!f.lote_doc || (f.consumibles ?? []).length > 0
+// Solo si el detalle tiene algo que mostrar (un envasado cargado a mano no tiene nada).
+const tieneDetalle = (f: FilaHistorial) => f.origen === 'stock' || !!f.lote_doc || (f.consumibles ?? []).length > 0
 
 function Detalle({ f }: { f: FilaHistorial }) {
   const cs = f.consumibles ?? []

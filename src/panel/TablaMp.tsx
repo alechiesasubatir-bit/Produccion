@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { guardarMp } from '../lib/acciones'
 import { crearColaPorFila } from '../lib/colaPorFila'
 import { cargarMpDe, type FilaMp } from '../lib/datosMp'
 import { mensajeError } from '../lib/errores'
 import { db } from '../lib/supabase'
+import { useCambios } from '../lib/useRealtime'
 
 const hora = (at: string) =>
   new Date(at).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Montevideo' })
@@ -53,29 +54,61 @@ export function TablaMp({
     }
   }, [])
 
+  // Varias cargas pueden estar en vuelo (la inicial y las de Realtime): solo vale la última pedida.
+  const pedido = useRef(0)
+  // Guardados de cada fila todavía sin respuesta: mientras tanto el pesado local manda sobre la base.
+  const enVuelo = useRef<Record<string, number>>({})
+  const cargar = useCallback(
+    (inicial: boolean) => {
+      const n = ++pedido.current
+      if (inicial) {
+        setCargando(true)
+        setError(null)
+      }
+      Promise.all([cargarMpDe(fabricacionId), db.from('v_nombres_operarias').select('empleado_id, nombre')]).then(
+        ([mp, operarias]) => {
+          if (!montado.current || n !== pedido.current) return
+          if (inicial) {
+            deseado.current = {}
+            if (plegable) setAbierta(editableRef.current && mp.some(incompleta))
+          }
+          setFilas((previas) =>
+            mp.map((f) => {
+              const vieja = inicial ? undefined : previas.find((x) => x.id === f.id)
+              if (!vieja) return { ...f, borrador: f.lote ?? '', error: null, ok: false }
+              // Lo que la encargada está escribiendo o guardando manda sobre lo que llega de la base.
+              const escribiendo = vieja.borrador !== (vieja.lote ?? '')
+              const guardando = (enVuelo.current[f.id] ?? 0) > 0
+              return {
+                ...f,
+                pesado: guardando ? vieja.pesado : f.pesado,
+                borrador: escribiendo ? vieja.borrador : (f.lote ?? ''),
+                error: vieja.error,
+                ok: vieja.ok,
+              }
+            }),
+          )
+          if (!operarias.error)
+            setNombres(new Map((operarias.data ?? []).map((o: { empleado_id: string; nombre: string }) => [o.empleado_id, o.nombre])))
+          setError(null)
+          setCargando(false)
+        },
+        (e: unknown) => {
+          if (!montado.current || n !== pedido.current) return
+          // Si falla una recarga se queda con lo que ya mostraba.
+          if (inicial) setError(mensajeError(e).texto)
+          setCargando(false)
+        },
+      )
+    },
+    [fabricacionId, plegable],
+  )
+
   useEffect(() => {
-    let vigente = true
-    setCargando(true)
-    setError(null)
-    Promise.all([cargarMpDe(fabricacionId), db.from('v_operarias').select('empleado_id, nombre')]).then(
-      ([mp, operarias]) => {
-        if (!vigente) return
-        deseado.current = {}
-        if (plegable) setAbierta(editableRef.current && mp.some(incompleta))
-        setFilas(mp.map((f) => ({ ...f, borrador: f.lote ?? '', error: null, ok: false })))
-        setNombres(new Map((operarias.data ?? []).map((o: { empleado_id: string; nombre: string }) => [o.empleado_id, o.nombre])))
-        setCargando(false)
-      },
-      (e: unknown) => {
-        if (!vigente) return
-        setError(mensajeError(e).texto)
-        setCargando(false)
-      },
-    )
-    return () => {
-      vigente = false
-    }
-  }, [fabricacionId, plegable])
+    cargar(true)
+  }, [cargar])
+  // Lo que carga la tablet (o otra pestaña) aparece sin reabrir el detalle.
+  useCambios(['fabricacion_mp'], () => cargar(false))
 
   const cambiar = (id: string, cambio: Partial<Fila>) => setFilas((fs) => fs.map((f) => (f.id === id ? { ...f, ...cambio } : f)))
 
@@ -84,14 +117,20 @@ export function TablaMp({
     envios.current[id] = n
     deseado.current[id] = valor
     cambiar(id, { error: null, ok: false })
+    enVuelo.current[id] = (enVuelo.current[id] ?? 0) + 1
     void encolar(id, async () => {
-      if (envios.current[id] !== n) return
-      const v = deseado.current[id] ?? valor
-      const r = await guardarMp({ id, lote: v.lote, pesado: v.pesado })
-      if (!montado.current) return
-      if (r.ok) cambiar(id, { lote: v.lote || null, cargado_at: new Date().toISOString() })
-      if (envios.current[id] !== n) return
-      cambiar(id, r.ok ? { ok: true } : { error: r.texto })
+      try {
+        if (envios.current[id] !== n) return
+        const v = deseado.current[id] ?? valor
+        const r = await guardarMp({ id, lote: v.lote, pesado: v.pesado })
+        if (!montado.current) return
+        if (r.ok) cambiar(id, { lote: v.lote || null, cargado_at: new Date().toISOString() })
+        if (envios.current[id] !== n) return
+        if (!r.ok) delete deseado.current[id] // salir del campo sin cambiarlo vuelve a intentar
+        cambiar(id, r.ok ? { ok: true } : { error: r.texto })
+      } finally {
+        enVuelo.current[id] -= 1
+      }
     })
   }
 

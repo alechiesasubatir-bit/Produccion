@@ -322,6 +322,11 @@ export type Database = {
         color_avatar: string | null
         activo: boolean
       }>
+      // Toda operaria que alguna vez lo fue (también inactivas y dadas de baja): para nombrar el pasado.
+      v_nombres_operarias: Vista<{
+        empleado_id: Uuid
+        nombre: string
+      }>
       v_tanque_estado: Vista<{
         tanque_id: Uuid
         codigo: string

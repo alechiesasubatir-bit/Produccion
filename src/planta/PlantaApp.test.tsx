@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Tarea } from '../domain/tareas'
@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   mpTotal: 0,
   pausa: null as { id: string; inicio: string } | null,
   override: {} as Record<string, unknown>,
+  sinRed: false,
   canales: {} as Record<string, string[]>,
 }))
 
@@ -65,7 +66,7 @@ vi.mock('../lib/useRealtime', () => ({
   useRealtime: (tabla: string, _cargar: unknown, canales: string[]) => ({
     ...(m.canales[tabla] = canales, {}),
     datos: tabla === 'v_operarias' ? operarias : [{ ...suya, mp_total: m.mpTotal, ...m.override }],
-    conectado: true,
+    conectado: !m.sinRed,
     enVivo: true,
     error: tabla === 'v_tareas' ? m.error : null,
     recargar: m.recargar,
@@ -92,6 +93,7 @@ describe('PlantaApp', () => {
     m.mpTotal = 0
     m.pausa = null
     m.override = {}
+    m.sinRed = false
   })
 
   it('escucha los cambios de participaciones para ver el equipo al día', () => {
@@ -247,6 +249,36 @@ describe('PlantaApp', () => {
       await entrarComoLaura()
       expect(screen.queryByText(/Planta en pausa general/)).toBeNull()
       expect(screen.getByRole('button', { name: 'Finalizar' })).toBeEnabled()
+    })
+
+    it('pausa y sin conexión: las dos bandas van juntas en la caja fija de avisos', async () => {
+      m.pausa = abierta
+      m.sinRed = true
+      montar()
+      const caja = () => document.querySelector('.avisos-fijos') as HTMLElement
+      expect(within(caja()).getByText(/Planta en pausa general/)).toBeInTheDocument()
+      expect(within(caja()).getByText('Sin conexión — no se pueden registrar acciones.')).toBeInTheDocument()
+      await entrarComoLaura()
+      expect(within(caja()).getByText('Sin conexión — no se pueden registrar acciones.')).toBeInTheDocument()
+      expect(screen.getAllByText(/Sin conexión/)).toHaveLength(1)
+    })
+
+    it('si cae la pausa con el teclado de cantidad abierto, el teclado se cierra', async () => {
+      m.override = { entidad: 'envasado', estado: 'activo', operarias: [{ empleado_id: 'E1', nombre: 'Laura Paz', desde: '' }] }
+      const v = montar()
+      await entrarComoLaura()
+      fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+      fireEvent.change(screen.getByLabelText('Laura Paz'), { target: { value: '100' } })
+      expect(screen.getByRole('dialog', { name: '¿Cuánto envasó cada una?' })).toBeInTheDocument()
+      m.pausa = abierta
+      v.rerender(
+        <MemoryRouter initialEntries={['/planta?tanque=T-03']}>
+          <PlantaApp />
+        </MemoryRouter>,
+      )
+      expect(screen.queryByRole('dialog', { name: '¿Cuánto envasó cada una?' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Finalizar' })).toBeDisabled()
+      expect(m.ejecutarAccion).not.toHaveBeenCalled()
     })
 
     it('con el teclado de cantidad abierto cae la pausa: mensaje amable y tarjeta bloqueada', async () => {

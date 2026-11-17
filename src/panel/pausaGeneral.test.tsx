@@ -175,6 +175,39 @@ describe('BotonPausaGeneral', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
+    it('sin nada cargado, Escape cierra sin preguntar', async () => {
+      m.flujo = [fila({ entidad: 'envasado', id: 'v1', estado: 'activo', operarias: [op('e2', 'Bea')] })]
+      await montar(null)
+      await abrir('Pausa General')
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('con cantidades cargadas, Escape, click afuera, × o Cancelar preguntan antes de descartar', async () => {
+      m.flujo = [fila({ entidad: 'envasado', id: 'v1', estado: 'activo', operarias: [op('e2', 'Bea')] })]
+      await montar(null)
+      await abrir('Pausa General')
+      const dialogo = screen.getByRole('dialog', { name: 'Pausa General' })
+      fireEvent.change(within(dialogo).getByLabelText('Cantidad de Bea'), { target: { value: '120' } })
+
+      const intentos = [
+        () => fireEvent.keyDown(window, { key: 'Escape' }),
+        () => fireEvent.click(dialogo.parentElement as HTMLElement),
+        () => fireEvent.click(within(dialogo).getByRole('button', { name: 'Cerrar' })),
+        () => fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' })),
+      ]
+      for (const intento of intentos) {
+        intento()
+        expect(within(dialogo).getByRole('alert')).toHaveTextContent('¿Descartar las cantidades cargadas?')
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Seguir' }))
+        expect(within(dialogo).getByLabelText('Cantidad de Bea')).toHaveValue('120')
+      }
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      fireEvent.click(within(dialogo).getByRole('button', { name: 'Descartar' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
     it('un producto polvo arranca en kg', async () => {
       m.flujo = [
         fila({ entidad: 'fraccionado', id: 'r1', estado: 'activo', producto: 'Detergente polvo', producto_tipo: 'polvo', operarias: [op('e1', 'Ana')] }),
@@ -248,6 +281,20 @@ describe('BotonPausaGeneral', () => {
       expect(within(orden('Jabón')).queryByRole('checkbox')).not.toBeInTheDocument()
       expect(within(orden('Crema')).getByText('reanudada durante la noche')).toBeInTheDocument()
       expect(within(orden('Crema')).queryByRole('checkbox')).not.toBeInTheDocument()
+    })
+
+    it('con cambios, cerrar el arranque pregunta antes de descartar', async () => {
+      await montar(PAUSA)
+      await abrir(/Arranque/)
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      await abrir(/Arranque/)
+      fireEvent.click(within(orden('Acondicionador')).getByRole('checkbox', { name: 'Reanudar' }))
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.getByRole('alert')).toHaveTextContent('¿Descartar los cambios del arranque?')
+      fireEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
     it('destildar a todas las operarias de una orden marcada pide elegir una', async () => {

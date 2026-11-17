@@ -165,7 +165,9 @@
   gap: 16px;
 }
 
-.banda-planta {
+/* la barra de la tablet no es fija: los avisos se pegan arriba de todo */
+.planta-cuerpo > .avisos-fijos {
+  top: 0;
   margin: -28px -28px 20px;
 }
 

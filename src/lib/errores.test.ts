@@ -161,3 +161,16 @@ describe('mensajeError: pausa general', () => {
     )
   })
 })
+
+describe('mensajeError: datos mal formados', () => {
+  it.each(['22P02', '22003', '22007', '23502', '23514'])('el error %s de Postgres pide revisar los datos', (code) => {
+    expect(mensajeError({ code, message: 'invalid input syntax for type numeric: "abc"' })).toEqual({
+      codigo: 'DATOS_INVALIDOS',
+      texto: 'Faltan datos o hay datos inválidos en la orden.',
+    })
+  })
+
+  it('otros errores de Postgres siguen siendo desconocidos', () => {
+    expect(mensajeError({ code: '42501', message: 'permission denied' }).codigo).toBe('DESCONOCIDO')
+  })
+})

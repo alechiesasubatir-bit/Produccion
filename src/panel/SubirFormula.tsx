@@ -11,6 +11,8 @@ type Tarjeta = {
   formula: Formula
   fab: NuevaFabricacionFormula
   productoEncontrado: boolean
+  // Productos que empatan por nombre (ninguno se elige solo): se nombran en el aviso.
+  parecidos: string[]
   // Producto precargado por coincidencia parcial de nombre (p. ej. «Bactipro» → «Bactipro Plus»):
   // hasta que la encargada lo confirme o elija otro, no se le asigna el código del PDF.
   aproximada: boolean
@@ -49,11 +51,18 @@ export function buscarGranel(productos: DatosOrden['productos'], codigo: string,
     producto: porCodigo ?? porNombre?.item,
     segura: Boolean(porCodigo) || Boolean(porNombre?.exacta),
     aproximada: Boolean(porNombre && !porNombre.exacta),
+    parecidos: c && 'ambiguas' in c ? c.ambiguas.map((p) => p.nombre) : [],
   }
 }
 
+/** Aviso cuando el granel del PDF no quedó elegido: no está, o hay varios igual de parecidos. */
+export const avisoSinProducto = (nombre: string, parecidos: string[]) =>
+  parecidos.length > 1
+    ? `Hay varios productos parecidos a «${nombre}» (${enumerar(parecidos)}): elegí el correcto`
+    : `No encontré «${nombre}» en productos`
+
 function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tarjeta {
-  const { producto, segura, aproximada } = buscarGranel(productos, formula.granel.codigo, formula.granel.nombre)
+  const { producto, segura, aproximada, parecidos } = buscarGranel(productos, formula.granel.codigo, formula.granel.nombre)
   return {
     formula,
     fab: {
@@ -67,6 +76,7 @@ function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tar
       codigo_producto: segura ? formula.granel.codigo : '',
     },
     productoEncontrado: Boolean(producto),
+    parecidos,
     aproximada,
     estado: 'pendiente',
     error: null,
@@ -280,7 +290,7 @@ export function SubirFormula({
             )}
             {!t.productoEncontrado && !t.fab.producto_id && (
               <p className="advertencia" role="status">
-                No encontré «{t.formula.granel.nombre}» en productos
+                {avisoSinProducto(t.formula.granel.nombre, t.parecidos)}
               </p>
             )}
 

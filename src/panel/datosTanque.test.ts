@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   tablas: {
     participaciones: [{ id: 'p1', empleado_id: 'E1', desde: 'd', hasta: 'h', cantidad: 1, unidad: 'L', cantidad_corregida: 2, corregida_por: 'U1', corregida_at: 'x' }],
-    v_operarias: [{ empleado_id: 'E1', nombre: 'Laura' }],
+    v_nombres_operarias: [{ empleado_id: 'E1', nombre: 'Laura' }],
   } as Record<string, unknown[]>,
 }))
 

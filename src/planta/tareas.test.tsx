@@ -58,10 +58,10 @@ const base = {
 }
 
 describe('MisTareas', () => {
-  it('sin conexión: banda visible y botones deshabilitados', () => {
+  // la banda «Sin conexión» la muestra PlantaApp, junto con la franja de pausa
+  it('sin conexión: botones deshabilitados', () => {
     const tareas = [tarea(), tarea({ estado: 'fabricando', corriendo: true, operaria_1: 'E1' })]
     render(<MisTareas {...base} tareas={tareas} conectado={false} />)
-    expect(screen.getByText(/Sin conexión/)).toBeInTheDocument()
     for (const b of screen.getAllByRole('button', { name: /Tomar|Pausar|Finalizar/ })) expect(b).toBeDisabled()
   })
 

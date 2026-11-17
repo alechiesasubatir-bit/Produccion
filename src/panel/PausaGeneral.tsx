@@ -80,6 +80,24 @@ export function FranjaPausa({ pausa, planta = false }: { pausa: PausaAbierta; pl
   )
 }
 
+// Cerrar un diálogo con datos cargados (Escape, click afuera, × o Cancelar) primero pregunta.
+function useCierreSeguro(sucio: boolean, onCerrar: () => void, que: string) {
+  const [preguntando, setPreguntando] = useState(false)
+  const intentar = () => (sucio ? setPreguntando(true) : onCerrar())
+  const aviso = preguntando && (
+    <div className="pg-descartar" role="alert">
+      <span>¿Descartar {que}?</span>
+      <button type="button" className="boton boton-sec" onClick={() => setPreguntando(false)}>
+        Seguir
+      </button>
+      <button type="button" className="boton" onClick={onCerrar}>
+        Descartar
+      </button>
+    </div>
+  )
+  return { intentar, aviso }
+}
+
 function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () => void; children: ReactNode }) {
   const id = useId()
   const dialogo = useRef<HTMLDivElement>(null)
@@ -147,6 +165,8 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
     }),
   )
   const puedeConfirmar = lista.length > 0 && faltanCantidades(lista, cantidades).length === 0 && !enviando
+  const sucio = Object.values(textos).some((t) => t.trim() !== '') || Object.keys(unidades).length > 0
+  const cierre = useCierreSeguro(sucio, onCerrar, 'las cantidades cargadas')
 
   const confirmar = async () => {
     setEnviando(true)
@@ -158,7 +178,7 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
   }
 
   return (
-    <Modal titulo="Pausa General" onCerrar={onCerrar}>
+    <Modal titulo="Pausa General" onCerrar={cierre.intentar}>
       {ordenes === null && !error && <p className="pg-nota">Cargando órdenes…</p>}
       {ordenes !== null && lista.length === 0 && <p className="pg-vacio">No hay órdenes en marcha</p>}
       {lista.length > 0 && (
@@ -228,8 +248,9 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
           {error}
         </p>
       )}
+      {cierre.aviso}
       <footer className="modal-pie">
-        <button type="button" className="boton boton-sec" onClick={onCerrar}>
+        <button type="button" className="boton boton-sec" onClick={cierre.intentar}>
           Cancelar
         </button>
         <button type="button" className="boton" disabled={!puedeConfirmar} onClick={() => void confirmar()}>
@@ -277,8 +298,10 @@ function DialogoArranque({
   const lista = estados ?? []
   const errores = erroresArranque(lista, nombres)
 
-  const cambiar = (ref: RefOrden, f: (x: EstadoArranque) => EstadoArranque) =>
+  const cambiar = (ref: RefOrden, f: (x: EstadoArranque) => EstadoArranque) => {
+    setTocado(true)
     setEstados((es) => es && es.map((x) => (clave(x.ref) === clave(ref) ? f(x) : x)))
+  }
   const alternarOperaria = (ref: RefOrden, id: string) =>
     cambiar(ref, (x) => ({
       ...x,
@@ -290,6 +313,8 @@ function DialogoArranque({
   }
 
   const puedeConfirmar = estados !== null && Object.keys(errores).length === 0 && !enviando
+  const [tocado, setTocado] = useState(false)
+  const cierre = useCierreSeguro(tocado, onCerrar, 'los cambios del arranque')
 
   const confirmar = async () => {
     setEnviando(true)
@@ -303,7 +328,7 @@ function DialogoArranque({
   }
 
   return (
-    <Modal titulo="Arranque" onCerrar={onCerrar}>
+    <Modal titulo="Arranque" onCerrar={cierre.intentar}>
       <p className="pg-nota">
         Planta en pausa desde las {hora(pausa.inicio)}. Marcá las órdenes que se reanudan y quiénes vuelven a cada una.
       </p>
@@ -387,8 +412,9 @@ function DialogoArranque({
           {error}
         </p>
       )}
+      {cierre.aviso}
       <footer className="modal-pie">
-        <button type="button" className="boton boton-sec" onClick={onCerrar}>
+        <button type="button" className="boton boton-sec" onClick={cierre.intentar}>
           Cancelar
         </button>
         <button type="button" className="boton boton-arranque" disabled={!puedeConfirmar} onClick={() => void confirmar()}>

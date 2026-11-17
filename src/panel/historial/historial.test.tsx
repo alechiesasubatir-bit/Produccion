@@ -169,6 +169,12 @@ describe('Historial', () => {
     expect(screen.getByText('Granel de stock')).toBeInTheDocument()
   })
 
+  it('un envasado cargado a mano (sin documento ni consumibles) no ofrece «Ver detalle»', async () => {
+    m.cargar.mockResolvedValue([filaH({ entidad: 'envasado', estado: 'finalizado', lote_doc: null, consumibles: [] })])
+    await montar()
+    expect(screen.queryByRole('button', { name: 'Ver detalle' })).toBeNull()
+  })
+
   it('el CSV suma lote_doc y consumibles', async () => {
     m.cargar.mockResolvedValue([
       filaH({

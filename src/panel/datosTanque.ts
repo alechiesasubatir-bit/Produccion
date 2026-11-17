@@ -23,7 +23,7 @@ export async function cargarRecorrido(fabricacionId: string): Promise<EventoReco
 
   const [eventos, operarias] = await Promise.all([
     db.from('eventos').select('at, accion, empleado_id, usuario_id, entidad, datos').in('entidad_id', ids).order('at'),
-    db.from('v_operarias').select('empleado_id, nombre'),
+    db.from('v_nombres_operarias').select('empleado_id, nombre'),
   ])
   if (eventos.error) throw eventos.error
   const nombres = new Map((operarias.data ?? []).map((o) => [o.empleado_id, o.nombre]))
@@ -71,7 +71,7 @@ export async function cargarParticipaciones(entidad: Entidad, id: string): Promi
   if (filas.length === 0) return []
   const corrigieron = [...new Set(filas.map((f) => f.corregida_por).filter((x): x is string => !!x))]
   const [operarias, perfiles] = await Promise.all([
-    db.from('v_operarias').select('empleado_id, nombre'),
+    db.from('v_nombres_operarias').select('empleado_id, nombre'),
     corrigieron.length ? listarUsuarios().catch(() => []) : Promise.resolve([]),
   ])
   if (operarias.error) throw operarias.error
@@ -106,7 +106,7 @@ export async function cargarOperariasLegacy(entidad: Entidad, id: string): Promi
   const campos = entidad === 'envasado' ? 'operaria_1, operaria_2' : 'operaria_id'
   const [orden, operarias] = await Promise.all([
     db.from(tabla).select(campos).eq('id', id).maybeSingle(),
-    db.from('v_operarias').select('empleado_id, nombre'),
+    db.from('v_nombres_operarias').select('empleado_id, nombre'),
   ])
   if (orden.error) throw orden.error
   if (operarias.error) throw operarias.error

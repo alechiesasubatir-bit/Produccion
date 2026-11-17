@@ -158,6 +158,63 @@ describe('SubirEnvasado', () => {
     expect(m.stock).toHaveBeenCalledTimes(1)
   })
 
+  it('granel de stock: los litros sugeridos no pasan la capacidad del tanque y se avisa', async () => {
+    await subir()
+    const t = tarjetas()[0]
+    cambiar(t, 'Tanque', '__stock')
+    expect(campo(t, 'Litros del granel')).toHaveValue(3200)
+    cambiar(t, 'Tanque libre', 't1')
+    expect(campo(t, 'Litros del granel')).toHaveValue(2000)
+    expect(within(t).getByText('El PDF pide 3200 L de este granel y el tanque admite 2000 L.')).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
+    expect(m.stock).toHaveBeenCalledWith({ tanque_id: 't1', producto_id: 'pl', litros: 2000, lote: null })
+  })
+
+  it('granel de stock: los litros tipeados no se pisan al cambiar de tanque y volver', async () => {
+    await subir()
+    const t = tarjetas()[0]
+    cambiar(t, 'Tanque', '__stock')
+    cambiar(t, 'Litros del granel', '1200')
+    cambiar(t, 'Tanque', '')
+    cambiar(t, 'Tanque', '__stock')
+    expect(campo(t, 'Litros del granel')).toHaveValue(1200)
+    cambiar(t, 'Tanque libre', 't1')
+    expect(campo(t, 'Litros del granel')).toHaveValue(1200)
+    expect(within(t).queryByText(/El PDF pide/)).not.toBeInTheDocument()
+  })
+
+  it('granel de stock creado: la tarjeta sigue mostrando su tanque', async () => {
+    await subir()
+    const t = tarjetas()[0]
+    cambiar(t, 'Tanque', '__stock')
+    cambiar(t, 'Tanque libre', 't1')
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
+    const select = campo(t, 'Tanque libre') as HTMLSelectElement
+    expect(select).toBeDisabled()
+    expect(select.selectedOptions[0].textContent).toBe('T-01 · 2000 L')
+  })
+
+  it('lo que envasa una tarjeta se descuenta de los litros sin asignar para las demás', async () => {
+    const grande = { tanque_id: 't2', codigo: 'T-02', capacidad_l: 5000, estado: 'libre', fabricacion_id: null, producto: null, litros_restantes: null }
+    await subir({ datos: { ...base, tanques: [...base.tanques, grande] } })
+    const [t1, t2] = tarjetas()
+    cambiar(t1, 'Tanque', '__stock')
+    cambiar(t1, 'Tanque libre', 't2')
+    cambiar(t1, 'Litros del granel', '1000')
+    await act(async () => fireEvent.click(within(t1).getByRole('button', { name: 'Crear' })))
+    // 1000 L de stock menos 600 × 1,5 L de la primera tarjeta
+    expect(within(campo(t2, 'Tanque')).getByRole('option', { name: /T-02/ })).toHaveTextContent('quedan 100 L sin asignar')
+    cambiar(t2, 'Tanque', 'g1')
+    expect(within(t2).getByText(/Quedan 100 L sin asignar en el tanque y esta orden usa 500 L\./)).toBeInTheDocument()
+  })
+
+  it('lo envasado se descuenta también de una fabricación abierta', async () => {
+    await subir({ datos: { ...base, fabricacionesAbiertas: [abierta('f1')] } })
+    const [t1, t2] = tarjetas()
+    await act(async () => fireEvent.click(within(t1).getByRole('button', { name: 'Crear' })))
+    expect(within(campo(t2, 'Tanque')).getByRole('option', { name: /T-03/ })).toHaveTextContent('quedan 0 L sin asignar')
+  })
+
   it('lote duplicado: avisa y no crea hasta confirmar', async () => {
     m.lotes.mockResolvedValue(new Set(['99001']))
     await subir()

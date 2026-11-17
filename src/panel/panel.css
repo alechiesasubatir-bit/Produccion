@@ -2772,8 +2772,25 @@ th[aria-sort='descending'] .th-orden::after {
   letter-spacing: 0.01em;
 }
 
-.franja-pausa + .banda-offline {
-  margin-top: -24px;
+/* diálogo de pausa/arranque con datos cargados: confirmar antes de descartar */
+.pg-descartar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-left: 4px solid var(--senal);
+  border-radius: var(--radio-chico);
+  background: #fdeee9;
+  color: #8f1d0f;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pg-descartar > span {
+  flex: 1;
+  min-width: 12em;
 }
 
 .modal.modal-pausa-general {

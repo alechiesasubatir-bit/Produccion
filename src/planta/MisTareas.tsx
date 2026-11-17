@@ -68,6 +68,9 @@ export function MisTareas({
   // MP completas según el checklist: manda sobre v_tareas hasta que Realtime la actualice.
   const [completasLocal, setCompletasLocal] = useState<Record<string, number>>({})
   const [paso, setPaso] = useState<Paso | null>(null)
+  // Al caer la pausa general se cierran el teclado de cantidades y las confirmaciones (la acción
+  // ya no se puede mandar); el control para liberación sigue.
+  if (enPausa && (paso?.tipo === 'cantidad' || paso?.tipo === 'confirmar')) setPaso(null)
   const yo: OperariaEnOrden = { empleado_id: empleadoId, nombre, desde: '' }
 
   const bloqueo = (t: Tarea) => {
@@ -120,11 +123,6 @@ export function MisTareas({
 
   return (
     <section className="mis-tareas">
-      {!conectado && (
-        <div className="banda-offline banda-planta" role="status">
-          Sin conexión — no se pueden registrar acciones.
-        </div>
-      )}
       <header className="mis-tareas-cabecera">
         <h1 className="titulo-planta">Hola, {nombre}</h1>
         <button type="button" className="boton boton-sec" onClick={onSalir}>

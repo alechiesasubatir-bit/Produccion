@@ -1328,6 +1328,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         }))
       case 'v_operarias':
         return OPERARIAS.map((o) => ({ ...o, foto_url: null, activo: true }))
+      case 'v_nombres_operarias':
+        return OPERARIAS.map((o) => ({ empleado_id: o.empleado_id, nombre: o.nombre }))
       case 'productos':
         return [...PRODUCTOS, ...PRODUCTOS_FRACCIONADO, GRANEL_DOCUMENTO].map((p) => ({
           ...p, codigo: codigos.get(p.id) ?? null, litros_hora_std: null, activo: true,

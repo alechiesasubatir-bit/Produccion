@@ -7,10 +7,17 @@ const m = vi.hoisted(() => ({
   cargarMp: vi.fn(),
   guardarMp: vi.fn(),
   operarias: [] as { empleado_id: string; nombre: string }[],
+  cambios: { canales: [] as string[], avisar: () => {} },
 }))
 
 vi.mock('../lib/datosMp', () => ({ cargarMpDe: m.cargarMp }))
 vi.mock('../lib/acciones', () => ({ guardarMp: m.guardarMp }))
+vi.mock('../lib/useRealtime', () => ({
+  useCambios: (canales: string[], alCambiar: () => void) => {
+    m.cambios.canales = canales
+    m.cambios.avisar = alCambiar
+  },
+}))
 vi.mock('../lib/supabase', () => ({
   db: { from: () => ({ select: () => Promise.resolve({ data: m.operarias, error: null }) }) },
 }))
@@ -124,6 +131,63 @@ describe('TablaMp editable (fabricación en curso sin operaria en la tablet)', (
     await act(async () => responder({ ok: true }))
     await waitFor(() => expect(m.guardarMp).toHaveBeenCalledTimes(2))
     expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-9', pesado: true })
+  })
+})
+
+describe('TablaMp en vivo', () => {
+  const pendiente = () => filaMp({ lote: null, pesado: false, cargado_por: null, cargado_at: null })
+
+  it('lo que carga la tablet aparece sin reabrir (escucha fabricacion_mp)', async () => {
+    m.operarias = [{ empleado_id: 'E1', nombre: 'Laura Paz' }]
+    m.cargarMp.mockResolvedValue([pendiente()])
+    await montar('f1', 'fabricando')
+    expect(m.cambios.canales).toEqual(['fabricacion_mp'])
+
+    m.cargarMp.mockResolvedValue([filaMp({ lote: 'L-55', pesado: true })])
+    await act(async () => m.cambios.avisar())
+
+    expect(screen.getByRole('textbox', { name: 'Lote de 900101' })).toHaveValue('L-55')
+    expect(screen.getByRole('checkbox', { name: 'Pesado 900101' })).toBeChecked()
+    expect(screen.getByText('Laura Paz')).toBeInTheDocument()
+  })
+
+  it('al recargar no pisa el lote que la encargada está escribiendo', async () => {
+    m.cargarMp.mockResolvedValue([pendiente()])
+    await montar('f1', 'fabricando')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Lote de 900101' }), { target: { value: 'L-mio' } })
+
+    m.cargarMp.mockResolvedValue([filaMp({ lote: 'L-tablet', pesado: true })])
+    await act(async () => m.cambios.avisar())
+
+    expect(screen.getByRole('textbox', { name: 'Lote de 900101' })).toHaveValue('L-mio')
+    expect(screen.getByRole('checkbox', { name: 'Pesado 900101' })).toBeChecked()
+  })
+
+  it('si guardar el lote falla, salir del campo sin cambiarlo lo vuelve a intentar', async () => {
+    m.cargarMp.mockResolvedValue([pendiente()])
+    m.guardarMp.mockResolvedValueOnce({ ok: false, codigo: 'RED', texto: 'Sin conexión.' })
+    await montar('f1', 'fabricando')
+    const lote = screen.getByRole('textbox', { name: 'Lote de 900101' })
+    fireEvent.change(lote, { target: { value: 'L-7' } })
+    fireEvent.blur(lote)
+    await screen.findByText('Sin conexión.')
+
+    fireEvent.blur(lote)
+    await waitFor(() => expect(m.guardarMp).toHaveBeenCalledTimes(2))
+    expect(m.guardarMp).toHaveBeenLastCalledWith({ id: 'mp1', lote: 'L-7', pesado: false })
+    expect(await screen.findByText('Guardado')).toBeInTheDocument()
+  })
+
+  it('un lote ya guardado no se vuelve a mandar al salir del campo', async () => {
+    m.cargarMp.mockResolvedValue([pendiente()])
+    await montar('f1', 'fabricando')
+    const lote = screen.getByRole('textbox', { name: 'Lote de 900101' })
+    fireEvent.change(lote, { target: { value: 'L-7' } })
+    fireEvent.blur(lote)
+    await screen.findByText('Guardado')
+    fireEvent.blur(lote)
+    await act(async () => {})
+    expect(m.guardarMp).toHaveBeenCalledTimes(1)
   })
 })
 

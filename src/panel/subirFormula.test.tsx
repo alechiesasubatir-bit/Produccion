@@ -183,6 +183,21 @@ describe('SubirFormula', () => {
     expect(within(t).getByLabelText('Producto')).toHaveValue('')
   })
 
+  it('si varios productos empatan, los nombra en vez de decir que no lo encontró', async () => {
+    await subir({
+      ...base,
+      productos: [
+        { id: 'p3', nombre: 'Bactipro Lima', color: '#16a34a', codigo: null },
+        { id: 'p4', nombre: 'Bactipro Rosa', color: '#16a34a', codigo: null },
+      ],
+    })
+    const t = tarjeta('17702')
+    expect(within(t).getByRole('status')).toHaveTextContent(
+      'Hay varios productos parecidos a «Bactipro» (Bactipro Lima y Bactipro Rosa): elegí el correcto',
+    )
+    expect(within(t).getByLabelText('Producto')).toHaveValue('')
+  })
+
   it('solo ofrece tanques libres', async () => {
     await subir()
     const opciones = within(within(tarjeta('17702')).getByLabelText('Tanque'))

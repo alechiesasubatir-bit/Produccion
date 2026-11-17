@@ -70,6 +70,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
   }
 
   const activa = pantalla === 'tareas'
+  const sinConexion = pantalla === 'tareas' ? !tareas.conectado : !operarias.conectado
   const errorCarga =
     pantalla === 'quien' ? (operarias.error ?? tareas.error) : pantalla === 'tareas' ? tareas.error : null
   const restante = useInactividad(activa, INACTIVIDAD_MS, volverAlInicio)
@@ -148,16 +149,20 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
         </div>
       )}
       <main className="planta-cuerpo">
-        {pausa && <FranjaPausa pausa={pausa} planta />}
+        {(pausa || sinConexion) && (
+          <div className="avisos-fijos">
+            {pausa && <FranjaPausa pausa={pausa} planta />}
+            {sinConexion && (
+              <div className="banda-offline" role="status">
+                Sin conexión — no se pueden registrar acciones.
+              </div>
+            )}
+          </div>
+        )}
         {errorCarga && (
           <p className="aviso-planta" role="alert">
             {errorCarga}
           </p>
-        )}
-        {!operarias.conectado && pantalla !== 'tareas' && (
-          <div className="banda-offline banda-planta" role="status">
-            Sin conexión — no se pueden registrar acciones.
-          </div>
         )}
         {pantalla === 'quien' && <QuienTrabaja operarias={operarias.datos} tareas={tareas.datos} onElegir={elegir} />}
         {pantalla === 'tareas' && operaria && (

@@ -105,6 +105,12 @@ export function mensajeError(err: unknown): { codigo: CodigoError; texto: string
     if (esCodigo(codigo) && codigo !== 'RED' && codigo !== 'DESCONOCIDO') {
       return { codigo, texto: TEXTOS[codigo](typeof detalle === 'string' && detalle ? detalle : null) }
     }
+    // Datos mal formados que la base rechaza al convertir o guardar (texto donde va un número, fuera
+    // de rango, fecha inválida, campo obligatorio vacío, check): en vez del «Algo salió mal» genérico.
+    const sqlstate = campo(err, 'code')
+    if (typeof sqlstate === 'string' && (sqlstate.startsWith('22') || sqlstate === '23502' || sqlstate === '23514')) {
+      return { codigo: 'DATOS_INVALIDOS', texto: TEXTOS.DATOS_INVALIDOS(null) }
+    }
   }
   return { codigo: 'DESCONOCIDO', texto: TEXTOS.DESCONOCIDO(null) }
 }

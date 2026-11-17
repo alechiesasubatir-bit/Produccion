@@ -4,7 +4,7 @@ import { advertenciaSinAsignar, validarEnvasadoDocumento, type NuevoEnvasadoDocu
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarLotesDocumento, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
 import { extraerFragmentos } from './leerPdf'
-import { buscarGranel, type ArchivoInicial, type OtroTipo } from './SubirFormula'
+import { avisoSinProducto, buscarGranel, type ArchivoInicial, type OtroTipo } from './SubirFormula'
 
 type Tipo = 'envasado' | 'fraccionado'
 type Abierta = DatosOrden['fabricacionesAbiertas'][number]
@@ -18,13 +18,15 @@ type Tarjeta = {
   bloque: BloqueDocumento
   producto_id: string // granel (envasado) o producto (fraccionado)
   aproximada: boolean
+  parecidos: string[]
   presentacion_id: string
   cantidad: number
   etiquetar: boolean
   etiqueta_id: string | null
   // '' = esperando fabricación; STOCK = granel de stock en un tanque libre; si no, id de la fabricación.
   destino: string
-  stock: { tanque_id: string; litros: number; lote: string }
+  // litros null = los sugeridos (lo que pide el PDF de ese granel, sin pasar la capacidad del tanque).
+  stock: { tanque_id: string; litros: number | null; lote: string }
   granelCreado: string | null
   duplicado: boolean
   confirmado: boolean
@@ -38,9 +40,9 @@ const aNumero = (v: string) => (v === '' ? 0 : Number(v))
 
 function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, duplicados: Set<string>): Tarjeta {
   const g = bloque.granel
-  const { producto, aproximada } = g
+  const { producto, aproximada, parecidos } = g
     ? buscarGranel(datos.productos, g.codigo, g.nombre)
-    : { producto: datos.productos.find((p) => p.codigo === bloque.producto.codigo), aproximada: false }
+    : { producto: datos.productos.find((p) => p.codigo === bloque.producto.codigo), aproximada: false, parecidos: [] }
   const presentacion = bloque.presentacion
   const pres = presentacion ? datos.presentaciones.find((p) => norm(p.nombre) === norm(presentacion)) : undefined
   const abiertas = producto ? datos.fabricacionesAbiertas.filter((f) => f.producto_id === producto.id) : []
@@ -49,14 +51,15 @@ function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, 
     bloque,
     producto_id: producto?.id ?? '',
     aproximada,
+    parecidos,
     presentacion_id: pres?.id ?? '',
     cantidad: bloque.producto.cantidad,
     etiquetar: false,
     etiqueta_id: null,
     destino: abiertas.length === 1 ? abiertas[0].id : '',
-    stock: { tanque_id: '', litros: g?.litros ?? 0, lote: '' },
+    stock: { tanque_id: '', litros: null, lote: '' },
     granelCreado: null,
-    duplicado: duplicados.has(lote),
+    duplicado: duplicados.has(lote.trim()),
     confirmado: false,
     estado: 'pendiente',
     error: null,
@@ -93,6 +96,9 @@ export function SubirEnvasado({
   const inicialLeido = useRef(false)
   // Granel de stock creado desde este modal: queda a disposición de las demás tarjetas del mismo PDF.
   const [creadas, setCreadas] = useState<Abierta[]>([])
+  // Litros que las tarjetas ya creadas en este modal tomaron de cada fabricación (los «sin asignar»
+  // de `datos` son de cuando se abrió).
+  const [usados, setUsados] = useState<Record<string, number>>({})
   const enCurso = useRef(new Set<number>())
   // Tarjetas ya creadas, al instante (el estado de React llega un render después).
   const hechas = useRef(new Set<number>())
@@ -130,11 +136,12 @@ export function SubirEnvasado({
       // Duplicados: solo los lotes de este PDF y de esta pestaña (envasados con envasados, fraccionados con fraccionados).
       let duplicados = new Set<string>()
       try {
-        duplicados = await cargarLotesDocumento(tipo, [...new Set(propios.map(([lote]) => lote))])
+        duplicados = await cargarLotesDocumento(tipo, [...new Set(propios.map(([lote]) => lote.trim()))])
       } catch {
         // sin la consulta no se avisa, pero el alta sigue siendo posible
       }
       setCreadas([])
+      setUsados({})
       setTarjetas(propios.map(([lote, b]) => nuevaTarjeta(lote, b, datos, duplicados)))
     } catch {
       setError(SIN_LEER)
@@ -157,8 +164,28 @@ export function SubirEnvasado({
     actualizar(i, { producto_id: productoId, aproximada: false, destino: abiertas.length === 1 ? abiertas[0].id : '' })
   }
 
-  const litrosLibres = (t: Tarjeta) =>
-    t.destino === STOCK ? t.stock.litros : (todasAbiertas.find((f) => f.id === t.destino)?.sinAsignar ?? null)
+  const sinAsignar = (f: Abierta) => f.sinAsignar - (usados[f.id] ?? 0)
+  // Los tanques que ya recibieron un granel de stock en este modal dejan de estar libres.
+  const libres = datos.tanques.filter((t) => t.estado === 'libre' && !creadas.some((c) => c.tanque_id === t.tanque_id))
+  // Litros de granel que el PDF pide de este producto en todas sus tarjetas: lo que hay que dejar en el tanque.
+  const litrosDelGranel = (t: Tarjeta) =>
+    (t.producto_id ? tarjetas.filter((x) => x.producto_id === t.producto_id).reduce((a, x) => a + (x.bloque.granel?.litros ?? 0), 0) : 0) ||
+    (t.bloque.granel?.litros ?? 0)
+  const tanqueStock = (t: Tarjeta) => datos.tanques.find((x) => x.tanque_id === t.stock.tanque_id)
+  // El tanque donde la tarjeta ya creó su granel deja de estar libre, pero el select lo sigue mostrando.
+  const tanquesParaStock = (t: Tarjeta) => {
+    const propio = t.granelCreado ? tanqueStock(t) : undefined
+    return propio && !libres.includes(propio) ? [...libres, propio] : libres
+  }
+  const litrosStock = (t: Tarjeta) => t.stock.litros ?? Math.min(litrosDelGranel(t), tanqueStock(t)?.capacidad_l ?? Infinity)
+  const litrosLibres = (t: Tarjeta) => {
+    if (t.destino === STOCK) {
+      const creada = t.granelCreado ? creadas.find((c) => c.id === t.granelCreado) : undefined
+      return creada ? sinAsignar(creada) : litrosStock(t)
+    }
+    const f = todasAbiertas.find((x) => x.id === t.destino)
+    return f ? sinAsignar(f) : null
+  }
   const datosEnvasado = (t: Tarjeta, fabricacionId: string | null): NuevoEnvasadoDocumento => ({
     fabricacion_id: fabricacionId,
     granel_id: t.producto_id || null,
@@ -170,11 +197,6 @@ export function SubirEnvasado({
     litros_granel: t.bloque.granel?.litros ?? null,
     etiqueta_id: t.etiquetar ? t.etiqueta_id : null,
   })
-  // Los tanques que ya recibieron un granel de stock en este modal dejan de estar libres.
-  const libres = datos.tanques.filter((t) => t.estado === 'libre' && !creadas.some((c) => c.tanque_id === t.tanque_id))
-  // Litros de granel que el PDF pide de este producto en todas sus tarjetas: lo que hay que dejar en el tanque.
-  const litrosDelGranel = (productoId: string) =>
-    tarjetas.filter((x) => x.producto_id === productoId).reduce((a, x) => a + (x.bloque.granel?.litros ?? 0), 0)
   const errores = (t: Tarjeta) => {
     const e: Record<string, string | undefined> =
       tipo === 'envasado'
@@ -187,7 +209,7 @@ export function SubirEnvasado({
     if (t.destino === STOCK) {
       const tq = libres.find((x) => x.tanque_id === t.stock.tanque_id) ?? (t.granelCreado ? datos.tanques.find((x) => x.tanque_id === t.stock.tanque_id) : undefined)
       if (!tq) e.stock = 'Elegí un tanque libre.'
-      else if (!(t.stock.litros > 0) || t.stock.litros > tq.capacidad_l) e.stock = `Los litros tienen que estar entre 1 y ${tq.capacidad_l}.`
+      else if (!(litrosStock(t) > 0) || litrosStock(t) > tq.capacidad_l) e.stock = `Los litros tienen que estar entre 1 y ${tq.capacidad_l}.`
     }
     return e
   }
@@ -205,10 +227,11 @@ export function SubirEnvasado({
         if (t.destino === STOCK) {
           let granel = t.granelCreado
           if (!granel) {
+            const litros = litrosStock(t)
             const g = await crearGranelStock({
               tanque_id: t.stock.tanque_id,
               producto_id: t.producto_id,
-              litros: t.stock.litros,
+              litros,
               lote: t.stock.lote.trim() || null,
             })
             if (!g.ok) {
@@ -217,15 +240,20 @@ export function SubirEnvasado({
             }
             granel = g.id
             // Si el envasado falla, el granel ya existe: no se vuelve a crear al reintentar.
-            actualizar(i, { granelCreado: granel })
+            actualizar(i, { granelCreado: granel, stock: { ...t.stock, litros } })
             setCreadas((c) => [
               ...c,
-              { id: granel as string, producto_id: t.producto_id, tanque_id: t.stock.tanque_id, lote: t.stock.lote.trim() || null, litros: t.stock.litros, sinAsignar: t.stock.litros },
+              { id: granel as string, producto_id: t.producto_id, tanque_id: t.stock.tanque_id, lote: t.stock.lote.trim() || null, litros, sinAsignar: litros },
             ])
           }
           fabricacionId = granel
         }
         r = await crearEnvasadoDocumento(datosEnvasado(t, fabricacionId), consumibles)
+        const equiv = datos.presentaciones.find((p) => p.id === t.presentacion_id)?.litros_equiv
+        if (r.ok && fabricacionId && equiv) {
+          const usa = t.cantidad * equiv
+          setUsados((u) => ({ ...u, [fabricacionId]: (u[fabricacionId] ?? 0) + usa }))
+        }
       } else {
         r = await crearFraccionadoDocumento(
           {
@@ -341,7 +369,7 @@ export function SubirEnvasado({
             )}
             {tipo === 'envasado' && !t.producto_id && b.granel && (
               <p className="advertencia" role="status">
-                No encontré «{b.granel.nombre}» en productos
+                {avisoSinProducto(b.granel.nombre, t.parecidos)}
               </p>
             )}
 
@@ -434,7 +462,7 @@ export function SubirEnvasado({
                         actualizar(
                           i,
                           ev.target.value === STOCK
-                            ? { destino: STOCK, stock: { ...t.stock, litros: litrosDelGranel(t.producto_id) || t.stock.litros } }
+                            ? { destino: STOCK }
                             : { destino: ev.target.value },
                         )
                       }
@@ -443,7 +471,7 @@ export function SubirEnvasado({
                       {abiertas.map((f) => (
                         <option key={f.id} value={f.id}>
                           {datos.tanques.find((x) => x.tanque_id === f.tanque_id)?.codigo ?? '—'} · lote {f.lote ?? '—'} · quedan{' '}
-                          {numero(f.sinAsignar)} L sin asignar
+                          {numero(sinAsignar(f))} L sin asignar
                         </option>
                       ))}
                       <option value={STOCK}>Granel de stock en un tanque libre…</option>
@@ -460,7 +488,7 @@ export function SubirEnvasado({
                           onChange={(ev) => actualizar(i, { stock: { ...t.stock, tanque_id: ev.target.value } })}
                         >
                           <option value="">— Elegí un tanque libre —</option>
-                          {libres.map((tq) => (
+                          {tanquesParaStock(t).map((tq) => (
                             <option key={tq.tanque_id} value={tq.tanque_id}>
                               {tq.codigo} · {tq.capacidad_l} L
                             </option>
@@ -473,11 +501,16 @@ export function SubirEnvasado({
                           id={`${id}-stock-litros`}
                           type="number"
                           min="1"
-                          value={t.stock.litros || ''}
+                          value={litrosStock(t) || ''}
                           disabled={t.granelCreado !== null}
                           onChange={(ev) => actualizar(i, { stock: { ...t.stock, litros: aNumero(ev.target.value) } })}
                         />
                       </div>
+                      {t.stock.litros === null && !t.granelCreado && tanqueStock(t) && litrosDelGranel(t) > tanqueStock(t)!.capacidad_l && (
+                        <p className="advertencia" role="status">
+                          El PDF pide {numero(litrosDelGranel(t))} L de este granel y el tanque admite {numero(tanqueStock(t)!.capacidad_l)} L.
+                        </p>
+                      )}
                       <div className="campo">
                         <label htmlFor={`${id}-stock-lote`}>Lote del granel (opcional)</label>
                         <input
