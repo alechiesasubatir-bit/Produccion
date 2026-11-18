@@ -5,7 +5,7 @@ import envasado from '../domain/__fixtures__/envasado-limpiador.json'
 import fraccionado from '../domain/__fixtures__/fraccionado-polvo.json'
 import type { Fragmento } from '../domain/formulaPdf'
 import type { DatosOrden } from './datosOrden'
-import { SubirEnvasado } from './SubirEnvasado'
+import { buscarProducto, SubirEnvasado } from './SubirEnvasado'
 import { SubirFormula } from './SubirFormula'
 
 const m = vi.hoisted(() => ({ extraer: vi.fn(), env: vi.fn(), frac: vi.fn(), stock: vi.fn(), formula: vi.fn(), lotes: vi.fn() }))
@@ -275,6 +275,16 @@ describe('SubirEnvasado', () => {
     expect(m.env).not.toHaveBeenCalled()
   })
 
+  it('fraccionado: sin código, encuentra el producto por nombre y pide confirmarlo', async () => {
+    const productos = [...base.productos, { id: 'pp', nombre: 'Polvo Prueba', color: '#000', codigo: null }]
+    await subir({ tipo: 'fraccionado', fr: fraccionado, datos: { ...base, productos } })
+    const t = tarjetas()[0]
+    expect(campo(t, 'Producto (opcional)')).toHaveValue('pp')
+    expect(within(t).getByText(/Coincidencia aproximada: revisá el producto/)).toBeInTheDocument()
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
+    expect(m.frac.mock.calls[0][0]).toMatchObject({ producto_id: 'pp' })
+  })
+
   it('bloques del otro tipo no se muestran y se avisa cuántos', async () => {
     await subir({ tipo: 'fraccionado' })
     expect(screen.queryAllByRole('region')).toHaveLength(0)
@@ -296,5 +306,32 @@ describe('SubirFormula con una hoja de envasado', () => {
     const archivo = new File(['%PDF'], 'x.pdf', { type: 'application/pdf' })
     await act(async () => fireEvent.change(screen.getByLabelText('PDF de la fórmula'), { target: { files: [archivo] } }))
     expect(onOtroTipo).toHaveBeenCalledWith('envasado', 'Es una hoja de envasado: la abrí en Envasado.', archivo)
+  })
+})
+
+describe('buscarProducto', () => {
+  const p = (id: string, nombre: string, codigo: string | null = null) => ({ id, nombre, color: '#000', codigo })
+  const productos = [
+    p('pu', 'Pulidor'),
+    p('c250', 'Cloro Prueba x 250g'),
+    p('c900', 'Cloro Prueba x 900g'),
+    p('g', 'Graseras Prueba'),
+    p('g1', 'Graseras Prueba x 1 Kg'),
+    p('k', 'Con Codigo', '211107'),
+  ]
+  it('por código primero', () => {
+    expect(buscarProducto(productos, '211107', 'Otra cosa x 1 L')).toMatchObject({ producto: { id: 'k' }, aproximada: false })
+  })
+  it('por nombre sin la presentación', () => {
+    expect(buscarProducto(productos, '1', 'Pulidor x 500 grs.')).toMatchObject({ producto: { id: 'pu' }, aproximada: false })
+    expect(buscarProducto(productos, '1', 'Pulidor pote x 1/2 Kg')).toMatchObject({ producto: { id: 'pu' }, aproximada: true })
+  })
+  it('elige la variante del catálogo con la misma presentación', () => {
+    expect(buscarProducto(productos, '1', 'Cloro Prueba x 900 g')).toMatchObject({ producto: { id: 'c900' }, aproximada: false })
+    expect(buscarProducto(productos, '1', 'Graseras Prueba x 1 Kg')).toMatchObject({ producto: { id: 'g1' }, aproximada: false })
+    expect(buscarProducto(productos, '1', 'Graseras Prueba x 1/4 kg')).toMatchObject({ producto: { id: 'g' }, aproximada: false })
+  })
+  it('sin la presentación en el catálogo, varias iguales quedan sin elegir', () => {
+    expect(buscarProducto(productos, '1', 'Cloro Prueba x 3kg')).toMatchObject({ producto: undefined, parecidos: [] })
   })
 })

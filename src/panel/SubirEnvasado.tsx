@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { leerEnvasados, tipoDeHoja, type BloqueDocumento } from '../domain/envasadoPdf'
+import { coincidir } from '../domain/escaneo'
+import { leerEnvasados, presentacionDe, sinPresentacion, tipoDeHoja, type BloqueDocumento } from '../domain/envasadoPdf'
 import { advertenciaSinAsignar, validarEnvasadoDocumento, type NuevoEnvasadoDocumento } from '../domain/ordenes'
 import { useEnLinea } from '../lib/useEnLinea'
 import { cargarLotesDocumento, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
@@ -38,11 +39,27 @@ const numero = (n: number) => n.toLocaleString('es-AR', { useGrouping: false, ma
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '').replace(',', '.')
 const aNumero = (v: string) => (v === '' ? 0 : Number(v))
 
+/** Producto del fraccionado: por código; si no, por nombre sin la presentación («Pulidor pote x 1/2 Kg» → Pulidor).
+ * Primero entre los del catálogo con esa misma presentación en el nombre («Cloro Shock x 250g»). No guarda códigos:
+ * el código del PDF es de la presentación, no del producto. */
+export function buscarProducto(productos: DatosOrden['productos'], codigo: string, descripcion: string) {
+  const porCodigo = productos.find((p) => p.codigo === codigo)
+  if (porCodigo) return { producto: porCodigo, aproximada: false, parecidos: [] }
+  const pres = presentacionDe(descripcion)
+  const nombre = sinPresentacion(descripcion)
+  const catalogo = productos.map((p) => ({ p, nombre: sinPresentacion(p.nombre), pres: presentacionDe(p.nombre) }))
+  const mismaPres = pres === null ? null : coincidir(nombre, catalogo.filter((c) => c.pres === pres))
+  if (mismaPres && 'item' in mismaPres && mismaPres.exacta) return { producto: mismaPres.item.p, aproximada: false, parecidos: [] }
+  const c = coincidir(nombre, catalogo.filter((x) => x.pres === null || x.pres === pres))
+  if (c && 'item' in c) return { producto: c.item.p, aproximada: !c.exacta, parecidos: [] }
+  return { producto: undefined, aproximada: false, parecidos: c ? c.ambiguas.map((x) => x.p.nombre) : [] }
+}
+
 function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, duplicados: Set<string>): Tarjeta {
   const g = bloque.granel
   const { producto, aproximada, parecidos } = g
     ? buscarGranel(datos.productos, g.codigo, g.nombre)
-    : { producto: datos.productos.find((p) => p.codigo === bloque.producto.codigo), aproximada: false, parecidos: [] }
+    : buscarProducto(datos.productos, bloque.producto.codigo, bloque.producto.descripcion)
   const presentacion = bloque.presentacion
   const pres = presentacion ? datos.presentaciones.find((p) => norm(p.nombre) === norm(presentacion)) : undefined
   const abiertas = producto ? datos.fabricacionesAbiertas.filter((f) => f.producto_id === producto.id) : []
@@ -361,7 +378,7 @@ export function SubirEnvasado({
             )}
             {t.aproximada && (
               <p className="advertencia" role="status">
-                Coincidencia aproximada: revisá el producto del granel{' '}
+                Coincidencia aproximada: revisá el producto{tipo === 'envasado' ? ' del granel' : ''}{' '}
                 <button type="button" className="boton-mini" disabled={bloqueada || creando} onClick={() => actualizar(i, { aproximada: false })}>
                   Es este producto
                 </button>
@@ -370,6 +387,11 @@ export function SubirEnvasado({
             {tipo === 'envasado' && !t.producto_id && b.granel && (
               <p className="advertencia" role="status">
                 {avisoSinProducto(b.granel.nombre, t.parecidos)}
+              </p>
+            )}
+            {tipo === 'fraccionado' && !t.producto_id && t.parecidos.length > 1 && (
+              <p className="advertencia" role="status">
+                {avisoSinProducto(sinPresentacion(b.producto.descripcion), t.parecidos)}
               </p>
             )}
 

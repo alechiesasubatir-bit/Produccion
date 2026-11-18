@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Fragmento } from './formulaPdf'
-import { leerEnvasados, presentacionDe, tipoDeHoja } from './envasadoPdf'
+import { leerEnvasados, presentacionDe, sinPresentacion, tipoDeHoja } from './envasadoPdf'
 import bactipro from './__fixtures__/bactipro.json'
 import envasado from './__fixtures__/envasado-limpiador.json'
 import fraccionado from './__fixtures__/fraccionado-polvo.json'
@@ -181,5 +181,17 @@ describe('presentacionDe', () => {
     ['', null],
   ])('%s → %s', (desc, esperado) => {
     expect(presentacionDe(desc)).toBe(esperado)
+  })
+})
+
+describe('sinPresentacion', () => {
+  it.each([
+    ['Polvo Prueba pote x 1/2 Kg', 'Polvo Prueba pote'],
+    ['Limpiador Prueba x 1.5 L', 'Limpiador Prueba'],
+    ['Pastilla Prueba P/Jacuzzi 5x50g', 'Pastilla Prueba P/Jacuzzi'],
+    ['Esencia Prueba x 250 cc aroma', 'Esencia Prueba aroma'],
+    ['Pulidor', 'Pulidor'],
+  ])('%s → %s', (desc, esperado) => {
+    expect(sinPresentacion(desc)).toBe(esperado)
   })
 })

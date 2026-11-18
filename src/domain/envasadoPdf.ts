@@ -31,6 +31,18 @@ const RE_PACK = /\b(\d+)\s*x\s*(\d+)\s*(?:g|gr|grs|gramos?)(?![a-z])/i
 const RE_ML = /\bx\s*(\d+(?:[.,]\d+)?)\s*(?:ml|cc|cm3)(?![a-z])/i
 const RE_UNIDADES = /\bx\s*(\d+)\s*(?:u|un|unid|unidades?)(?![a-z])/i
 
+/** El nombre sin la presentación: «Pulidor pote x 1/2 Kg» → «Pulidor pote». */
+export function sinPresentacion(descripcion: string): string {
+  for (const re of [RE_LITROS, RE_KILOS, RE_PACK, RE_GRAMOS, RE_ML, RE_UNIDADES]) {
+    const m = re.exec(descripcion)
+    if (m) {
+      const resto = descripcion.slice(m.index + m[0].length).replace(/^[\s.]+/, ' ') // el punto de «grs.»
+      return `${descripcion.slice(0, m.index)} ${resto}`.replace(/\s+/g, ' ').trim()
+    }
+  }
+  return descripcion.trim()
+}
+
 /** Presentación normalizada deducida del nombre del producto terminado, o null si no hay patrón. */
 export function presentacionDe(descripcion: string): string | null {
   const litros = RE_LITROS.exec(descripcion)
