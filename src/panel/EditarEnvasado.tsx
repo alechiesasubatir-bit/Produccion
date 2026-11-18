@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, type FormEvent } from 'react'
 import { cargarDatosOrden, cargarEnvasadoEdicion, editarEnvasado, type DatosOrden, type EnvasadoEditable } from './datosOrden'
+import { Modal } from './Modal'
 
 // Edita un envasado ya creado. El tanque solo se cambia mientras está en cola;
 // «soloTanque» es la variante de «Asignar tanque» para los que esperan fabricación.
@@ -15,20 +15,6 @@ export function EditarEnvasado({
   onCerrar: () => void
   onGuardado: () => void
 }) {
-  const dialogo = useRef<HTMLDivElement>(null)
-  const cerrar = useRef(onCerrar)
-  cerrar.current = onCerrar
-  useEffect(() => {
-    const boton = document.activeElement as HTMLElement | null
-    dialogo.current?.focus()
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && cerrar.current()
-    window.addEventListener('keydown', esc)
-    return () => {
-      window.removeEventListener('keydown', esc)
-      boton?.focus()
-    }
-  }, [])
-
   const [datos, setDatos] = useState<DatosOrden | null>(null)
   const [env, setEnv] = useState<EnvasadoEditable | null>(null)
   const [cantidad, setCantidad] = useState('')
@@ -83,67 +69,53 @@ export function EditarEnvasado({
     else setError(r.texto)
   }
 
-  return createPortal(
-    <div className="modal-fondo" onClick={onCerrar}>
-      <div
-        ref={dialogo}
-        tabIndex={-1}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={soloTanque ? 'Asignar tanque' : 'Editar envasado'}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-cabecera">
-          <h2>{soloTanque ? 'Asignar tanque' : 'Editar envasado'}</h2>
-        </header>
-        <form className="formulario" onSubmit={(e) => void guardar(e)}>
-          {!soloTanque && (
-            <>
-              <div className="campo">
-                <label htmlFor="ee-cantidad">Cantidad</label>
-                <input id="ee-cantidad" type="number" min={1} step={1} value={cantidad} disabled={!env} onChange={(e) => setCantidad(e.target.value)} />
-              </div>
-              <div className="campo">
-                <label htmlFor="ee-presentacion">Presentación</label>
-                <select id="ee-presentacion" value={presentacion} disabled={!env} onChange={(e) => setPresentacion(e.target.value)}>
-                  {(datos?.presentaciones ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
+  return (
+    <Modal titulo={soloTanque ? 'Asignar tanque' : 'Editar envasado'} sinCerrar onCerrar={onCerrar}>
+    <form className="formulario" onSubmit={(e) => void guardar(e)}>
+      {!soloTanque && (
+        <>
           <div className="campo">
-            <label htmlFor="ee-tanque">Tanque</label>
-            <select id="ee-tanque" value={fabricacion} disabled={!tanqueHabilitado} onChange={(e) => setFabricacion(e.target.value)}>
-              <option value="">{env?.fabricacion_id ? 'Sin cambios' : 'Elegí un tanque'}</option>
-              {opciones.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {`${codigo(f.tanque_id)}${f.lote ? ` · Lote ${f.lote}` : ''} · ${f.sinAsignar} L libres`}
+            <label htmlFor="ee-cantidad">Cantidad</label>
+            <input id="ee-cantidad" type="number" min={1} step={1} value={cantidad} disabled={!env} onChange={(e) => setCantidad(e.target.value)} />
+          </div>
+          <div className="campo">
+            <label htmlFor="ee-presentacion">Presentación</label>
+            <select id="ee-presentacion" value={presentacion} disabled={!env} onChange={(e) => setPresentacion(e.target.value)}>
+              {(datos?.presentaciones ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
                 </option>
               ))}
             </select>
-            {env && !tanqueHabilitado && <span className="campo-error">El tanque solo se cambia mientras el envasado está en cola.</span>}
           </div>
-          {error && (
-            <p className="aviso-panel" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="modal-pie">
-            <button type="button" className="boton boton-sec" onClick={onCerrar}>
-              Cancelar
-            </button>
-            <button type="submit" className="boton" disabled={!env || guardando}>
-              Guardar
-            </button>
-          </div>
-        </form>
+        </>
+      )}
+      <div className="campo">
+        <label htmlFor="ee-tanque">Tanque</label>
+        <select id="ee-tanque" value={fabricacion} disabled={!tanqueHabilitado} onChange={(e) => setFabricacion(e.target.value)}>
+          <option value="">{env?.fabricacion_id ? 'Sin cambios' : 'Elegí un tanque'}</option>
+          {opciones.map((f) => (
+            <option key={f.id} value={f.id}>
+              {`${codigo(f.tanque_id)}${f.lote ? ` · Lote ${f.lote}` : ''} · ${f.sinAsignar} L libres`}
+            </option>
+          ))}
+        </select>
+        {env && !tanqueHabilitado && <span className="campo-error">El tanque solo se cambia mientras el envasado está en cola.</span>}
       </div>
-    </div>,
-    document.body,
+      {error && (
+        <p className="aviso-panel" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="modal-pie">
+        <button type="button" className="boton boton-sec" onClick={onCerrar}>
+          Cancelar
+        </button>
+        <button type="submit" className="boton" disabled={!env || guardando}>
+          Guardar
+        </button>
+      </div>
+    </form>
+    </Modal>
   )
 }

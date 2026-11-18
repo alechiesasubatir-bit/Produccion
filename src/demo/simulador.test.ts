@@ -459,6 +459,8 @@ describe('simulador de la demo', () => {
       expect(s.consultar('envasados')).toEqual([expect.objectContaining({ id, lote: '99001', codigo: '900301', granel_id: 'dp15', litros_granel: 900, fabricacion_id: null })])
       // sin tanque no hay litros comprometidos: cancelar sí se puede
       expect(s.accion('envasado', id, 'cancelar')).toMatchObject({ ok: true })
+      // ya cancelado, manda la transición (no SIN_TANQUE)
+      expect(s.accion('envasado', id, 'iniciar', 'do1')).toMatchObject({ ok: false, codigo: 'TRANSICION_INVALIDA' })
     })
 
     it('crear con tanque valida la fabricación y el granel; datos inválidos se rechazan', () => {

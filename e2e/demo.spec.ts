@@ -127,7 +127,10 @@ test('demo: envasado desde el PDF → tanque sugerido → crear → tablet: inic
   // en la tablet: tomar el envasado, cargar el lote de un consumible y finalizar
   await page.getByRole('link', { name: 'Tablet' }).click()
   const tablet = page.getByRole('region', { name: 'Vista de la tablet' })
+  await expect(tablet.getByRole('button').first()).toBeVisible()
+  const operarias = await tablet.getByRole('button').count()
   for (let i = 0; ; i++) {
+    expect(i, 'ninguna operaria pudo tomar el envasado').toBeLessThan(operarias)
     await tablet.getByRole('button').nth(i).click()
     await tablet.getByRole('article', { name: /Limpiador Prueba/ }).getByRole('button', { name: 'Tomar' }).click()
     await expect(tablet.getByText(/Ya estás envasando|Consumibles \(opcional\)/)).toBeVisible()

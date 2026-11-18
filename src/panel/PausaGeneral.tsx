@@ -1,5 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import type { Entidad } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import type { Unidad } from '../domain/participaciones'
@@ -18,6 +17,7 @@ import {
 import { parsearCantidad } from '../domain/tareas'
 import { arranqueGeneral, pausaGeneral } from '../lib/acciones'
 import { mensajeError } from '../lib/errores'
+import { Modal } from './Modal'
 import { horaMontevideo } from '../lib/hora'
 import { cargarFlujo, cargarOperarias, type OperariaNombre } from './datosFlujo'
 import { cargarOrdenesPausa } from './datosPausaGeneral'
@@ -98,46 +98,6 @@ function useCierreSeguro(sucio: boolean, onCerrar: () => void, que: string) {
   return { intentar, aviso }
 }
 
-function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () => void; children: ReactNode }) {
-  const id = useId()
-  const dialogo = useRef<HTMLDivElement>(null)
-  const cerrar = useRef(onCerrar)
-  cerrar.current = onCerrar
-  useEffect(() => {
-    const boton = document.activeElement as HTMLElement | null
-    dialogo.current?.focus()
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && cerrar.current()
-    window.addEventListener('keydown', esc)
-    return () => {
-      window.removeEventListener('keydown', esc)
-      boton?.focus()
-    }
-  }, [])
-
-  return createPortal(
-    <div className="modal-fondo" onClick={onCerrar}>
-      <div
-        ref={dialogo}
-        tabIndex={-1}
-        className="modal modal-pausa-general"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={id}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="modal-cabecera">
-          <h2 id={id}>{titulo}</h2>
-          <button type="button" className="boton boton-sec" onClick={onCerrar} aria-label="Cerrar">
-            ×
-          </button>
-        </header>
-        {children}
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
 function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: () => void }) {
   const [ordenes, setOrdenes] = useState<FilaFlujo[] | null>(null)
   const [textos, setTextos] = useState<Record<string, string>>({})
@@ -178,7 +138,7 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
   }
 
   return (
-    <Modal titulo="Pausa General" onCerrar={cierre.intentar}>
+    <Modal titulo="Pausa General" clase="modal-pausa-general" onCerrar={cierre.intentar}>
       {ordenes === null && !error && <p className="pg-nota">Cargando órdenes…</p>}
       {ordenes !== null && lista.length === 0 && <p className="pg-vacio">No hay órdenes en marcha</p>}
       {lista.length > 0 && (
@@ -328,7 +288,7 @@ function DialogoArranque({
   }
 
   return (
-    <Modal titulo="Arranque" onCerrar={cierre.intentar}>
+    <Modal titulo="Arranque" clase="modal-pausa-general" onCerrar={cierre.intentar}>
       <p className="pg-nota">
         Planta en pausa desde las {hora(pausa.inicio)}. Marcá las órdenes que se reanudan y quiénes vuelven a cada una.
       </p>

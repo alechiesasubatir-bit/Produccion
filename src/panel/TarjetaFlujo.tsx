@@ -1,6 +1,5 @@
 import { motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
 import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
@@ -9,6 +8,7 @@ import { Cronometro } from '../planta/TarjetaTarea'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
 import { DialogoControl } from './DialogoControl'
+import { Modal } from './Modal'
 import { OperariasOrden } from './OperariasOrden'
 
 const CONFIRMAR: Accion[] = ['cancelar', 'finalizar']
@@ -74,18 +74,6 @@ export function TarjetaFlujo({
   const [controlando, setControlando] = useState(false)
   const cerrarControl = useCallback(() => setControlando(false), [])
   const disparador = useRef<HTMLButtonElement>(null)
-  const dialogo = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!verOperarias) return
-    const boton = disparador.current
-    dialogo.current?.focus()
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setVerOperarias(false)
-    window.addEventListener('keydown', esc)
-    return () => {
-      window.removeEventListener('keydown', esc)
-      boton?.focus()
-    }
-  }, [verOperarias])
   const enOrden = (fila.operarias ?? []).map((o) => o.nombre)
   // Sin participaciones (órdenes anteriores) se usan las operarias guardadas en la propia orden.
   const operarias = enOrden.length
@@ -177,29 +165,11 @@ export function TarjetaFlujo({
           onCerrar={cerrarControl}
         />
       )}
-      {verOperarias &&
-        createPortal(
-          <div className="modal-fondo" onClick={() => setVerOperarias(false)}>
-            <div
-              ref={dialogo}
-              tabIndex={-1}
-              className="modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Operarias de la orden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <header className="modal-cabecera">
-                <h2>{`Operarias · ${tituloTarea(fila)}`}</h2>
-                <button type="button" className="boton boton-sec" onClick={() => setVerOperarias(false)} aria-label="Cerrar">
-                  ×
-                </button>
-              </header>
-              <OperariasOrden entidad={fila.entidad} id={fila.id} />
-            </div>
-          </div>,
-          document.body,
-        )}
+      {verOperarias && (
+        <Modal titulo={`Operarias · ${tituloTarea(fila)}`} etiqueta="Operarias de la orden" volverA={disparador} onCerrar={() => setVerOperarias(false)}>
+          <OperariasOrden entidad={fila.entidad} id={fila.id} />
+        </Modal>
+      )}
     </motion.article>
   )
 }

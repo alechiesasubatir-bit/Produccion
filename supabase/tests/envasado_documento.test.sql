@@ -1,6 +1,6 @@
 -- Ejecutar: begin; + 017 + _fixtures.sql + este archivo.
 -- Envasados sin tanque, consumibles y granel de stock (migración 017, sección 1 y accion()).
-insert into _tap (l) select plan(65);
+insert into _tap (l) select plan(66);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -43,6 +43,10 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","r
 insert into _tap (l) select is(
   produccion.accion('envasado', '00000000-0000-0000-0000-0000000000b2', 'cancelar')->>'estado',
   'cancelado', 'cancelar un envasado esperando fabricación: cancelado');
+-- ya cancelado, manda la transición y no SIN_TANQUE (020)
+insert into _tap (l) select is(
+  produccion.accion('envasado', '00000000-0000-0000-0000-0000000000b2', 'iniciar')->>'codigo',
+  'TRANSICION_INVALIDA', 'iniciar un envasado cancelado sin tanque: TRANSICION_INVALIDA');
 insert into _tap (l) select is(
   (select estado from produccion.envasados where id = '00000000-0000-0000-0000-0000000000b2'),
   'cancelado', 'el envasado esperando queda cancelado');

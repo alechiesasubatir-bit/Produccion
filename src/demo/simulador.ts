@@ -708,8 +708,8 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
     if (planta && !OPERARIAS.some((o) => o.empleado_id === empleadoId)) return rechazo('OPERARIA_INACTIVA')
     const x = lista.find((y) => y.id === id)
     if (!x) return rechazo('NO_ENCONTRADO', id)
-    // un envasado que espera fabricación no se inicia ni admite operarias
-    if (entidad === 'envasado' && (a === 'iniciar' || a === 'sumarse') && (x as Env).fabricacion_id === null) return rechazo('SIN_TANQUE')
+    // un envasado en cola que espera fabricación no se inicia ni admite operarias (en otro estado manda la transición)
+    if (entidad === 'envasado' && (a === 'iniciar' || a === 'sumarse') && x.estado === 'cola' && (x as Env).fabricacion_id === null) return rechazo('SIN_TANQUE')
     const fab = entidad === 'fabricacion'
     const enCurso = fab ? x.estado === 'fabricando' || x.estado === 'pausada' : x.estado === 'activo' || x.estado === 'pausado'
     const valida = a === 'sumarse' || a === 'salir' ? enCurso : accionesPosibles(entidad, x.estado, 'panel').includes(a)
