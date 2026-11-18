@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import bactipro from '../domain/__fixtures__/bactipro.json'
 import type { Fragmento } from '../domain/formulaPdf'
 import type { DatosOrden } from './datosOrden'
-import { SubirFormula } from './SubirFormula'
+import { buscarGranel, SubirFormula } from './SubirFormula'
 
 const m = vi.hoisted(() => ({ extraer: vi.fn(), crear: vi.fn() }))
 
@@ -310,5 +310,26 @@ describe('SubirFormula', () => {
       lote: '17702',
       fecha_formula: '2026-10-21',
     })
+  })
+})
+
+describe('buscarGranel', () => {
+  const productos = [
+    { id: 'a', nombre: 'Limpiador Prueba (Granel)', color: '#000', codigo: null },
+    { id: 'b', nombre: 'Quita Prueba Granel', color: '#000', codigo: null },
+    { id: 'c', nombre: 'Polvo Prueba', color: '#000', codigo: 'F9' },
+  ]
+  it.each([
+    ['Limpiador Prueba', 'a'],
+    ['Limpiador Prueba (Granel)', 'a'],
+    ['Quita Prueba', 'b'],
+  ])('«%s» coincide exacto ignorando «Granel»', (nombre, id) => {
+    expect(buscarGranel(productos, 'F1', nombre)).toMatchObject({ producto: { id }, segura: true, aproximada: false })
+  })
+  it('el código manda sobre el nombre', () => {
+    expect(buscarGranel(productos, 'F9', 'Otro')).toMatchObject({ producto: { id: 'c' }, segura: true })
+  })
+  it('un nombre parcial sigue siendo aproximado', () => {
+    expect(buscarGranel(productos, 'F1', 'Limpiador')).toMatchObject({ producto: { id: 'a' }, segura: false, aproximada: true })
   })
 })

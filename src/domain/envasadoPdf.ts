@@ -26,6 +26,10 @@ const ERROR_FORMATO = 'Este PDF no tiene el formato de una hoja de envasado. Car
 const RE_LITROS = /\bx\s*(\d+(?:[.,]\d+)?)\s*(?:l|lts?|litros?)(?![a-z])/i
 const RE_KILOS = /\bx\s*(1\/2|1\/4|\d+(?:[.,]\d+)?)\s*(?:kg|kgs|kilos?)(?![a-z])/i
 const RE_GRAMOS = /\bx\s*(\d+)\s*(?:g|gr|grs|gramos?)(?![a-z])/i
+// «5x50g»: paquete de N unidades de M gramos.
+const RE_PACK = /\b(\d+)\s*x\s*(\d+)\s*(?:g|gr|grs|gramos?)(?![a-z])/i
+const RE_ML = /\bx\s*(\d+(?:[.,]\d+)?)\s*(?:ml|cc|cm3)(?![a-z])/i
+const RE_UNIDADES = /\bx\s*(\d+)\s*(?:u|un|unid|unidades?)(?![a-z])/i
 
 /** Presentación normalizada deducida del nombre del producto terminado, o null si no hay patrón. */
 export function presentacionDe(descripcion: string): string | null {
@@ -37,8 +41,18 @@ export function presentacionDe(descripcion: string): string | null {
     if (kilos[1] === '1/4') return '250g'
     return `${kilos[1].replace(',', '.')}kg`
   }
+  const pack = RE_PACK.exec(descripcion)
+  if (pack) return `${pack[1]}x${pack[2]}g`
   const gramos = RE_GRAMOS.exec(descripcion)
   if (gramos) return `${gramos[1]}g`
+  const ml = RE_ML.exec(descripcion)
+  if (ml) {
+    // Con tres decimales el separador es de miles: «x 1.500 cc» = 1500 cc.
+    const v = /^\d{1,3}[.,]\d{3}$/.test(ml[1]) ? Number(ml[1].replace(/[.,]/, '')) : Number(ml[1].replace(',', '.'))
+    return v >= 1000 ? `${v / 1000}L` : `${v}mL`
+  }
+  const unidades = RE_UNIDADES.exec(descripcion)
+  if (unidades) return `${unidades[1]}u`
   return null
 }
 

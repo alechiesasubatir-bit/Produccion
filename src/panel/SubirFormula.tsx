@@ -45,15 +45,18 @@ const enumerar = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0,
  * `segura`: el código del PDF puede quedar atado al producto para siempre. */
 export function buscarGranel(productos: DatosOrden['productos'], codigo: string, nombre: string) {
   const porCodigo = productos.find((p) => p.codigo === codigo)
-  const c = porCodigo ? null : coincidir(nombre, productos)
+  // El catálogo dice «X (Granel)» o «X Granel» y el lector del PDF deja «X»: se compara sin el sufijo.
+  const c = porCodigo ? null : coincidir(sinGranel(nombre), productos.map((p) => ({ p, nombre: sinGranel(p.nombre) })))
   const porNombre = c && 'item' in c ? c : null
   return {
-    producto: porCodigo ?? porNombre?.item,
+    producto: porCodigo ?? porNombre?.item.p,
     segura: Boolean(porCodigo) || Boolean(porNombre?.exacta),
     aproximada: Boolean(porNombre && !porNombre.exacta),
-    parecidos: c && 'ambiguas' in c ? c.ambiguas.map((p) => p.nombre) : [],
+    parecidos: c && 'ambiguas' in c ? c.ambiguas.map((x) => x.p.nombre) : [],
   }
 }
+
+const sinGranel = (s: string) => s.replace(/\s*\(?\s*granel\s*\)?\s*$/i, '')
 
 /** Aviso cuando el granel del PDF no quedó elegido: no está, o hay varios igual de parecidos. */
 export const avisoSinProducto = (nombre: string, parecidos: string[]) =>
