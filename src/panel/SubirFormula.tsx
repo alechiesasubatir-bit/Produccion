@@ -4,6 +4,7 @@ import { tipoDeHoja } from '../domain/envasadoPdf'
 import { leerFormulas, type Formula } from '../domain/formulaPdf'
 import { validarFabricacionFormula, type NuevaFabricacionFormula } from '../domain/ordenes'
 import { useEnLinea } from '../lib/useEnLinea'
+import { CrearProducto } from './CrearProducto'
 import { crearFabricacionFormula, type DatosOrden } from './datosOrden'
 import { extraerFragmentos } from './leerPdf'
 
@@ -64,6 +65,10 @@ export const avisoSinProducto = (nombre: string, parecidos: string[]) =>
     ? `Hay varios productos parecidos a «${nombre}» (${enumerar(parecidos)}): elegí el correcto`
     : `No encontré «${nombre}» en productos`
 
+/** El aviso sin producto, pidiendo elegirlo o crearlo, y qué queda registrado. */
+export const pedirProducto = (nombre: string, parecidos: string[], registro: string) =>
+  `${avisoSinProducto(nombre, parecidos)}${parecidos.length > 1 ? ' o creá uno nuevo' : ': elegilo en la lista o creá uno nuevo'}. ${registro}`
+
 function nuevaTarjeta(formula: Formula, productos: DatosOrden['productos']): Tarjeta {
   const { producto, segura, aproximada, parecidos } = buscarGranel(productos, formula.granel.codigo, formula.granel.nombre)
   return {
@@ -110,6 +115,8 @@ export function SubirFormula({
   const [leyendo, setLeyendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>([])
+  // Productos creados desde las tarjetas en este modal (el catálogo de `datos` no se recarga).
+  const [nuevos, setNuevos] = useState<DatosOrden['productos']>([])
   const avisado = useRef(false)
   const inicialLeido = useRef(false)
 
@@ -292,9 +299,21 @@ export function SubirFormula({
               </p>
             )}
             {!t.productoEncontrado && !t.fab.producto_id && (
-              <p className="advertencia" role="status">
-                {avisoSinProducto(t.formula.granel.nombre, t.parecidos)}
-              </p>
+              <div className="sin-producto">
+                <p className="advertencia" role="status">
+                  {pedirProducto(t.formula.granel.nombre, t.parecidos, `Queda registrado con el código ${t.formula.granel.codigo}.`)}
+                </p>
+                <CrearProducto
+                  nombre={`${t.formula.granel.nombre} (Granel)`}
+                  tipo="liquido"
+                  codigo={t.formula.granel.codigo}
+                  deshabilitado={bloqueada || creando}
+                  onCreado={(p) => {
+                    setNuevos((ns) => [...ns, p])
+                    elegirProducto(i, t, p.id)
+                  }}
+                />
+              </div>
             )}
 
             <fieldset className="formulario formula-campos" disabled={bloqueada || creando}>
@@ -333,7 +352,7 @@ export function SubirFormula({
                 <label htmlFor={`${id}-producto`}>Producto</label>
                 <select id={`${id}-producto`} value={t.fab.producto_id} onChange={(ev) => elegirProducto(i, t, ev.target.value)}>
                   <option value="">— Elegí un producto —</option>
-                  {datos.productos.map((p) => (
+                  {[...datos.productos, ...nuevos].map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.nombre}
                     </option>

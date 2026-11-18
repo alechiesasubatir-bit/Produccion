@@ -8,7 +8,7 @@ import type { DatosOrden } from './datosOrden'
 import { buscarProducto, SubirEnvasado } from './SubirEnvasado'
 import { SubirFormula } from './SubirFormula'
 
-const m = vi.hoisted(() => ({ extraer: vi.fn(), env: vi.fn(), frac: vi.fn(), stock: vi.fn(), formula: vi.fn(), lotes: vi.fn(), codigos: vi.fn() }))
+const m = vi.hoisted(() => ({ extraer: vi.fn(), env: vi.fn(), frac: vi.fn(), stock: vi.fn(), formula: vi.fn(), lotes: vi.fn(), codigos: vi.fn(), nuevoProd: vi.fn(), aprender: vi.fn() }))
 
 vi.mock('./leerPdf', () => ({ extraerFragmentos: m.extraer }))
 vi.mock('./datosOrden', () => ({
@@ -17,6 +17,8 @@ vi.mock('./datosOrden', () => ({
   crearGranelStock: m.stock,
   cargarLotesDocumento: m.lotes,
   cargarProductosPorCodigo: m.codigos,
+  crearProducto: m.nuevoProd,
+  aprenderCodigo: m.aprender,
   crearFabricacionFormula: m.formula,
 }))
 
@@ -63,6 +65,8 @@ beforeEach(() => {
   m.stock.mockReset().mockResolvedValue({ ok: true, id: 'g1' })
   m.lotes.mockReset().mockResolvedValue(new Set())
   m.codigos.mockReset().mockResolvedValue(new Map())
+  m.nuevoProd.mockReset()
+  m.aprender.mockReset().mockResolvedValue(undefined)
 })
 
 describe('SubirEnvasado', () => {
@@ -289,7 +293,7 @@ describe('SubirEnvasado', () => {
 
   it('fraccionado: sin producto pide elegirlo; el elegido en un fraccionado anterior con ese código se reusa', async () => {
     await subir({ tipo: 'fraccionado', fr: fraccionado })
-    expect(within(tarjetas()[0]).getByText(/elegilo y queda registrado para la próxima vez que venga el código 900501/)).toBeInTheDocument()
+    expect(within(tarjetas()[0]).getByText(/elegilo en la lista o creá uno nuevo\. Queda registrado para la próxima vez que venga el código 900501/)).toBeInTheDocument()
     expect(m.codigos).toHaveBeenCalledWith(['900501'])
     cleanup()
     m.codigos.mockResolvedValue(new Map([['900501', 'pl']]))
@@ -297,6 +301,44 @@ describe('SubirEnvasado', () => {
     const t = tarjetas()[0]
     expect(campo(t, 'Producto (opcional)')).toHaveValue('pl')
     expect(within(t).queryByText(/Coincidencia aproximada|elegilo/)).toBeNull()
+  })
+
+  it('fraccionado: crea el producto nuevo desde la tarjeta y lo elige', async () => {
+    m.nuevoProd.mockResolvedValue({ ok: true, producto: { id: 'nuevo', nombre: 'Polvo Prueba pote', color: '#000', codigo: null } })
+    await subir({ tipo: 'fraccionado', fr: fraccionado })
+    const t = tarjetas()[0]
+    fireEvent.click(within(t).getByRole('button', { name: 'Crear producto nuevo' }))
+    expect(campo(t, 'Nombre del producto nuevo')).toHaveValue('Polvo Prueba pote')
+    expect(campo(t, 'Tipo')).toHaveValue('polvo')
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear producto' })))
+    expect(m.nuevoProd).toHaveBeenCalledWith({ nombre: 'Polvo Prueba pote', tipo: 'polvo', codigo: null })
+    expect(campo(t, 'Producto (opcional)')).toHaveValue('nuevo')
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
+    expect(m.frac.mock.calls[0][0]).toMatchObject({ producto_id: 'nuevo', codigo: '900501' })
+  })
+
+  it('crear producto con un nombre que ya existe avisa y no elige nada', async () => {
+    m.nuevoProd.mockResolvedValue({ ok: false, codigo: 'NOMBRE_DUPLICADO', texto: 'x' })
+    await subir({ tipo: 'fraccionado', fr: fraccionado })
+    const t = tarjetas()[0]
+    fireEvent.click(within(t).getByRole('button', { name: 'Crear producto nuevo' }))
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear producto' })))
+    expect(within(t).getByText('Ya hay un producto con ese nombre: elegilo en la lista.')).toBeInTheDocument()
+    expect(campo(t, 'Producto (opcional)')).toHaveValue('')
+  })
+
+  it('envasado: el granel elegido a mano aprende el código F; si ya tiene código, no', async () => {
+    const productos = [
+      { id: 'pl', nombre: 'Limpiador Prueba', color: '#000', codigo: 'F9' },
+      { id: 'sc', nombre: 'Sin Codigo', color: '#000', codigo: null },
+    ]
+    await subir({ datos: { ...base, productos } })
+    const [t1, t2] = tarjetas()
+    cambiar(t1, 'Producto del granel', 'sc')
+    await act(async () => fireEvent.click(within(t1).getByRole('button', { name: 'Crear' })))
+    await act(async () => fireEvent.click(within(t2).getByRole('button', { name: 'Crear' })))
+    expect(m.aprender).toHaveBeenCalledTimes(1)
+    expect(m.aprender).toHaveBeenCalledWith('sc', expect.stringMatching(/^F\d+$/))
   })
 
   it('bloques del otro tipo no se muestran y se avisa cuántos', async () => {

@@ -5,10 +5,10 @@ import type { Fragmento } from '../domain/formulaPdf'
 import type { DatosOrden } from './datosOrden'
 import { buscarGranel, SubirFormula } from './SubirFormula'
 
-const m = vi.hoisted(() => ({ extraer: vi.fn(), crear: vi.fn() }))
+const m = vi.hoisted(() => ({ extraer: vi.fn(), crear: vi.fn(), nuevoProd: vi.fn() }))
 
 vi.mock('./leerPdf', () => ({ extraerFragmentos: m.extraer }))
-vi.mock('./datosOrden', () => ({ crearFabricacionFormula: m.crear }))
+vi.mock('./datosOrden', () => ({ crearFabricacionFormula: m.crear, crearProducto: m.nuevoProd }))
 
 const fragmentos = bactipro as Fragmento[]
 // Dos fórmulas: la misma hoja repetida en la página 2 con otro lote.
@@ -181,6 +181,18 @@ describe('SubirFormula', () => {
     const t = tarjeta('17702')
     expect(within(t).getByRole('status')).toHaveTextContent('No encontré «Bactipro» en productos')
     expect(within(t).getByLabelText('Producto')).toHaveValue('')
+  })
+
+  it('si no encuentra el producto, lo crea desde la tarjeta con el código F y lo elige', async () => {
+    m.nuevoProd.mockResolvedValue({ ok: true, producto: { id: 'pn', nombre: 'Bactipro (Granel)', color: '#000', codigo: 'F8' } })
+    await subir({ ...base, productos: [{ id: 'p2', nombre: 'Lavandina', color: '#16a34a', codigo: null }] })
+    const t = tarjeta('17702')
+    fireEvent.click(within(t).getByRole('button', { name: 'Crear producto nuevo' }))
+    expect(within(t).getByLabelText('Nombre del producto nuevo')).toHaveValue('Bactipro (Granel)')
+    await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear producto' })))
+    expect(m.nuevoProd).toHaveBeenCalledWith({ nombre: 'Bactipro (Granel)', tipo: 'liquido', codigo: 'F8' })
+    expect(within(t).getByLabelText('Producto')).toHaveValue('pn')
+    expect(within(t).queryByRole('button', { name: 'Crear producto nuevo' })).toBeNull()
   })
 
   it('si varios productos empatan, los nombra en vez de decir que no lo encontró', async () => {

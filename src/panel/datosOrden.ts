@@ -63,6 +63,30 @@ export async function cargarLotesDocumento(tipo: 'envasado' | 'fraccionado', lot
   return new Set(filasLote.map((f) => (f.lote ?? '').trim()).filter(Boolean))
 }
 
+export type ProductoOrden = DatosOrden['productos'][number]
+export type TipoProducto = 'liquido' | 'denso' | 'polvo'
+
+// Producto nuevo creado desde una tarjeta del PDF (no estaba en el catálogo o tenía otro nombre).
+export async function crearProducto(p: { nombre: string; tipo: TipoProducto; codigo: string | null }): Promise<Resultado<{ producto: ProductoOrden }>> {
+  try {
+    const { data, error } = await db.from('productos').insert(p).select('id, nombre, color, codigo').single()
+    if (error || !data) return { ok: false, ...mensajeError(error) }
+    return { ok: true, producto: data as ProductoOrden }
+  } catch (e) {
+    return { ok: false, ...mensajeError(e) }
+  }
+}
+
+// El granel adopta el código F del PDF si todavía no tiene (como hace la fórmula). Si otro producto ya lo
+// usa, o falla, se ignora: no frena la orden.
+export async function aprenderCodigo(productoId: string, codigo: string): Promise<void> {
+  try {
+    await db.from('productos').update({ codigo }).eq('id', productoId).is('codigo', null)
+  } catch {
+    // sin red o código tomado: se reintenta con el próximo PDF
+  }
+}
+
 // Producto que ya se eligió para cada código de producto terminado en fraccionados anteriores (el más
 // reciente manda): lo que se completa a mano una vez queda registrado en la propia orden y se reusa.
 export async function cargarProductosPorCodigo(codigos: string[]): Promise<Map<string, string>> {

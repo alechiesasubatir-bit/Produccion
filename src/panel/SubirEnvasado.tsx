@@ -3,9 +3,10 @@ import { coincidir } from '../domain/escaneo'
 import { leerEnvasados, presentacionDe, sinPresentacion, tipoDeHoja, type BloqueDocumento } from '../domain/envasadoPdf'
 import { advertenciaSinAsignar, validarEnvasadoDocumento, type NuevoEnvasadoDocumento } from '../domain/ordenes'
 import { useEnLinea } from '../lib/useEnLinea'
-import { cargarLotesDocumento, cargarProductosPorCodigo, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
+import { aprenderCodigo, cargarLotesDocumento, cargarProductosPorCodigo, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
+import { CrearProducto } from './CrearProducto'
 import { extraerFragmentos } from './leerPdf'
-import { avisoSinProducto, buscarGranel, type ArchivoInicial, type OtroTipo } from './SubirFormula'
+import { buscarGranel, pedirProducto, type ArchivoInicial, type OtroTipo } from './SubirFormula'
 
 type Tipo = 'envasado' | 'fraccionado'
 type Abierta = DatosOrden['fabricacionesAbiertas'][number]
@@ -62,11 +63,18 @@ export function buscarProducto(
   return { producto: undefined, aproximada: false, parecidos: c ? c.ambiguas.map((x) => x.p.nombre) : [] }
 }
 
-function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, duplicados: Set<string>, previos: Map<string, string>): Tarjeta {
+function nuevaTarjeta(
+  lote: string,
+  bloque: BloqueDocumento,
+  datos: DatosOrden,
+  productos: DatosOrden['productos'],
+  duplicados: Set<string>,
+  previos: Map<string, string>,
+): Tarjeta {
   const g = bloque.granel
   const { producto, aproximada, parecidos } = g
-    ? buscarGranel(datos.productos, g.codigo, g.nombre)
-    : buscarProducto(datos.productos, bloque.producto.codigo, bloque.producto.descripcion, previos)
+    ? buscarGranel(productos, g.codigo, g.nombre)
+    : buscarProducto(productos, bloque.producto.codigo, bloque.producto.descripcion, previos)
   const presentacion = bloque.presentacion
   const pres = presentacion ? datos.presentaciones.find((p) => norm(p.nombre) === norm(presentacion)) : undefined
   const abiertas = producto ? datos.fabricacionesAbiertas.filter((f) => f.producto_id === producto.id) : []
@@ -115,6 +123,9 @@ export function SubirEnvasado({
   const [leyendo, setLeyendo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tarjetas, setTarjetas] = useState<Tarjeta[]>([])
+  // Productos creados desde las tarjetas en este modal (el catálogo de `datos` no se recarga).
+  const [nuevos, setNuevos] = useState<DatosOrden['productos']>([])
+  const productos = [...datos.productos, ...nuevos]
   const [omitidos, setOmitidos] = useState(0)
   const avisado = useRef(false)
   const inicialLeido = useRef(false)
@@ -174,7 +185,7 @@ export function SubirEnvasado({
       }
       setCreadas([])
       setUsados({})
-      setTarjetas(propios.map(([lote, b]) => nuevaTarjeta(lote, b, datos, duplicados, previos)))
+      setTarjetas(propios.map(([lote, b]) => nuevaTarjeta(lote, b, datos, productos, duplicados, previos)))
     } catch {
       setError(SIN_LEER)
     } finally {
@@ -281,6 +292,8 @@ export function SubirEnvasado({
           fabricacionId = granel
         }
         r = await crearEnvasadoDocumento(datosEnvasado(t, fabricacionId), consumibles)
+        const g = t.bloque.granel
+        if (r.ok && g && !productos.find((p) => p.id === t.producto_id)?.codigo) void aprenderCodigo(t.producto_id, g.codigo)
         const equiv = datos.presentaciones.find((p) => p.id === t.presentacion_id)?.litros_equiv
         if (r.ok && fabricacionId && equiv) {
           const usa = t.cantidad * equiv
@@ -399,16 +412,28 @@ export function SubirEnvasado({
                 </button>
               </p>
             )}
-            {tipo === 'envasado' && !t.producto_id && b.granel && (
-              <p className="advertencia" role="status">
-                {avisoSinProducto(b.granel.nombre, t.parecidos)}
-              </p>
-            )}
-            {tipo === 'fraccionado' && !t.producto_id && (
-              <p className="advertencia" role="status">
-                {avisoSinProducto(sinPresentacion(b.producto.descripcion), t.parecidos)}: elegilo y queda registrado para
-                la próxima vez que venga el código {b.producto.codigo}.
-              </p>
+            {!t.producto_id && (b.granel || tipo === 'fraccionado') && (
+              <div className="sin-producto">
+                <p className="advertencia" role="status">
+                  {b.granel
+                    ? pedirProducto(b.granel.nombre, t.parecidos, `Queda registrado con el código ${b.granel.codigo}.`)
+                    : pedirProducto(
+                        sinPresentacion(b.producto.descripcion),
+                        t.parecidos,
+                        `Queda registrado para la próxima vez que venga el código ${b.producto.codigo}.`,
+                      )}
+                </p>
+                <CrearProducto
+                  nombre={b.granel ? `${b.granel.nombre} (Granel)` : sinPresentacion(b.producto.descripcion)}
+                  tipo={b.granel ? 'liquido' : 'polvo'}
+                  codigo={b.granel?.codigo ?? null}
+                  deshabilitado={bloqueada || creando}
+                  onCreado={(p) => {
+                    setNuevos((ns) => [...ns, p])
+                    elegirGranel(i, p.id)
+                  }}
+                />
+              </div>
             )}
 
             <fieldset className="formulario formula-campos" disabled={bloqueada || creando}>
@@ -416,7 +441,7 @@ export function SubirEnvasado({
                 <label htmlFor={`${id}-producto`}>{tipo === 'envasado' ? 'Producto del granel' : 'Producto (opcional)'}</label>
                 <select id={`${id}-producto`} value={t.producto_id} onChange={(ev) => elegirGranel(i, ev.target.value)}>
                   <option value="">{tipo === 'envasado' ? '— Elegí un producto —' : '—'}</option>
-                  {datos.productos.map((p) => (
+                  {productos.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.nombre}
                     </option>

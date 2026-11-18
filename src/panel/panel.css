@@ -479,6 +479,30 @@
   font-size: 13px;
 }
 
+.sin-producto {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.crear-producto {
+  justify-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.crear-producto .acciones-fila {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
 .formulario .aviso-panel,
 .modal-pie {
   grid-column: 1 / -1;
