@@ -38,6 +38,8 @@ const CERRADAS = new Set(['finalizada', 'finalizado', 'cancelada', 'cancelado'])
 
 const hora = (iso: string) => horaMontevideo(new Date(iso).getTime())
 const clave = (r: RefOrden) => `${r.entidad}:${r.id}`
+// Fraccionado sin producto: se nombra por su descripción (como en la tarjeta del flujo).
+const nombreOrden = (o: FilaFlujo) => o.producto ?? o.descripcion ?? null
 const detalle = (o: FilaFlujo) => (o.entidad === 'fabricacion' ? o.tanque_codigo : o.presentacion ?? o.tanque_codigo)
 const enCurso = (o: FilaFlujo) => o.estado === 'fabricando' || o.estado === 'activo'
 
@@ -101,6 +103,8 @@ function useCierreSeguro(sucio: boolean, onCerrar: () => void, que: string) {
 function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: () => void }) {
   const [ordenes, setOrdenes] = useState<FilaFlujo[] | null>(null)
   const [textos, setTextos] = useState<Record<string, string>>({})
+  // Motivo de cada cantidad en 0 (misma clave que textos): sin motivo, el 0 no cuenta como declarado.
+  const [motivos, setMotivos] = useState<Record<string, string>>({})
   const [unidades, setUnidades] = useState<Record<string, Unidad>>({})
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,12 +124,18 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
   const unidad = (o: FilaFlujo) => unidades[clave(o)] ?? unidadPorDefecto(o)
   const cantidades: CantidadOrden[] = lista.filter(pideCantidad).flatMap((o) =>
     o.operarias.flatMap((op) => {
-      const n = parsearCantidad(textos[`${clave(o)}:${op.empleado_id}`] ?? '')
-      return n === null ? [] : [{ entidad: o.entidad, id: o.id, empleadoId: op.empleado_id, cantidad: n, unidad: unidad(o) }]
+      const k = `${clave(o)}:${op.empleado_id}`
+      const n = parsearCantidad(textos[k] ?? '', true)
+      const motivo = (motivos[k] ?? '').trim()
+      if (n === null || (n === 0 && !motivo)) return []
+      return [{ entidad: o.entidad, id: o.id, empleadoId: op.empleado_id, cantidad: n, unidad: unidad(o), ...(n === 0 ? { motivo } : {}) }]
     }),
   )
   const puedeConfirmar = lista.length > 0 && faltanCantidades(lista, cantidades).length === 0 && !enviando
-  const sucio = Object.values(textos).some((t) => t.trim() !== '') || Object.keys(unidades).length > 0
+  const sucio =
+    Object.values(textos).some((t) => t.trim() !== '') ||
+    Object.values(motivos).some((t) => t.trim() !== '') ||
+    Object.keys(unidades).length > 0
   const cierre = useCierreSeguro(sucio, onCerrar, 'las cantidades cargadas')
 
   const confirmar = async () => {
@@ -157,7 +167,7 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
               {delGrupo.map((o) => (
                 <li key={o.id} className="pg-orden">
                   <div className="pg-orden-titulo">
-                    <strong>{o.producto ?? 'Sin producto'}</strong>
+                    <strong>{nombreOrden(o) ?? 'Sin producto'}</strong>
                     {detalle(o) && <span className="pg-detalle">{detalle(o)}</span>}
                     <span className={`pg-estado${enCurso(o) ? ' en-curso' : ''}`}>
                       {enCurso(o) ? 'En curso' : 'Pausada'}
@@ -172,23 +182,44 @@ function DialogoPausa({ onCerrar, onListo }: { onCerrar: () => void; onListo: ()
                       {o.operarias.map((op) => {
                         const k = `${clave(o)}:${op.empleado_id}`
                         const texto = textos[k] ?? ''
+                        const n = parsearCantidad(texto, true)
+                        const invalida = texto.trim() !== '' && n === null
+                        const motivo = motivos[k] ?? ''
                         return (
-                          <label key={op.empleado_id} className="pg-cantidad">
-                            <span>{op.nombre}</span>
+                          <div key={op.empleado_id} className="pg-cantidad">
+                            <label htmlFor={`pg-${k}`}>{op.nombre}</label>
                             <input
+                              id={`pg-${k}`}
                               inputMode="decimal"
                               autoComplete="off"
                               aria-label={`Cantidad de ${op.nombre}`}
-                              aria-invalid={texto.trim() !== '' && parsearCantidad(texto) === null}
+                              aria-invalid={invalida || (n === 0 && !motivo.trim())}
                               value={texto}
                               onChange={(e) => setTextos((t) => ({ ...t, [k]: e.target.value }))}
                             />
-                          </label>
+                            {invalida && <span className="campo-error">Poné un número: lo que hizo, o 0 si no hizo nada.</span>}
+                            {n === 0 && (
+                              <>
+                                <input
+                                  className="pg-motivo"
+                                  autoComplete="off"
+                                  placeholder="¿Por qué 0?"
+                                  aria-label={`Por qué ${op.nombre} hizo 0`}
+                                  aria-invalid={!motivo.trim()}
+                                  value={motivo}
+                                  onChange={(e) => setMotivos((m) => ({ ...m, [k]: e.target.value }))}
+                                />
+                                {!motivo.trim() && (
+                                  <span className="campo-error">Con 0 hay que explicar por qué (por ejemplo: recién empezaba).</span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         )
                       })}
                       <select
                         className="pg-unidad"
-                        aria-label={`Unidad de ${o.producto ?? 'la orden'}`}
+                        aria-label={`Unidad de ${nombreOrden(o) ?? 'la orden'}`}
                         value={unidad(o)}
                         onChange={(e) => setUnidades((u) => ({ ...u, [clave(o)]: e.target.value as Unidad }))}
                       >
@@ -302,7 +333,7 @@ function DialogoArranque({
             <ul className="pg-ordenes">
               {delGrupo.map((x) => {
                 const k = clave(x.ref)
-                const titulo = x.orden?.producto ?? `Orden de ${NOMBRE_ENTIDAD[x.ref.entidad]}`
+                const titulo = (x.orden && nombreOrden(x.orden)) ?? `Orden de ${NOMBRE_ENTIDAD[x.ref.entidad]}`
                 if (x.cerrada) {
                   const cerradaDeNoche = !x.orden || CERRADAS.has(x.orden.estado)
                   return (

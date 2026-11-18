@@ -13,6 +13,8 @@ export type Participacion = OperariaEnOrden & {
   cantidad: number | null
   unidad: Unidad | null
   cantidad_corregida: number | null
+  /** Por qué la cantidad es 0 (Pausa General). */
+  motivo?: string | null
   minutos: number
 }
 

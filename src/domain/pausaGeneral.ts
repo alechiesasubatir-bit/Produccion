@@ -3,7 +3,8 @@ import type { FilaFlujo } from './flujo'
 import type { Cantidad, Unidad } from './participaciones'
 
 export type RefOrden = { entidad: Entidad; id: string }
-export type CantidadOrden = RefOrden & Cantidad
+/** `motivo`: obligatorio cuando la cantidad es 0 (la operaria no llegó a hacer nada). */
+export type CantidadOrden = RefOrden & Cantidad & { motivo?: string }
 export type OrdenArranque = RefOrden & { empleados: string[] }
 export type PausaAbierta = { id: string; inicio: string }
 

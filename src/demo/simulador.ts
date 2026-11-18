@@ -142,6 +142,7 @@ type Participacion = {
   cantidad_corregida: number | null
   corregida_por: string | null
   corregida_at: string | null
+  motivo?: string | null
 }
 // Lo que la tablet declara al salir o finalizar (p_cantidades de accion()).
 export type CantidadDeclarada = { empleado_id: string; cantidad: number; unidad: string }
@@ -547,17 +548,20 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         .map((x) => ({ entidad, x, ps: abiertas(entidad, x.id).sort((a, b) => a.empleado_id.localeCompare(b.empleado_id)) })),
     )
     // primero se valida todo (todo o nada): envasado/fraccionado exigen la cantidad de cada operaria abierta
-    const declarado = new Map<Participacion, { cantidad: number; unidad: Unidad }>()
+    const declarado = new Map<Participacion, { cantidad: number; unidad: Unidad; motivo: string | null }>()
     for (const { entidad, x, ps } of enAlcance) {
       if (entidad === 'fabricacion') continue
       for (const p of ps) {
         const c = (cantidades ?? []).find(
           (y) => y !== null && typeof y === 'object' && y.entidad === entidad && y.entidad_id === x.id && y.empleado_id === p.empleado_id,
         )
-        if (!c || typeof c.cantidad !== 'number' || !(c.cantidad > 0) || (c.unidad !== 'L' && c.unidad !== 'kg')) {
+        if (!c || typeof c.cantidad !== 'number' || !(c.cantidad >= 0) || (c.unidad !== 'L' && c.unidad !== 'kg')) {
           return rech('CANTIDAD_REQUERIDA', `${nombreOperaria(p.empleado_id)} en ${nombreOrden(entidad, x)}`)
         }
-        declarado.set(p, { cantidad: c.cantidad, unidad: c.unidad })
+        // 0 solo con motivo (como la RPC desde la 021)
+        const motivo = c.cantidad === 0 && typeof c.motivo === 'string' && c.motivo.trim() ? c.motivo.trim() : null
+        if (c.cantidad === 0 && !motivo) return rech('MOTIVO_REQUERIDO', `${nombreOperaria(p.empleado_id)} en ${nombreOrden(entidad, x)}`)
+        declarado.set(p, { cantidad: c.cantidad, unidad: c.unidad, motivo })
       }
     }
     if (enAlcance.length === 0) return rech('SIN_ORDENES')
@@ -576,7 +580,15 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       for (const p of ps) {
         const d = declarado.get(p)
         cierre(p, d?.cantidad ?? null, d?.unidad ?? null)
-        evento(entidad, x.id, 'salir', p.empleado_id, d ? { ...datos, cantidad: d.cantidad, unidad: d.unidad } : datos, ENCARGADA.id)
+        p.motivo = d?.motivo ?? null
+        evento(
+          entidad,
+          x.id,
+          'salir',
+          p.empleado_id,
+          d ? { ...datos, cantidad: d.cantidad, unidad: d.unidad, ...(d.motivo ? { motivo: d.motivo } : {}) } : datos,
+          ENCARGADA.id,
+        )
       }
     }
     return { ok: true, pausa_id: pausa.id, ordenes: enAlcance.length }
@@ -1235,7 +1247,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
       .filter((p) => p.entidad === entidad && p.entidad_id === id)
       .map((p) => ({
         empleado_id: p.empleado_id, nombre: nombreOperaria(p.empleado_id), desde: p.desde, hasta: p.hasta,
-        cantidad: p.cantidad, unidad: p.unidad, cantidad_corregida: p.cantidad_corregida, minutos: minutosParte(p),
+        cantidad: p.cantidad, unidad: p.unidad, cantidad_corregida: p.cantidad_corregida, motivo: p.motivo ?? null, minutos: minutosParte(p),
       }))
 
   // jsonb `consumibles` de v_historial: con quién cargó el lote y cuándo.

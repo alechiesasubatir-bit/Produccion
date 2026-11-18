@@ -1,6 +1,6 @@
 -- Ejecutar: begin; + 018 + _fixtures.sql + este archivo (execute_sql no soporta \i).
 -- Pausa general (migración 018): tablas, pausa_general(), arranque_general(), bloqueo de planta y alertas.
-insert into _tap (l) select plan(63);
+insert into _tap (l) select plan(69);
 do $$ declare r record; begin
   for r in select relname from pg_class where relnamespace = pg_my_temp_schema() and relkind in ('r', 'S') loop
     execute format('grant all on pg_temp.%I to public', r.relname);
@@ -25,6 +25,9 @@ insert into _tap (l) select ok(
 update produccion.fabricaciones set estado = 'cancelada', fin = now() where estado in ('fabricando', 'pausada');
 update produccion.envasados set estado = 'cancelado', fin = now() where estado in ('activo', 'pausado');
 update produccion.fraccionados set estado = 'cancelado', fin = now() where estado in ('activo', 'pausado');
+-- Pausas y eventos reales anteriores: los conteos se hacen sobre lo que agrega el test.
+select set_config('t.pg0', (select count(*) from produccion.pausas_generales)::text, true),
+       set_config('t.ev0', (select count(*) from produccion.eventos where datos ? 'pausa_general')::text, true);
 
 insert into produccion.tanques (id, codigo, capacidad_l, orden) values
   ('00000000-0000-0000-0000-000000000501', 'T-PG1', 2000, 1),
@@ -67,16 +70,36 @@ insert into _tap (l) select is(
   'falta una cantidad: CANTIDAD_REQUERIDA con la operaria y la orden');
 reset role;
 insert into _tap (l) select is(
-  (select count(*)::int from produccion.pausas_generales) || '/' ||
+  (select count(*)::int - current_setting('t.pg0')::int from produccion.pausas_generales) || '/' ||
   (select estado from produccion.fabricaciones where id = '00000000-0000-0000-0000-000000000511') || '/' ||
   (select string_agg(estado, ',' order by id) from produccion.envasados
    where id in ('00000000-0000-0000-0000-000000000521', '00000000-0000-0000-0000-000000000522')) || '/' ||
   (select count(*)::int from produccion.participaciones
    where entidad_id in ('00000000-0000-0000-0000-000000000511', '00000000-0000-0000-0000-000000000521',
                         '00000000-0000-0000-0000-000000000531') and hasta is null) || '/' ||
-  (select count(*)::int from produccion.eventos where datos ? 'pausa_general'),
+  (select count(*)::int - current_setting('t.ev0')::int from produccion.eventos where datos ? 'pausa_general'),
   '0/fabricando/activo,activo/4/0',
   'tras CANTIDAD_REQUERIDA no queda pausa, ni cambios de estado, participaciones o eventos');
+
+-- 021: cantidad 0 solo con motivo
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+insert into _tap (l) select matches(
+  (select (r->>'codigo') || ' / ' || (r->>'detalle') from (select produccion.pausa_general('[
+  {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e1","cantidad":40,"unidad":"L"},
+  {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":35.5,"unidad":"L"},
+  {"entidad":"fraccionado","entidad_id":"00000000-0000-0000-0000-000000000531","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":0,"unidad":"kg"}
+]') r) x),
+  '^MOTIVO_REQUERIDO / Rosa Díaz en .+$',
+  'cantidad 0 sin motivo: MOTIVO_REQUERIDO con la operaria y la orden');
+insert into _tap (l) select is(
+  produccion.pausa_general('[
+  {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e1","cantidad":40,"unidad":"L"},
+  {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":35.5,"unidad":"L"},
+  {"entidad":"fraccionado","entidad_id":"00000000-0000-0000-0000-000000000531","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":0,"unidad":"kg","motivo":"   "}
+]')->>'codigo',
+  'MOTIVO_REQUERIDO', 'un motivo en blanco no cuenta');
+reset role;
 
 -- Cantidades completas (la de la fabricación se ignora)
 set local role authenticated;
@@ -84,7 +107,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","r
 select set_config('t.r', produccion.pausa_general('[
   {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e1","cantidad":40,"unidad":"L"},
   {"entidad":"envasado","entidad_id":"00000000-0000-0000-0000-000000000521","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":35.5,"unidad":"L"},
-  {"entidad":"fraccionado","entidad_id":"00000000-0000-0000-0000-000000000531","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":12,"unidad":"kg"},
+  {"entidad":"fraccionado","entidad_id":"00000000-0000-0000-0000-000000000531","empleado_id":"00000000-0000-0000-0000-0000000000e2","cantidad":0,"unidad":"kg","motivo":"  recién empezaba "},
   {"entidad":"fabricacion","entidad_id":"00000000-0000-0000-0000-000000000511","empleado_id":"00000000-0000-0000-0000-0000000000e1","cantidad":99,"unidad":"L"}
 ]')::text, true);
 select set_config('t.pid', coalesce(current_setting('t.r')::jsonb->>'pausa_id', ''), true);
@@ -129,7 +152,7 @@ insert into _tap (l) select is(
                      || coalesce(datos->>'cantidad', '-') || coalesce(datos->>'unidad', ''),
                      ',' order by entidad, entidad_id, empleado_id)
    from produccion.eventos where accion = 'salir' and datos->>'pausa_general' = current_setting('t.pid')),
-  'envasado:521:e1:40L,envasado:521:e2:35.5L,fabricacion:511:e1:-,fraccionado:531:e2:12kg',
+  'envasado:521:e1:40L,envasado:521:e2:35.5L,fabricacion:511:e1:-,fraccionado:531:e2:0kg',
   'un salir por participación, con cantidad y unidad en envasado/fraccionado');
 insert into _tap (l) select ok(
   (select bool_and(usuario_id = '00000000-0000-0000-0000-0000000000a1')
@@ -147,8 +170,27 @@ insert into _tap (l) select is(
    from produccion.participaciones
    where entidad_id in ('00000000-0000-0000-0000-000000000511', '00000000-0000-0000-0000-000000000521',
                         '00000000-0000-0000-0000-000000000531') and hasta = now()),
-  'envasado:521:e1:40L,envasado:521:e2:35.5L,fabricacion:511:e1:null,fraccionado:531:e2:12kg',
+  'envasado:521:e1:40L,envasado:521:e2:35.5L,fabricacion:511:e1:null,fraccionado:531:e2:0kg',
   'las participaciones quedan cerradas con su cantidad (fabricación sin cantidad)');
+-- 021: el 0 del fraccionado queda con su motivo
+insert into _tap (l) select is(
+  (select motivo from produccion.participaciones
+   where entidad_id = '00000000-0000-0000-0000-000000000531' and hasta = now()),
+  'recién empezaba', 'cantidad 0: la participación guarda el motivo recortado');
+insert into _tap (l) select is(
+  (select datos->>'motivo' from produccion.eventos
+   where accion = 'salir' and entidad_id = '00000000-0000-0000-0000-000000000531'
+     and datos->>'pausa_general' = current_setting('t.pid')),
+  'recién empezaba', 'cantidad 0: el evento salir lleva el motivo');
+insert into _tap (l) select ok(
+  (select bool_or(p->>'motivo' = 'recién empezaba')
+   from produccion.v_historial h, jsonb_array_elements(h.participaciones) p
+   where h.entidad = 'fraccionado' and h.id = '00000000-0000-0000-0000-000000000531'),
+  'v_historial muestra el motivo en participaciones');
+insert into _tap (l) select throws_ok(
+  $$update produccion.participaciones set motivo = null
+    where entidad_id = '00000000-0000-0000-0000-000000000531' and cantidad = 0$$,
+  '23514', null, 'la base no deja un 0 sin motivo');
 insert into _tap (l) select is(
   (select count(*)::int from produccion.participaciones where hasta is null
    and entidad_id in ('00000000-0000-0000-0000-000000000511', '00000000-0000-0000-0000-000000000521',
@@ -282,7 +324,8 @@ insert into _tap (l) select is(
   produccion.pausa_general('[]')->>'codigo', 'SIN_ORDENES', 'sin órdenes en marcha: SIN_ORDENES');
 reset role;
 insert into _tap (l) select is(
-  (select count(*)::int from produccion.pausas_generales), 1, 'SIN_ORDENES no deja una pausa nueva');
+  (select count(*)::int - current_setting('t.pg0')::int from produccion.pausas_generales), 1,
+  'SIN_ORDENES no deja una pausa nueva');
 
 -- Arranque: errores, en una pausa nueva -----------------------------------------
 --   F_C …541 (T-PG1, fabricando, sin participaciones) · envasados V1 …551 (activo, E1),

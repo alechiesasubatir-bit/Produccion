@@ -2565,6 +2565,13 @@ th[aria-sort='descending'] .th-orden::after {
   vertical-align: middle;
 }
 
+.operarias-motivo {
+  display: block;
+  color: var(--tinta-2);
+  font-size: 12px;
+  font-style: italic;
+}
+
 .operarias-falta {
   color: #b45309;
   font-weight: 600;
@@ -2940,6 +2947,15 @@ th[aria-sort='descending'] .th-orden::after {
 
 .pg-cantidad input {
   width: 110px;
+}
+
+.pg-cantidad .pg-motivo {
+  width: 220px;
+}
+
+.pg-cantidad .campo-error {
+  max-width: 220px;
+  font-weight: 400;
 }
 
 .pg-cantidad input[aria-invalid='true'] {

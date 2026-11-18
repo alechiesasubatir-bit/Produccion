@@ -31,11 +31,11 @@ export function pideCantidad(entidad: Entidad): boolean {
   return entidad === 'envasado' || entidad === 'fraccionado'
 }
 
-export function parsearCantidad(texto: string): number | null {
+export function parsearCantidad(texto: string, permitirCero = false): number | null {
   const limpio = texto.trim().replace(',', '.')
   if (!/^(\d+\.?\d*|\.\d+)$/.test(limpio)) return null
   const n = Number(limpio)
-  return Number.isFinite(n) && n > 0 ? n : null
+  return Number.isFinite(n) && (n > 0 || (permitirCero && n === 0)) ? n : null
 }
 
 // Orden: primero el tanque del QR, después lo que está corriendo, después por antigüedad.

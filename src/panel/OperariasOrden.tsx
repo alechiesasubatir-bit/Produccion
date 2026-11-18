@@ -189,6 +189,7 @@ export function OperariasOrden({
                       ) : (
                         '—'
                       )}
+                      {p.cantidad === 0 && p.motivo && <span className="operarias-motivo">{p.motivo}</span>}
                     </td>
                     <td>
                       {editando === p.id ? (

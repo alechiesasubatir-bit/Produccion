@@ -652,12 +652,30 @@ describe('simulador de la demo', () => {
       const falta = s.pausaGeneral(cantidades(env, frac).filter((c) => c.empleado_id !== 'do3'))
       expect(falta).toEqual(no('CANTIDAD_REQUERIDA', 'Andrea Silva en Suavizante Clasico (Granel) 5L'))
       const cero = s.pausaGeneral(cantidades(env, frac).map((c) => (c.empleado_id === 'do4' ? { ...c, cantidad: 0 } : c)))
-      expect(cero).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
+      expect(cero).toMatchObject({ ok: false, codigo: 'MOTIVO_REQUERIDO', detalle: expect.stringMatching(/^.+ en .+$/) })
+      const enBlanco = s.pausaGeneral(cantidades(env, frac).map((c) => (c.empleado_id === 'do4' ? { ...c, cantidad: 0, motivo: '   ' } : c)))
+      expect(enBlanco).toMatchObject({ ok: false, codigo: 'MOTIVO_REQUERIDO' })
+      const negativa = s.pausaGeneral(cantidades(env, frac).map((c) => (c.empleado_id === 'do4' ? { ...c, cantidad: -1 } : c)))
+      expect(negativa).toMatchObject({ ok: false, codigo: 'CANTIDAD_REQUERIDA' })
       expect(s.consultar('pausas_generales')).toEqual([])
       expect(estado(s, env)).toBe('activo')
       expect(abiertas(s, env)).toEqual(['do2', 'do3'])
       const ok = s.pausaGeneral(cantidades(env, frac)) as { pausa_id: string }
       expect(s.consultar('pausa_general_ordenes')).toContainEqual({ pausa_id: ok.pausa_id, entidad: 'fabricacion', entidad_id: fab, estaba: 'pausada', operarias: ['do1'] })
+    })
+
+    it('cantidad 0 con motivo: se acepta y el motivo queda en la participación y en el evento', () => {
+      const { s, env, frac } = planta()
+      const r = s.pausaGeneral(
+        cantidades(env, frac).map((c) => (c.empleado_id === 'do4' ? { ...c, cantidad: 0, motivo: '  recién empezaba ' } : c)),
+      ) as { ok: true; pausa_id: string }
+      expect(r.ok).toBe(true)
+      const ev = (s.consultar('eventos') as Ev[]).find((e) => e.datos.pausa_general === r.pausa_id && e.accion === 'salir' && e.empleado_id === 'do4')
+      expect(ev?.datos).toEqual({ pausa_general: r.pausa_id, cantidad: 0, unidad: 'kg', motivo: 'recién empezaba' })
+      const parte = (s.consultar('participaciones') as { entidad_id: string; empleado_id: string; motivo?: string | null; cantidad: number | null }[]).find(
+        (p) => p.entidad_id === frac && p.empleado_id === 'do4',
+      )
+      expect(parte).toMatchObject({ cantidad: 0, motivo: 'recién empezaba' })
     })
 
     it('segunda pausa → PAUSA_GENERAL_ACTIVA; sin órdenes → SIN_ORDENES', () => {

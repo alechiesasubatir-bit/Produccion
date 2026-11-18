@@ -265,8 +265,9 @@ export type Database = {
           cantidad_corregida: number | null
           corregida_por: Uuid | null
           corregida_at: Ts | null
+          motivo: string | null
         },
-        'id' | 'desde' | 'hasta' | 'cantidad' | 'unidad' | 'cantidad_corregida' | 'corregida_por' | 'corregida_at'
+        'id' | 'desde' | 'hasta' | 'cantidad' | 'unidad' | 'cantidad_corregida' | 'corregida_por' | 'corregida_at' | 'motivo'
       >
       etiquetas: Tabla<
         {

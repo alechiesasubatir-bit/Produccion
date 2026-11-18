@@ -87,6 +87,7 @@ const CSV: ColumnaCSV<FilaCSV>[] = [
   { titulo: 'Hasta', valor: ({ p }) => fechaHoraP(p?.hasta) },
   { titulo: 'Cantidad operaria', valor: ({ p }) => (p ? cantidadEfectiva(p) : null) },
   { titulo: 'Unidad', valor: ({ p }) => (p && cantidadEfectiva(p) !== null ? p.unidad : null) },
+  { titulo: 'Motivo cantidad 0', valor: ({ p }) => p?.motivo ?? null },
   { titulo: 'Minutos operaria', valor: ({ p }) => (p ? Math.round(p.minutos) : null) },
   { titulo: 'pH', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.ph) },
   { titulo: 'Densidad', valor: ({ fila, repetida }) => (repetida ? null : controlAprobado(fila)?.densidad) },

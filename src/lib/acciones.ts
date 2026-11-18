@@ -152,6 +152,7 @@ export async function pausaGeneral(cantidades: CantidadOrden[]): Promise<Resulta
       empleado_id: c.empleadoId,
       cantidad: c.cantidad,
       unidad: c.unidad,
+      ...(c.cantidad === 0 && c.motivo ? { motivo: c.motivo } : {}),
     })),
   })
   if (r && 'codigo' in r) return r

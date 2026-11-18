@@ -225,6 +225,39 @@ describe('BotonPausaGeneral', () => {
       ])
     })
 
+    it('cantidad 0: explica que hay que poner el motivo y solo con motivo deja confirmar', async () => {
+      m.flujo = [fila({ entidad: 'envasado', id: 'v1', estado: 'activo', producto: 'Acondicionador', operarias: [op('e2', 'Bea')] })]
+      await montar(null)
+      await abrir('Pausa General')
+      const dialogo = screen.getByRole('dialog', { name: 'Pausa General' })
+      const confirmar = within(dialogo).getByRole('button', { name: 'Confirmar pausa' })
+      fireEvent.change(within(dialogo).getByLabelText('Cantidad de Bea'), { target: { value: 'abc' } })
+      expect(within(dialogo).getByText('Poné un número: lo que hizo, o 0 si no hizo nada.')).toBeInTheDocument()
+      fireEvent.change(within(dialogo).getByLabelText('Cantidad de Bea'), { target: { value: '0' } })
+      expect(within(dialogo).getByText(/Con 0 hay que explicar por qué/)).toBeInTheDocument()
+      expect(confirmar).toBeDisabled()
+      fireEvent.change(within(dialogo).getByLabelText('Por qué Bea hizo 0'), { target: { value: ' recién empezaba ' } })
+      expect(within(dialogo).queryByText(/Con 0 hay que explicar por qué/)).not.toBeInTheDocument()
+      expect(confirmar).toBeEnabled()
+      await act(async () => {
+        fireEvent.click(confirmar)
+      })
+      expect(m.pausaGeneral).toHaveBeenCalledWith([
+        { entidad: 'envasado', id: 'v1', empleadoId: 'e2', cantidad: 0, unidad: 'L', motivo: 'recién empezaba' },
+      ])
+    })
+
+    it('un fraccionado sin producto se nombra por su descripción', async () => {
+      m.flujo = [
+        fila({ entidad: 'fraccionado', id: 'r1', estado: 'activo', producto: null, descripcion: 'Pulidor pote', operarias: [op('e1', 'Ana')] }),
+      ]
+      await montar(null)
+      await abrir('Pausa General')
+      expect(screen.getByText('Pulidor pote')).toBeInTheDocument()
+      expect(screen.queryByText('Sin producto')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Unidad de Pulidor pote')).toBeInTheDocument()
+    })
+
     it('muestra el error del servidor', async () => {
       m.flujo = [fila({})]
       m.pausaGeneral.mockResolvedValue({ ok: false, codigo: 'PAUSA_GENERAL_ACTIVA', texto: 'Ya hay una pausa general en curso.' })

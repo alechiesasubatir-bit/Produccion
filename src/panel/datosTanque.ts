@@ -61,6 +61,8 @@ export type ParticipacionFila = {
   cantidad_corregida: number | null
   corregida_at: string | null
   corregida_por_nombre: string | null
+  /** Por qué la cantidad es 0 (Pausa General). */
+  motivo?: string | null
 }
 
 // Tramos de las operarias en una orden, con sus nombres y el de quien corrigió.
@@ -88,6 +90,7 @@ export async function cargarParticipaciones(entidad: Entidad, id: string): Promi
     cantidad_corregida: f.cantidad_corregida,
     corregida_at: f.corregida_at,
     corregida_por_nombre: f.corregida_por ? (quienes.get(f.corregida_por) || 'Encargada') : null,
+    motivo: f.motivo ?? null,
   }))
 }
 

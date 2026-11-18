@@ -19,6 +19,7 @@ export type CodigoError =
   | 'NO_PARTICIPA'
   | 'ULTIMA_OPERARIA'
   | 'CANTIDAD_REQUERIDA'
+  | 'MOTIVO_REQUERIDO'
   | 'ETIQUETA_INACTIVA'
   | 'SIN_TANQUE'
   | 'GRANEL_DISTINTO'
@@ -53,6 +54,7 @@ const TEXTOS: Record<CodigoError, (detalle: string | null) => string> = {
   NO_PARTICIPA: () => 'No estás en esta orden.',
   ULTIMA_OPERARIA: () => 'Sos la última: pausá o finalizá.',
   // detalle solo desde pausa_general(): «<operaria> en <producto> <presentación>»
+  MOTIVO_REQUERIDO: (d) => (d ? `Falta explicar por qué es 0 lo de ${d}.` : 'Falta explicar por qué la cantidad es 0.'),
   CANTIDAD_REQUERIDA: (d) => (d ? `Falta la cantidad de ${d}.` : 'Falta declarar cuánto se envasó.'),
   ETIQUETA_INACTIVA: () => 'Esa etiqueta está desactivada.',
   SIN_TANQUE: () => 'Este envasado no tiene tanque asignado.',

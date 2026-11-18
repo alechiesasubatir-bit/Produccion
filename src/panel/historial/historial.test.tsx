@@ -85,7 +85,7 @@ describe('Historial', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
     const lineas = (m.descargar.mock.calls[0][1] as string).split(/\r\n/)
     expect(lineas).toHaveLength(3)
-    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Minutos operaria;pH;Densidad;Perfume;Visual;Liberó;Fecha liberación;Lote documento;Consumibles$/)
+    expect(lineas[0]).toMatch(/;Operaria;Desde;Hasta;Cantidad operaria;Unidad;Motivo cantidad 0;Minutos operaria;pH;Densidad;Perfume;Visual;Liberó;Fecha liberación;Lote documento;Consumibles$/)
     expect(lineas[2]).toMatch(/;Ana;/)
     // Las columnas numéricas de la orden van vacías en la 2.ª fila: no se duplican al sumar.
     const [cab, f1, f2] = lineas.map((l) => l.split(';'))
