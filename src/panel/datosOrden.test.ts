@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { cargarDatosOrden, cargarLotesDocumento } from './datosOrden'
+import { cargarDatosOrden, cargarLotesDocumento, cargarProductosPorCodigo } from './datosOrden'
 
 type Llamada = { tabla: string; cols?: string; filtros: Array<[string, ...unknown[]]> }
 const llamadas: Llamada[] = []
@@ -63,6 +63,27 @@ describe('cargarLotesDocumento', () => {
   })
   it('sin lotes no consulta', async () => {
     expect((await cargarLotesDocumento('envasado', [])).size).toBe(0)
+    expect(llamadas).toHaveLength(0)
+  })
+})
+
+describe('cargarProductosPorCodigo', () => {
+  it('el producto más reciente por código, solo fraccionados con producto y no cancelados', async () => {
+    respuestas = {
+      fraccionados: () => [
+        { codigo: '900501', producto_id: 'nuevo' },
+        { codigo: '900501', producto_id: 'viejo' },
+        { codigo: '900502', producto_id: 'otro' },
+      ],
+    }
+    const r = await cargarProductosPorCodigo(['900501', '900502'])
+    expect([...r]).toEqual([['900501', 'nuevo'], ['900502', 'otro']])
+    expect(llamadas[0].filtros).toEqual(
+      expect.arrayContaining([['in', 'codigo', ['900501', '900502']], ['not', 'producto_id', 'is', null], ['neq', 'estado', 'cancelado']]),
+    )
+  })
+  it('sin códigos no consulta', async () => {
+    expect((await cargarProductosPorCodigo([])).size).toBe(0)
     expect(llamadas).toHaveLength(0)
   })
 })

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import bactipro from '../domain/__fixtures__/bactipro.json'
 import envasado from '../domain/__fixtures__/envasado-limpiador.json'
@@ -8,7 +8,7 @@ import type { DatosOrden } from './datosOrden'
 import { buscarProducto, SubirEnvasado } from './SubirEnvasado'
 import { SubirFormula } from './SubirFormula'
 
-const m = vi.hoisted(() => ({ extraer: vi.fn(), env: vi.fn(), frac: vi.fn(), stock: vi.fn(), formula: vi.fn(), lotes: vi.fn() }))
+const m = vi.hoisted(() => ({ extraer: vi.fn(), env: vi.fn(), frac: vi.fn(), stock: vi.fn(), formula: vi.fn(), lotes: vi.fn(), codigos: vi.fn() }))
 
 vi.mock('./leerPdf', () => ({ extraerFragmentos: m.extraer }))
 vi.mock('./datosOrden', () => ({
@@ -16,6 +16,7 @@ vi.mock('./datosOrden', () => ({
   crearFraccionadoDocumento: m.frac,
   crearGranelStock: m.stock,
   cargarLotesDocumento: m.lotes,
+  cargarProductosPorCodigo: m.codigos,
   crearFabricacionFormula: m.formula,
 }))
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   m.frac.mockReset().mockResolvedValue({ ok: true, id: 'fr1' })
   m.stock.mockReset().mockResolvedValue({ ok: true, id: 'g1' })
   m.lotes.mockReset().mockResolvedValue(new Set())
+  m.codigos.mockReset().mockResolvedValue(new Map())
 })
 
 describe('SubirEnvasado', () => {
@@ -283,6 +285,18 @@ describe('SubirEnvasado', () => {
     expect(within(t).getByText(/Coincidencia aproximada: revisá el producto/)).toBeInTheDocument()
     await act(async () => fireEvent.click(within(t).getByRole('button', { name: 'Crear' })))
     expect(m.frac.mock.calls[0][0]).toMatchObject({ producto_id: 'pp' })
+  })
+
+  it('fraccionado: sin producto pide elegirlo; el elegido en un fraccionado anterior con ese código se reusa', async () => {
+    await subir({ tipo: 'fraccionado', fr: fraccionado })
+    expect(within(tarjetas()[0]).getByText(/elegilo y queda registrado para la próxima vez que venga el código 900501/)).toBeInTheDocument()
+    expect(m.codigos).toHaveBeenCalledWith(['900501'])
+    cleanup()
+    m.codigos.mockResolvedValue(new Map([['900501', 'pl']]))
+    await subir({ tipo: 'fraccionado', fr: fraccionado })
+    const t = tarjetas()[0]
+    expect(campo(t, 'Producto (opcional)')).toHaveValue('pl')
+    expect(within(t).queryByText(/Coincidencia aproximada|elegilo/)).toBeNull()
   })
 
   it('bloques del otro tipo no se muestran y se avisa cuántos', async () => {

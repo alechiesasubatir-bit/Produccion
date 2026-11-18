@@ -3,7 +3,7 @@ import { coincidir } from '../domain/escaneo'
 import { leerEnvasados, presentacionDe, sinPresentacion, tipoDeHoja, type BloqueDocumento } from '../domain/envasadoPdf'
 import { advertenciaSinAsignar, validarEnvasadoDocumento, type NuevoEnvasadoDocumento } from '../domain/ordenes'
 import { useEnLinea } from '../lib/useEnLinea'
-import { cargarLotesDocumento, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
+import { cargarLotesDocumento, cargarProductosPorCodigo, crearEnvasadoDocumento, crearFraccionadoDocumento, crearGranelStock, type DatosOrden } from './datosOrden'
 import { extraerFragmentos } from './leerPdf'
 import { avisoSinProducto, buscarGranel, type ArchivoInicial, type OtroTipo } from './SubirFormula'
 
@@ -39,11 +39,18 @@ const numero = (n: number) => n.toLocaleString('es-AR', { useGrouping: false, ma
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '').replace(',', '.')
 const aNumero = (v: string) => (v === '' ? 0 : Number(v))
 
-/** Producto del fraccionado: por código; si no, por nombre sin la presentación («Pulidor pote x 1/2 Kg» → Pulidor).
- * Primero entre los del catálogo con esa misma presentación en el nombre («Cloro Shock x 250g»). No guarda códigos:
- * el código del PDF es de la presentación, no del producto. */
-export function buscarProducto(productos: DatosOrden['productos'], codigo: string, descripcion: string) {
-  const porCodigo = productos.find((p) => p.codigo === codigo)
+/** Producto del fraccionado: por código (del catálogo, o el elegido en un fraccionado anterior con ese código);
+ * si no, por nombre sin la presentación («Pulidor pote x 1/2 Kg» → Pulidor), primero entre los del catálogo con esa
+ * misma presentación en el nombre («Cloro Shock x 250g»). El código del PDF es de la presentación, no del producto:
+ * no se guarda en el catálogo, queda en el fraccionado. */
+export function buscarProducto(
+  productos: DatosOrden['productos'],
+  codigo: string,
+  descripcion: string,
+  previos: Map<string, string> = new Map(),
+) {
+  const previo = previos.get(codigo)
+  const porCodigo = productos.find((p) => p.codigo === codigo) ?? productos.find((p) => p.id === previo)
   if (porCodigo) return { producto: porCodigo, aproximada: false, parecidos: [] }
   const pres = presentacionDe(descripcion)
   const nombre = sinPresentacion(descripcion)
@@ -55,11 +62,11 @@ export function buscarProducto(productos: DatosOrden['productos'], codigo: strin
   return { producto: undefined, aproximada: false, parecidos: c ? c.ambiguas.map((x) => x.p.nombre) : [] }
 }
 
-function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, duplicados: Set<string>): Tarjeta {
+function nuevaTarjeta(lote: string, bloque: BloqueDocumento, datos: DatosOrden, duplicados: Set<string>, previos: Map<string, string>): Tarjeta {
   const g = bloque.granel
   const { producto, aproximada, parecidos } = g
     ? buscarGranel(datos.productos, g.codigo, g.nombre)
-    : buscarProducto(datos.productos, bloque.producto.codigo, bloque.producto.descripcion)
+    : buscarProducto(datos.productos, bloque.producto.codigo, bloque.producto.descripcion, previos)
   const presentacion = bloque.presentacion
   const pres = presentacion ? datos.presentaciones.find((p) => norm(p.nombre) === norm(presentacion)) : undefined
   const abiertas = producto ? datos.fabricacionesAbiertas.filter((f) => f.producto_id === producto.id) : []
@@ -157,9 +164,17 @@ export function SubirEnvasado({
       } catch {
         // sin la consulta no se avisa, pero el alta sigue siendo posible
       }
+      let previos = new Map<string, string>()
+      if (tipo === 'fraccionado') {
+        try {
+          previos = await cargarProductosPorCodigo([...new Set(propios.map(([, b]) => b.producto.codigo))])
+        } catch {
+          // sin historial se busca solo por nombre
+        }
+      }
       setCreadas([])
       setUsados({})
-      setTarjetas(propios.map(([lote, b]) => nuevaTarjeta(lote, b, datos, duplicados)))
+      setTarjetas(propios.map(([lote, b]) => nuevaTarjeta(lote, b, datos, duplicados, previos)))
     } catch {
       setError(SIN_LEER)
     } finally {
@@ -389,9 +404,10 @@ export function SubirEnvasado({
                 {avisoSinProducto(b.granel.nombre, t.parecidos)}
               </p>
             )}
-            {tipo === 'fraccionado' && !t.producto_id && t.parecidos.length > 1 && (
+            {tipo === 'fraccionado' && !t.producto_id && (
               <p className="advertencia" role="status">
-                {avisoSinProducto(sinPresentacion(b.producto.descripcion), t.parecidos)}
+                {avisoSinProducto(sinPresentacion(b.producto.descripcion), t.parecidos)}: elegilo y queda registrado para
+                la próxima vez que venga el código {b.producto.codigo}.
               </p>
             )}
 

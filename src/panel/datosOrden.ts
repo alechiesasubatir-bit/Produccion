@@ -63,6 +63,24 @@ export async function cargarLotesDocumento(tipo: 'envasado' | 'fraccionado', lot
   return new Set(filasLote.map((f) => (f.lote ?? '').trim()).filter(Boolean))
 }
 
+// Producto que ya se eligió para cada código de producto terminado en fraccionados anteriores (el más
+// reciente manda): lo que se completa a mano una vez queda registrado en la propia orden y se reusa.
+export async function cargarProductosPorCodigo(codigos: string[]): Promise<Map<string, string>> {
+  if (codigos.length === 0) return new Map()
+  const previos = await filas<{ codigo: string | null; producto_id: string | null }>(
+    db
+      .from('fraccionados')
+      .select('codigo, producto_id')
+      .in('codigo', codigos)
+      .not('producto_id', 'is', null)
+      .neq('estado', 'cancelado')
+      .order('created_at', { ascending: false }),
+  )
+  const res = new Map<string, string>()
+  for (const f of previos) if (f.codigo && f.producto_id && !res.has(f.codigo)) res.set(f.codigo, f.producto_id)
+  return res
+}
+
 // Catálogos activos para armar una orden (pocas filas: no hace falta paginar) y lo que crece con el
 // tiempo, consultado con filtro o paginado (PostgREST corta en 1000 filas).
 export async function cargarDatosOrden(): Promise<DatosOrden> {
