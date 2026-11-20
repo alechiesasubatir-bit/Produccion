@@ -1,36 +1,72 @@
-/* Sistema visual ProdControl — "mesa de laboratorio": papel milimetrado, tinta, etiquetas de
-   muestra y un solo acento de señal. El color fuerte lo pone cada producto (--producto). */
+/* Sistema visual ProdControl — "pizarra industrial": fondo gris frío y liso, tarjetas blancas,
+   barra superior oscura y el naranja de Subatir solo en lo que se toca. El color fuerte lo pone cada
+   producto (--producto) y cada estado. Tres capas: primitivos → semánticos → componentes. */
 :root {
-  --papel: #f3f1ea;
-  --papel-2: #e8e4d8;
-  --tarjeta: #fffdf8;
-  --tinta: #15181e;
-  --tinta-2: #3c4250;
-  --apagado: #7b7f88;
-  --linea: #e1dccd;
-  --linea-2: #cbc3ae;
-  --vacio: #cbd5e1;
-  --senal: #e2471d;
-  --foco: #0369a1;
-  --cuadricula: rgb(60 66 80 / 0.045);
-  --cuadricula-mayor: rgb(60 66 80 / 0.075);
+  /* 1 · primitivos (no usarlos directo en componentes) */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --naranja-50: #fff1e6;
+  --naranja-200: #fcd3b4;
+  --naranja-500: #ea580c;
+  --naranja-700: #c2410c;
+  --naranja-800: #9a3412;
+  --azul-600: #2563eb;
+  --azul-700: #0369a1;
+  --azul-50: #e6f2fa;
+  --verde-600: #059669;
+  --rojo-600: #dc2626;
 
-  --radio: 10px;
+  /* 2 · semánticos (los nombres de siempre, valores nuevos) */
+  --papel: var(--slate-50);
+  --papel-2: var(--slate-100);
+  --tarjeta: #fff;
+  --tinta: var(--slate-900);
+  --tinta-2: var(--slate-600);
+  --apagado: var(--slate-500);
+  --linea: var(--slate-200);
+  --linea-2: var(--slate-300);
+  --vacio: var(--slate-300);
+  --senal: var(--naranja-500);
+  --foco: var(--azul-600);
+  --ok: var(--verde-600);
+  --mal: var(--rojo-600);
+
+  /* barra superior oscura */
+  --barra: var(--slate-800);
+  --barra-2: var(--slate-700);
+  --barra-tinta: var(--slate-50);
+  --barra-tinta-2: var(--slate-300);
+
+  /* color de marca (el naranja del logo de Subatir): el claro para marcas y detalles, el oscuro para
+     botones con letra blanca (el claro no llega a 4,5:1) */
+  --marca: var(--naranja-500);
+  --marca-oscuro: var(--naranja-700);
+  --marca-hover: var(--naranja-800);
+  --marca-suave: var(--naranja-50);
+  --marca-linea: var(--naranja-200);
+  --azul: var(--azul-700);
+  --azul-suave: var(--azul-50);
+
+  /* 3 · componentes */
+  --radio: 8px;
   --radio-chico: 6px;
-  --sombra: 0 1px 0 var(--linea-2), 0 8px 24px -16px rgb(21 24 30 / 0.25);
+  --sombra: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 0 rgb(15 23 42 / 0.03);
+  --sombra-alta: 0 24px 48px -20px rgb(15 23 42 / 0.35);
+  --boton-fondo: var(--marca-oscuro);
+  --boton-tinta: #fff;
 
-  /* color de marca (el naranja del logo de Subatir) y un azul de apoyo */
-  --marca: #ea580c;
-  --marca-oscuro: #c2410c;
-  --marca-suave: #fff1e6;
-  --marca-linea: #fcd3b4;
-  --azul: #0369a1;
-  --azul-suave: #e6f2fa;
-
-  --titulo: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
-  /* códigos y números: misma letra, con cifras de ancho fijo (ya no máquina de escribir) */
-  --mono: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --titulo: 'Fira Sans', system-ui, sans-serif;
+  --sans: 'Fira Sans', system-ui, sans-serif;
+  /* códigos, lotes, relojes y cantidades: cifras de ancho fijo que no bailan */
+  --mono: 'Fira Code', ui-monospace, monospace;
   --ease: cubic-bezier(.22, 1, .36, 1);
 
   color-scheme: light;
@@ -53,19 +89,7 @@ body {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
-  /* papel milimetrado: línea fina cada 24 px, más marcada cada 120 px */
-  background-color: var(--papel);
-  /* atmósfera: dos resplandores de color sobre el papel milimetrado */
-  background-image:
-    radial-gradient(60vw 50vh at 100% 0%, rgb(226 71 29 / 0.07), transparent 70%),
-    radial-gradient(55vw 55vh at 0% 100%, rgb(14 165 233 / 0.08), transparent 70%),
-    radial-gradient(40vw 40vh at 55% 55%, rgb(250 204 21 / 0.05), transparent 70%),
-    linear-gradient(var(--cuadricula-mayor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--cuadricula-mayor) 1px, transparent 1px),
-    linear-gradient(var(--cuadricula) 1px, transparent 1px),
-    linear-gradient(90deg, var(--cuadricula) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
-  background-attachment: fixed;
+  background: var(--papel);
 }
 
 ::selection {
@@ -165,7 +189,7 @@ body {
 .chip-fraccionado { background: #fbf0d6; color: #7c3d0c; border-color: #efd9a3; }
 .chip-pausado { background: #fde6e1; color: #8f1d0f; border-color: #f5c3b8; }
 .chip-control { background: #e6e9fb; color: #2b3a8f; border-color: #c5cdf1; }
-.chip-cola { background: #efede6; color: #4a4f5b; border-color: #ddd8ca; }
+.chip-cola { background: var(--slate-100); color: var(--slate-600); border-color: var(--slate-200); }
 .chip-terminada { background: #ece8f7; color: #4c2a8a; border-color: #d4cbef; }
 .chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }
 

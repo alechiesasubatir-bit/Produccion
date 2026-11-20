@@ -25,9 +25,9 @@
   gap: 16px;
   min-height: 60px;
   padding: 0 28px;
-  border-bottom: 1px solid var(--tinta);
-  background: rgb(255 253 248 / 0.92);
-  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--slate-900);
+  background: var(--barra);
+  color: var(--barra-tinta);
 }
 
 .marca {
@@ -53,8 +53,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #f97316 url('/logo-subatir.jpg') center / cover no-repeat;
-  box-shadow: 0 0 0 2px rgb(249 115 22 / 0.35), 0 2px 8px -2px rgb(21 24 30 / 0.35);
+  background: var(--marca) url('/logo-subatir.jpg') center / cover no-repeat;
+  box-shadow: 0 0 0 2px rgb(234 88 12 / 0.35), 0 2px 8px -2px rgb(15 23 42 / 0.35);
 }
 
 .marca-seccion {
@@ -218,13 +218,13 @@
   padding: 9px 16px;
   border-radius: 8px;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 0 rgb(21 24 30 / 0.2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 0 rgb(15 23 42 / 0.2);
   transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
 .boton:hover {
-  background: #000;
-  box-shadow: inset 0 -2px 0 var(--senal), 0 1px 0 rgb(21 24 30 / 0.2);
+  background: var(--slate-800);
+  box-shadow: inset 0 -2px 0 var(--senal), 0 1px 0 rgb(15 23 42 / 0.2);
 }
 
 /* el botón principal lleva el naranja de Subatir */
@@ -234,8 +234,8 @@
 }
 
 .boton:not(.boton-sec):hover {
-  background: #9a3412;
-  box-shadow: 0 1px 0 rgb(21 24 30 / 0.2);
+  background: var(--marca-hover);
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.2);
 }
 
 .boton:focus-visible,
@@ -381,7 +381,7 @@
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: linear-gradient(90deg, #8a8f99, #16a34a, #0d9488, #0284c7, #d97706, #7c3aed, var(--senal), #8a8f99);
+  background: linear-gradient(90deg, var(--apagado), #16a34a, #0d9488, #0284c7, #d97706, #7c3aed, var(--senal), var(--apagado));
   background-size: 200% 100%;
   animation: espectro 14s linear infinite;
   pointer-events: none;
@@ -472,8 +472,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #f97316;
-  box-shadow: 0 0 0 4px rgb(249 115 22 / 0.2);
+  background: var(--marca);
+  box-shadow: 0 0 0 4px rgb(234 88 12 / 0.2);
 }
 
 .aviso-actualizacion .boton {
@@ -487,4 +487,92 @@
 
 .tanque[data-estado='en_control'] .vidrio {
   stroke: #2b3a8f;
+}
+
+/* ---------- barra superior oscura (pizarra industrial) ----------
+   Dentro de la barra los tokens de texto y línea se invierten, así lo que ya usa --tinta o --linea
+   (anillo de inactividad, separadores) se ve sobre el fondo oscuro sin reglas propias. */
+.encabezado,
+.planta-barra {
+  --tinta: var(--barra-tinta);
+  --tinta-2: var(--barra-tinta-2);
+  --apagado: var(--slate-400);
+  --linea: var(--barra-2);
+  --linea-2: var(--slate-600);
+  background: var(--barra);
+  color: var(--barra-tinta);
+  border-bottom: 1px solid var(--slate-900);
+  backdrop-filter: none;
+}
+
+/* sin la franja de colores animada: la barra lisa ya separa */
+.encabezado::after,
+.planta-barra::after {
+  content: none;
+}
+
+.encabezado .pestana {
+  color: var(--barra-tinta-2);
+}
+
+.encabezado .pestana:hover,
+.encabezado .pestana[aria-current='page'] {
+  color: #fff;
+}
+
+.encabezado .pestana:hover::after {
+  background: var(--slate-500);
+}
+
+.encabezado .pestana[aria-current='page']::after {
+  background: var(--marca);
+}
+
+.encabezado .pestana:focus-visible {
+  outline-color: #93c5fd;
+}
+
+.encabezado .boton-sec {
+  background: transparent;
+  color: var(--barra-tinta);
+  border-color: var(--slate-600);
+  box-shadow: none;
+}
+
+.encabezado .boton-sec:hover {
+  background: var(--barra-2);
+  border-color: var(--slate-400);
+}
+
+.encabezado .boton-pausa-general {
+  border-color: var(--slate-600);
+  background: var(--barra-2);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 var(--marca);
+}
+
+.encabezado .boton-pausa-general:hover {
+  background: var(--slate-600);
+}
+
+.encabezado .boton-pausa-general.es-arranque {
+  border-color: var(--arranque-oscuro);
+  background: var(--arranque);
+  box-shadow: inset 0 -3px 0 var(--arranque-oscuro);
+}
+
+.encabezado .demo-hora,
+.planta-reloj {
+  background: var(--barra-2);
+  color: var(--barra-tinta);
+}
+
+.encabezado .segmentos {
+  background: var(--barra-2);
+  border-color: var(--slate-600);
+}
+
+.encabezado .segmento[aria-pressed='true'] {
+  background: var(--marca-oscuro);
+  color: #fff;
 }
