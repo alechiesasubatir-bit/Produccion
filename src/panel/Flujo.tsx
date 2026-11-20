@@ -2,14 +2,17 @@ import { LayoutGroup, MotionConfig } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import type { Accion } from '../domain/acciones'
 import { agruparFlujo, COLUMNAS, kpisFlujo, type FilaFlujo } from '../domain/flujo'
+import { resumenDia } from '../domain/flujoDia'
 import type { Estandar } from '../domain/kpis'
 import { proyeccionEnvasado, proyeccionFabricacion } from '../domain/proyecciones'
 import { accionPanel } from '../lib/acciones'
 import { useRealtime } from '../lib/useRealtime'
+import { useTanques } from '../pages/ParedTanques'
 import { cargarFlujo, cargarOperarias } from './datosFlujo'
 import { cargarEstandares } from './historial/datosHistorial'
 import { EditarEnvasado } from './EditarEnvasado'
 import { EsperandoFabricacion } from './EsperandoFabricacion'
+import { HoyEnPlanta } from './HoyEnPlanta'
 import { KpisFlujo } from './KpisFlujo'
 import { NuevaOrden } from './NuevaOrden'
 import { TarjetaFlujo } from './TarjetaFlujo'
@@ -20,6 +23,10 @@ export function Flujo() {
   const nombres = useMemo(() => new Map(operarias.datos.map((o) => [o.empleado_id, o.nombre])), [operarias.datos])
   const grupos = useMemo(() => agruparFlujo(flujo.datos), [flujo.datos])
   const kpis = useMemo(() => kpisFlujo(flujo.datos), [flujo.datos])
+  const dia = useMemo(() => resumenDia(flujo.datos), [flujo.datos])
+  const tanques = useTanques()
+  const estadosTanque = useMemo(() => tanques.datos.map((t) => t.estado), [tanques.datos])
+  const tanquesEnUso = estadosTanque.filter((e) => e !== 'libre').length
   const cargadoEn = useMemo(() => Date.now(), [flujo.datos])
   // Envasados de cada fabricación, para el detalle de la tarjeta.
   const envasadosDe = useMemo(() => {
@@ -95,7 +102,14 @@ export function Flujo() {
     <MotionConfig reducedMotion="user">
       <div className="flujo-barra">
         <h1 className="titulo-panel">Flujo</h1>
-        <KpisFlujo kpis={kpis} />
+        <KpisFlujo
+          kpis={kpis}
+          extras={[
+            [dia.unidades, 'unidades hoy'],
+            [dia.trabajando.length, 'operarias ahora'],
+            [tanquesEnUso, `tanques en uso de ${estadosTanque.length}`],
+          ]}
+        />
         <button type="button" className="boton" onClick={() => setNuevaAbierta(true)} disabled={!flujo.conectado}>
           + Nueva orden
         </button>
@@ -144,6 +158,7 @@ export function Flujo() {
           </section>
         </div>
       </LayoutGroup>
+      <HoyEnPlanta resumen={dia} terminadas={terminadas} tanques={estadosTanque} proyeccion={proyeccion} />
       {editando && (
         <EditarEnvasado
           id={editando}

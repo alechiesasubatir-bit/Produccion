@@ -26,12 +26,20 @@ export function Contador({ valor }: { valor: number }) {
   return <b className="kpi-valor">{mostrado.toLocaleString('es-UY')}</b>
 }
 
-export function KpisFlujo({ kpis }: { kpis: { cola: number; fabricando: number; envasando: number; litrosHoy: number } }) {
+/** `extras`: más datos del día (el panel los muestra; el Monitor no, para que entren en la TV). */
+export function KpisFlujo({
+  kpis,
+  extras = [],
+}: {
+  kpis: { cola: number; fabricando: number; envasando: number; litrosHoy: number }
+  extras?: Array<[number, string]>
+}) {
   const items: Array<[number, string]> = [
     [kpis.cola, 'en cola'],
     [kpis.fabricando, 'fabricando'],
     [kpis.envasando, 'envasando'],
     [kpis.litrosHoy, 'litros hoy'],
+    ...extras,
   ]
   return (
     <dl className="kpis">

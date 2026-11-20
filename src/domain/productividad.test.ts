@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { filaH } from '../test/fabricas'
 import type { Participacion } from './participaciones'
-import { mesesHasta, nombreMes, productividadMensual, rangoDeMeses } from './productividad'
+import { mesesHasta, nombreMes, productividadMensual, rangoDeMeses, resumenProductividad } from './productividad'
 
 const tramo = (empleado_id: string, nombre: string, desde: string, cantidad: number | null, minutos: number, over: Partial<Participacion> = {}): Participacion => ({
   empleado_id,
@@ -82,5 +82,25 @@ describe('productividadMensual', () => {
 
   it('sin tramos con cantidad no hay grupos (órdenes viejas sin participaciones)', () => {
     expect(productividadMensual([filaH()], MESES)).toEqual([])
+  })
+})
+
+describe('resumenProductividad', () => {
+  it('horas, cuántas mejoraron y el ranking contra el equipo promediado por horas', () => {
+    const filas = [
+      filaH({ participaciones: [tramo('A', 'Ana', '2026-10-05T12:00:00Z', 600, 60), tramo('B', 'Bea', '2026-10-05T12:00:00Z', 600, 60)] }),
+      filaH({ participaciones: [tramo('A', 'Ana', '2026-11-05T12:00:00Z', 900, 60), tramo('B', 'Bea', '2026-11-06T12:00:00Z', 300, 60)] }),
+      // Suavizante: Ana más lenta que el equipo, pero con menos horas; Bea con 30 min no cuenta para el ranking
+      filaH({ producto: 'Suavizante', participaciones: [tramo('A', 'Ana', '2026-11-05T12:00:00Z', 50, 60), tramo('C', 'Cora', '2026-11-05T12:00:00Z', 150, 60), tramo('B', 'Bea', '2026-11-05T12:00:00Z', 200, 30)] }),
+    ]
+    const r = resumenProductividad(productividadMensual(filas, MESES), MESES)
+    expect(r).toMatchObject({ horas: 4.5, horasAntes: 2, producciones: 2, operarias: 3, mejoraron: 1, empeoraron: 1 })
+    // Suavizante: el equipo hace 400 L en 2,5 h = 160 L/h. Ana: +50 % en Lavandina y −69 % en Suavizante,
+    // 1 h cada una → −9 %
+    expect(r.ranking.map((x) => [x.nombre, x.pct, x.producciones])).toEqual([
+      ['Cora', -6, 1],
+      ['Ana', -9, 2],
+      ['Bea', -50, 1],
+    ])
   })
 })

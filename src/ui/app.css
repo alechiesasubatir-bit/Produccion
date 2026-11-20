@@ -42,9 +42,10 @@
   align-items: center;
   gap: 10px;
   font-family: var(--titulo);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .marca-nombre::before {

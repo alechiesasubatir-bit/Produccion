@@ -76,7 +76,7 @@ describe('KPIs', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Productividad' })))
     const grupo = screen.getByRole('region', { name: 'Fabricación · Lavandina' })
     const cabeceras = within(grupo).getAllByRole('columnheader').map((c) => c.textContent)
-    expect(cabeceras).toEqual(['Operaria', 'may 26', 'jun 26', 'jul 26', 'ago 26', 'sep 26', 'oct 26', 'vs. equipo'])
+    expect(cabeceras).toEqual(['Operaria', 'Tendencia', 'may 26', 'jun 26', 'jul 26', 'ago 26', 'sep 26', 'oct 26', 'vs. equipo'])
     const ana = within(grupo).getByRole('row', { name: /^Ana/ })
     expect(ana).toHaveTextContent('900')
     // +50 % contra septiembre y +50 % contra el equipo de octubre
@@ -86,6 +86,15 @@ describe('KPIs', () => {
     const bea = within(grupo).getByRole('row', { name: /^Bea/ })
     expect(within(bea).getAllByText(/-50 %/)[0]).toHaveClass('prod-baja')
     expect(within(grupo).getByRole('row', { name: /^Equipo/ })).toHaveTextContent('600')
+    expect(within(ana).getByRole('img', { name: 'Tendencia de Ana: 600 → 900' })).toBeInTheDocument()
+
+    // arriba: el resumen y cada operaria contra el equipo
+    const resumen = screen.getByRole('group', { name: 'Resumen' })
+    expect(resumen).toHaveTextContent('Horas medidas · oct 26')
+    expect(resumen).toHaveTextContent('Más rápida que el equipo')
+    expect(resumen).toHaveTextContent('Ana')
+    const ranking = screen.getByRole('region', { name: 'Cada operaria contra el equipo · oct 26' })
+    expect(within(ranking).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Ana+50 %', 'Bea−50 %'])
 
     fireEvent.change(screen.getByLabelText('Buscar operaria o producto'), { target: { value: 'bea' } })
     expect(within(screen.getByRole('region', { name: 'Fabricación · Lavandina' })).queryByRole('row', { name: /^Ana/ })).toBeNull()

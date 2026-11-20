@@ -1537,6 +1537,9 @@ th[aria-sort='descending'] .th-orden::after {
 .kpis .kpi:nth-child(2) { --kpi: #16a34a; }
 .kpis .kpi:nth-child(3) { --kpi: #0284c7; }
 .kpis .kpi:nth-child(4) { --kpi: var(--senal); }
+.kpis .kpi:nth-child(5) { --kpi: #0d9488; }
+.kpis .kpi:nth-child(6) { --kpi: #7c3aed; }
+.kpis .kpi:nth-child(7) { --kpi: var(--slate-600); }
 .kpis-grandes .kpi:nth-child(1) { --kpi: #0284c7; }
 .kpis-grandes .kpi:nth-child(2) { --kpi: #d97706; }
 .kpis-grandes .kpi:nth-child(3) { --kpi: #7c3aed; }
@@ -3095,10 +3098,315 @@ th[aria-sort='descending'] .th-orden::after {
 /* ---------- KPIs · Productividad mes a mes ---------- */
 .prod-nota {
   max-width: 80ch;
-  margin: -4px 0 18px;
+  margin: 0 0 18px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--tinta-2);
+}
+
+.prod-nota summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.prod-nota p {
+  margin: 6px 0 0;
+}
+
+/* resumen: cuatro datos que se leen de un vistazo */
+.prod-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.prod-dato {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+
+.prod-dato-titulo {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--apagado);
+}
+
+.prod-dato-valor {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--tinta);
+}
+
+.prod-dato-nombre {
+  overflow: hidden;
+  font-family: var(--titulo);
+  font-size: 20px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prod-dato-par {
+  display: flex;
+  gap: 18px;
+}
+
+.prod-marca {
+  margin-right: 4px;
+  font-size: 0.6em;
+  font-style: normal;
+  vertical-align: 0.25em;
+}
+
+.prod-marca-sube { color: var(--ok); }
+.prod-marca-baja { color: var(--mal); }
+
+.prod-dato-pie {
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+/* cada operaria contra el equipo: barras divergentes desde el 0 */
+.prod-ranking {
+  margin: 0 0 18px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+}
+
+.prod-ranking h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.prod-sub {
+  margin: 2px 0 12px;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.prod-barras {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prod-barra-fila,
+.prod-barras-eje {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+}
+
+.prod-barra-fila {
+  min-height: 26px;
+  border-radius: 4px;
+}
+
+.prod-barra-fila:hover {
+  background: var(--papel-2);
+}
+
+.prod-barra-nombre {
+  overflow: hidden;
+  padding-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prod-barra-pista {
+  position: relative;
+  height: 12px;
+}
+
+/* línea del equipo (0) */
+.prod-barra-pista::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 50%;
+  width: 1px;
+  background: var(--linea-2);
+}
+
+.prod-barra {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+}
+
+.prod-barra-mas {
+  border-radius: 0 4px 4px 0;
+  background: var(--ok);
+}
+
+.prod-barra-menos {
+  border-radius: 4px 0 0 4px;
+  background: var(--mal);
+}
+
+.prod-barra-valor {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.prod-barras-eje {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.prod-barras-escala {
+  display: flex;
+  justify-content: space-between;
+}
+
+.prod-dato-valor small {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+.prod-grupo-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+}
+
+.prod-grupo-cabeza h3 {
+  margin: 0;
+}
+
+.prod-grupo-equipo {
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.prod-grupo-equipo b {
+  font-family: var(--mono);
+  color: var(--tinta);
+}
+
+.prod-grupo-equipo .prod-cambio {
+  margin-left: 8px;
+}
+
+/* tendencia mes a mes */
+.tabla-prod .prod-col-tendencia {
+  width: 116px;
+  text-align: center;
+}
+
+.prod-tendencia {
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.prod-tendencia-linea {
+  fill: none;
+  stroke: var(--azul);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.prod-tendencia-equipo {
+  fill: none;
+  stroke: var(--slate-400);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+}
+
+.prod-tendencia-punto {
+  fill: var(--azul);
+}
+
+.prod-tendencia-fin {
+  fill: var(--azul);
+  stroke: var(--tarjeta);
+  stroke-width: 2;
+}
+
+tfoot .prod-tendencia-linea,
+tfoot .prod-tendencia-punto,
+tfoot .prod-tendencia-fin {
+  stroke: var(--slate-500);
+}
+
+tfoot .prod-tendencia-punto,
+tfoot .prod-tendencia-fin {
+  fill: var(--slate-500);
+}
+
+/* vs. equipo: barra de la operaria y marca del equipo */
+.tabla-prod .prod-col-equipo {
+  width: 150px;
+}
+
+.prod-bala {
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--papel-2);
+  vertical-align: middle;
+}
+
+.prod-bala-barra {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--azul);
+}
+
+.prod-bala-poca {
+  background: var(--slate-300);
+}
+
+.prod-bala-equipo {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--tinta);
+}
+
+@media (max-width: 1100px) {
+  .prod-resumen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .prod-grupo {
@@ -3186,7 +3494,369 @@ th[aria-sort='descending'] .th-orden::after {
   font-weight: 600;
 }
 
-.prod-sube { color: #166534; }
-.prod-baja { color: #991b1b; }
+.prod-sube { color: #047857; }
+.prod-baja { color: #b91c1c; }
 .prod-igual { color: var(--apagado); font-weight: 500; }
 .prod-dudoso { color: var(--apagado); font-weight: 400; }
+
+/* ---------- Flujo: hoy en planta (debajo del kanban) ---------- */
+
+.hoy-planta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin: 22px 30px 0 0; /* el mismo margen que deja la lengüeta de Terminadas hoy */
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .hoy-planta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.hoy-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+
+.hoy-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hoy-cabeza h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hoy-contador {
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--papel-2);
+  color: var(--tinta-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.hoy-segmentos {
+  margin: 0;
+  padding: 2px;
+}
+
+.hoy-segmentos .segmento {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
+.hoy-vacio {
+  margin: 0;
+  padding: 18px 0;
+  font-size: 13px;
+}
+
+.hoy-total {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.hoy-total b {
+  font-family: var(--mono);
+  font-size: 22px;
+  color: var(--tinta);
+}
+
+/* columnas por hora: una sola serie, la hora actual marcada */
+.hoy-grafico {
+  position: relative;
+  padding-top: 16px;
+}
+
+.hoy-eje-max {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.hoy-barras {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px dashed var(--linea);
+}
+
+.hoy-hora {
+  display: grid;
+  gap: 4px;
+}
+
+.hoy-columna {
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  border-bottom: 1px solid var(--linea-2);
+}
+
+.hoy-columna i {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--azul);
+  transition: height 0.4s var(--ease);
+}
+
+.hoy-hora:hover .hoy-columna {
+  background: var(--papel-2);
+}
+
+.hoy-hora.ahora .hoy-columna {
+  background: color-mix(in srgb, var(--marca) 8%, transparent);
+  box-shadow: inset 0 -2px 0 var(--marca);
+}
+
+.hoy-hora-texto {
+  height: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--apagado);
+  text-align: center;
+}
+
+.hoy-hora.ahora .hoy-hora-texto {
+  color: var(--marca-oscuro);
+  font-weight: 600;
+}
+
+/* terminadas hoy */
+.hoy-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hoy-tabla th {
+  padding: 0 6px 6px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--linea);
+  color: var(--apagado);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.hoy-tabla td {
+  padding: 6px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.hoy-tabla tr:last-child td {
+  border-bottom: 0;
+}
+
+.hoy-tabla th:nth-child(n + 3),
+.hoy-tabla td:nth-child(n + 3) {
+  text-align: right;
+}
+
+.hoy-num {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.hoy-produccion {
+  max-width: 0; /* recorta con puntos en vez de ensanchar la tabla */
+  width: 100%;
+}
+
+.hoy-produccion > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hoy-produccion i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.hoy-produccion span span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hoy-mas {
+  margin: 0;
+  font-size: 12px;
+  color: var(--apagado);
+}
+
+/* trabajando ahora */
+.hoy-operarias {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hoy-operarias li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 4px;
+  border-radius: 6px;
+}
+
+.hoy-operarias li:hover {
+  background: var(--papel-2);
+}
+
+.hoy-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #14532d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hoy-avatar-envasado {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.hoy-avatar-fraccionado {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.hoy-operaria {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.hoy-operaria b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoy-operaria span {
+  overflow: hidden;
+  color: var(--tinta-2);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hoy-desde {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--apagado);
+  white-space: nowrap;
+}
+
+/* tanques: una barra apilada por estado */
+.hoy-tanques {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--linea);
+}
+
+.hoy-tanques h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoy-tanques h4 span {
+  margin-left: 4px;
+  font-family: var(--mono);
+  color: var(--apagado);
+}
+
+.hoy-tanques-barra {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+}
+
+.hoy-tanques-barra i {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.hoy-tanques-barra i:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.hoy-tanques-barra i:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.hoy-tanques-barra i:only-child {
+  border-radius: 4px;
+}
+
+.hoy-tq-trabajando { background: #16a34a; }
+.hoy-tq-esperando { background: #0284c7; }
+.hoy-tq-pausados { background: #d97706; }
+.hoy-tq-libres { background: var(--slate-300); }
+
+.hoy-tanques-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+.hoy-tanques-leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hoy-tanques-leyenda i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.hoy-tanques-leyenda b {
+  font-family: var(--mono);
+  color: var(--tinta);
+}

@@ -125,3 +125,78 @@ export function productividadMensual(filas: FilaHistorial[], meses: string[]): G
     }))
     .sort((a, b) => b.equipo.reduce((s, c) => s + (c?.tramos ?? 0), 0) - a.equipo.reduce((s, c) => s + (c?.tramos ?? 0), 0))
 }
+
+/** Menos de esto en un mes: el número sirve de referencia, no para sacar conclusiones. */
+export const MINUTOS_CONFIABLES = 60
+
+export type RankingOperaria = {
+  empleadoId: string
+  nombre: string
+  /** % contra el equipo en el último mes, promediado por las horas de cada producción. */
+  pct: number
+  minutos: number
+  producciones: number
+}
+
+export type ResumenProductividad = {
+  /** Horas medidas en el último mes y en el anterior (todas las producciones). */
+  horas: number
+  horasAntes: number
+  /** Producciones con datos en el último mes. */
+  producciones: number
+  operarias: number
+  /** Operaria × producción que subieron / bajaron más de 5 % contra el mes anterior (con datos suficientes). */
+  mejoraron: number
+  empeoraron: number
+  ranking: RankingOperaria[]
+}
+
+const confiable = (c: Celda | null) => !!c && c.minutos >= MINUTOS_CONFIABLES
+
+/**
+ * Lo que se lee de un vistazo arriba de las tablas. El ranking compara a cada operaria con el equipo
+ * en cada producción y lo promedia por horas: así no se mezclan productos que van a distinto ritmo.
+ */
+export function resumenProductividad(grupos: GrupoProductividad[], meses: string[]): ResumenProductividad {
+  const u = meses.length - 1
+  let minutos = 0
+  let minutosAntes = 0
+  let producciones = 0
+  let mejoraron = 0
+  let empeoraron = 0
+  const personas = new Map<string, { nombre: string; suma: number; minutos: number; producciones: number }>()
+  const activas = new Set<string>()
+
+  for (const g of grupos) {
+    minutos += g.equipo[u]?.minutos ?? 0
+    minutosAntes += g.equipo[u - 1]?.minutos ?? 0
+    if (g.equipo[u]) producciones++
+    for (const f of g.filas) {
+      const c = f.meses[u]
+      if (c) activas.add(f.empleadoId)
+      const v = f.variaciones[u]
+      if (v !== null && confiable(c) && confiable(f.meses[u - 1] ?? null)) {
+        if (v > 5) mejoraron++
+        else if (v < -5) empeoraron++
+      }
+      if (f.vsEquipoPct === null || !confiable(c)) continue
+      const p = personas.get(f.empleadoId) ?? { nombre: f.nombre, suma: 0, minutos: 0, producciones: 0 }
+      p.suma += f.vsEquipoPct * c!.minutos
+      p.minutos += c!.minutos
+      p.producciones++
+      personas.set(f.empleadoId, p)
+    }
+  }
+
+  return {
+    horas: Math.round(minutos / 6) / 10,
+    horasAntes: Math.round(minutosAntes / 6) / 10,
+    producciones,
+    operarias: activas.size,
+    mejoraron,
+    empeoraron,
+    ranking: [...personas.entries()]
+      .map(([empleadoId, p]) => ({ empleadoId, nombre: p.nombre, pct: Math.round(p.suma / p.minutos), minutos: p.minutos, producciones: p.producciones }))
+      .sort((a, b) => b.pct - a.pct || a.nombre.localeCompare(b.nombre)),
+  }
+}
