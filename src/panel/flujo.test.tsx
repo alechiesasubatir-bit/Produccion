@@ -33,6 +33,9 @@ vi.mock('./historial/datosHistorial', () => ({
     Promise.resolve([{ entidad: 'fabricacion', clave: 'Lavandina', velocidad: 10, muestras: 3, litros_hora_std: null }]),
 }))
 
+vi.mock('./TablaMp', () => ({ TablaMp: () => null }))
+vi.mock('./ControlesOrden', () => ({ ControlesOrden: () => null }))
+
 vi.mock('./datosTanque', () => ({
   cargarParticipaciones: () => Promise.resolve([]),
   cargarOperariasLegacy: () => Promise.resolve(['Laura Paz']),
@@ -79,6 +82,11 @@ function fila(over: Partial<FilaFlujo> = {}): FilaFlujo {
 }
 
 const columna = (titulo: string) => screen.getByRole('region', { name: titulo })
+// La tarjeta es chica: las acciones y el resto están en el detalle que abre al tocarla.
+const abrir = async (dentro: HTMLElement = document.body) => {
+  await act(async () => fireEvent.click(within(dentro).getByRole('button', { name: /^Ver detalle de / })))
+  return screen.getByRole('dialog', { name: /^Detalle de / })
+}
 
 describe('Flujo', () => {
   beforeEach(() => {
@@ -104,13 +112,14 @@ describe('Flujo', () => {
     render(<Flujo />)
     const tarjeta = within(columna('Fabricando')).getByRole('article')
     expect(within(tarjeta).getByText('En control')).toBeInTheDocument()
-    await act(async () => fireEvent.click(within(tarjeta).getByRole('button', { name: 'Controlar' })))
+    await act(async () => fireEvent.click(within(await abrir(tarjeta)).getByRole('button', { name: 'Controlar' })))
+    expect(screen.queryByRole('dialog', { name: /^Detalle de / })).not.toBeInTheDocument()
     const dialogo = screen.getByRole('dialog', { name: 'Control para liberación' })
     expect(within(dialogo).getByText(/Intento 2/)).toBeInTheDocument()
     await act(async () => fireEvent.keyDown(window, { key: 'Escape' }))
     expect(screen.queryByRole('dialog', { name: 'Control para liberación' })).not.toBeInTheDocument()
 
-    await act(async () => fireEvent.click(within(tarjeta).getByRole('button', { name: 'Controlar' })))
+    await act(async () => fireEvent.click(within(await abrir(tarjeta)).getByRole('button', { name: 'Controlar' })))
     const d = screen.getByRole('dialog', { name: 'Control para liberación' })
     await act(async () => fireEvent.click(within(within(d).getByRole('group', { name: 'Perfume' })).getByRole('button', { name: 'OK' })))
     await act(async () => fireEvent.click(within(within(d).getByRole('group', { name: 'Visual' })).getByRole('button', { name: 'OK' })))
@@ -135,7 +144,7 @@ describe('Flujo', () => {
     expect(screen.getByRole('button', { name: /Terminadas hoy/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('la tarjeta muestra las 3 operarias y el botón «Operarias» abre el detalle', async () => {
+  it('la tarjeta muestra las 3 operarias y al tocarla abre el detalle con las operarias', async () => {
     m.filas = [
       fila({
         id: 'tres',
@@ -146,10 +155,9 @@ describe('Flujo', () => {
     ]
     render(<Flujo />)
     expect(screen.getByText('Ana · Beto · Cora')).toBeTruthy()
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Operarias' })))
-    expect(screen.getByRole('dialog', { name: 'Operarias de la orden' })).toBeTruthy()
-    expect(screen.getByText('Laura Paz')).toBeTruthy()
-    const boton = screen.getByRole('button', { name: 'Operarias' })
+    const dialogo = await abrir()
+    expect(within(within(dialogo).getByRole('region', { name: 'Operarias' })).getByText('Laura Paz')).toBeTruthy()
+    const boton = screen.getByRole('button', { name: /^Ver detalle de / })
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(boton)
@@ -185,6 +193,7 @@ describe('Flujo', () => {
     m.accionPanel.mockResolvedValue({ ok: true, fabricacionCerrada: false })
     m.filas = [fila({ id: 'c1' })]
     render(<Flujo />)
+    await abrir()
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(m.accionPanel).not.toHaveBeenCalled()
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '¿Seguro?' })))
@@ -196,6 +205,7 @@ describe('Flujo', () => {
     m.recargar.mockClear()
     m.filas = [fila()]
     render(<Flujo />)
+    await abrir()
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar' })))
     expect(screen.getByRole('alert')).toHaveTextContent('Laura Paz a las 10:15')
     expect(m.recargar).toHaveBeenCalled()
@@ -222,13 +232,15 @@ describe('Flujo', () => {
     m.accionPanel.mockResolvedValue({ ok: true, fabricacionCerrada: true })
     m.filas = [fila({ id: 'p1', estado: 'para_envasar' })]
     render(<Flujo />)
-    const col = columna('Para envasar')
+    const col = await abrir(columna('Para envasar'))
     expect(within(col).queryByRole('button', { name: 'Finalizar' })).not.toBeInTheDocument()
     await act(async () => fireEvent.click(within(col).getByRole('button', { name: 'Cargar envasado' })))
     expect(screen.getByText('nueva orden envasado p1')).toBeInTheDocument()
-    fireEvent.click(within(col).getByRole('button', { name: 'Cerrar con merma' }))
+    expect(screen.queryByRole('dialog', { name: /^Detalle de / })).not.toBeInTheDocument()
+    const det = await abrir(columna('Para envasar'))
+    fireEvent.click(within(det).getByRole('button', { name: 'Cerrar con merma' }))
     expect(m.accionPanel).not.toHaveBeenCalled()
-    await act(async () => fireEvent.click(within(col).getByRole('button', { name: '¿Cerrar sin envasar?' })))
+    await act(async () => fireEvent.click(within(det).getByRole('button', { name: '¿Cerrar sin envasar?' })))
     expect(m.accionPanel).toHaveBeenCalledWith({ entidad: 'fabricacion', id: 'p1', accion: 'finalizar' })
   })
   it('un envasado esperando fabricación va a su sección: no ocupa columnas ni KPIs', () => {
@@ -239,10 +251,27 @@ describe('Flujo', () => {
     expect(screen.getByRole('button', { name: 'Asignar tanque' })).toBeInTheDocument()
   })
 
-  it('sin esperando no hay sección y un envasado en curso ofrece Editar', () => {
+  it('sin esperando no hay sección y un envasado en curso ofrece Editar', async () => {
     m.filas = [fila({ id: 'e1', entidad: 'envasado', estado: 'activo', fabricacion_id: 'f9', cantidad: 4, presentacion: '5L' })]
     render(<Flujo />)
     expect(screen.queryByRole('region', { name: 'Esperando fabricación' })).toBeNull()
-    expect(within(columna('Envasando')).getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+    expect(within(await abrir(columna('Envasando'))).getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+  })
+
+  it('la tarjeta es compacta: sin botones de acción; el detalle lista los envasados cargados de la fabricación', async () => {
+    m.filas = [
+      fila({ id: 'fab', estado: 'para_envasar', litros: 1000, litros_restantes: 250, lote: 'L-77' }),
+      fila({ id: 'env1', entidad: 'envasado', estado: 'activo', corriendo: true, fabricacion_id: 'fab', cantidad: 50, presentacion: '5L', producto: 'Lavandina', operarias: [{ empleado_id: 'X1', nombre: 'Ana', desde: '2026-10-21T13:00:00Z' }] }),
+      fila({ id: 'env2', entidad: 'envasado', estado: 'finalizado', fabricacion_id: 'fab', cantidad: 100, presentacion: '1L', producto: 'Lavandina', fin: '2026-10-21T14:00:00Z' }),
+    ]
+    render(<Flujo />)
+    const tarjeta = within(columna('Para envasar')).getByRole('article')
+    expect(within(tarjeta).getAllByRole('button')).toHaveLength(1)
+    expect(within(tarjeta).getByRole('progressbar', { name: /Envasado: 75 %/ })).toBeInTheDocument()
+    expect(within(tarjeta).queryByText(/L-77/)).toBeNull()
+    const dialogo = await abrir(tarjeta)
+    expect(within(dialogo).getByText('L-77')).toBeInTheDocument()
+    const lista = within(within(dialogo).getByRole('region', { name: 'Envasados cargados' })).getAllByRole('listitem')
+    expect(lista.map((li) => li.textContent)).toEqual([expect.stringMatching(/Lavandina · 50 × 5L.*Ana/), expect.stringMatching(/Lavandina · 100 × 1L/)])
   })
 })

@@ -1,23 +1,28 @@
 import { motion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { accionesPosibles, type Accion } from '../domain/acciones'
+import type { Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
-import { nivelTanque, type EstadoTanque } from '../domain/tanque'
-import { confirmacionPanel, etiquetaPanel, tituloTarea } from '../domain/tareas'
+import { tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
 import { Chip } from '../ui/Chip'
 import { Tanque } from '../ui/Tanque'
+import { DetalleFlujo } from './DetalleFlujo'
 import { DialogoControl } from './DialogoControl'
-import { Modal } from './Modal'
-import { OperariasOrden } from './OperariasOrden'
+import { estadoMini, nivelMini, nombresOperarias } from './flujoMini'
 
-const CONFIRMAR: Accion[] = ['cancelar', 'finalizar']
-
-function estadoMini(f: FilaFlujo): EstadoTanque {
-  if (f.entidad === 'fabricacion') return f.estado === 'finalizada' ? 'libre' : (f.estado as EstadoTanque)
-  if (f.estado === 'activo') return 'envasando'
-  if (f.estado === 'pausado') return 'env_pausado'
-  return 'cola_env'
+function Barra({ pct, etiqueta, pasado = false }: { pct: number; etiqueta: string; pasado?: boolean }) {
+  return (
+    <span
+      className={`avance${pasado ? ' pasado' : ''}`}
+      role="progressbar"
+      aria-label={etiqueta}
+      aria-valuenow={Math.min(pct, 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <i style={{ width: `${Math.min(pct, 100)}%` }} />
+    </span>
+  )
 }
 
 // Como el cronómetro: minutos efectivos al cargar + lo transcurrido desde la carga.
@@ -29,18 +34,7 @@ function AvanceEstimado({ efectivos, cargadoEn, estimado }: { efectivos: number;
   }, [])
   const transcurridos = efectivos + Math.max(0, ahora - cargadoEn) / 60_000
   const pct = Math.round((transcurridos / estimado) * 100)
-  return (
-    <div
-      className={`avance${pct > 100 ? ' pasado' : ''}`}
-      role="progressbar"
-      aria-label={`Avance estimado: ${pct} % de ${estimado} min`}
-      aria-valuenow={Math.min(pct, 100)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
-      <i style={{ width: `${Math.min(pct, 100)}%` }} />
-    </div>
-  )
+  return <Barra pct={pct} pasado={pct > 100} etiqueta={`Avance estimado: ${pct} % de ${estimado} min`} />
 }
 
 export function TarjetaFlujo({
@@ -48,6 +42,7 @@ export function TarjetaFlujo({
   nombres,
   habilitado,
   cargadoEn,
+  envasados = [],
   proyeccionMin = null,
   soloLectura = false,
   onAccion,
@@ -58,9 +53,11 @@ export function TarjetaFlujo({
   nombres: Map<string, string>
   habilitado: boolean
   cargadoEn: number
+  /** Envasados cargados sobre esta fabricación, para el detalle. */
+  envasados?: FilaFlujo[]
   /** Minutos estimados por la velocidad histórica (null si no hay historial). */
   proyeccionMin?: number | null
-  /** Sin botones (Monitor de la TV). */
+  /** Sin detalle ni botones (Monitor de la TV). */
   soloLectura?: boolean
   onAccion: (a: Accion) => void
   /** Fabricación lista: abre Nueva orden → Envasado con este tanque. */
@@ -68,93 +65,87 @@ export function TarjetaFlujo({
   /** Envasado sin terminar: abre el diálogo de edición. */
   onEditar?: () => void
 }) {
-  const [confirmando, setConfirmando] = useState<Accion | null>(null)
-  const acciones = accionesPosibles(fila.entidad, fila.estado, 'panel')
-  const [verOperarias, setVerOperarias] = useState(false)
+  const [detalle, setDetalle] = useState(false)
   const [controlando, setControlando] = useState(false)
   const cerrarControl = useCallback(() => setControlando(false), [])
   const disparador = useRef<HTMLButtonElement>(null)
-  const enOrden = (fila.operarias ?? []).map((o) => o.nombre)
-  // Sin participaciones (órdenes anteriores) se usan las operarias guardadas en la propia orden.
-  const operarias = enOrden.length
-    ? enOrden
-    : [fila.operaria_1, fila.operaria_2].filter((id): id is string => !!id).map((id) => nombres.get(id) ?? 'Operaria')
-  const estado = estadoMini(fila)
+  const operarias = nombresOperarias(fila, nombres)
+  const titulo = tituloTarea(fila)
   const enControl = fila.entidad === 'fabricacion' && fila.estado === 'en_control'
-  const lista = fila.entidad === 'fabricacion' && fila.estado === 'para_envasar' && !!onCargarEnvasado
-  // Nivel aproximado: lo que queda de la fabricación sobre lo fabricado.
-  const nivel = nivelTanque({
-    estado,
-    capacidad: fila.litros ?? 1,
-    litros: fila.litros ?? 1,
-    litrosRestantes: fila.litros_restantes ?? fila.litros ?? 1,
-    progresoFab: 0.6,
-  })
+  const editable = !!onEditar && fila.entidad === 'envasado' && fila.estado !== 'finalizado' && fila.estado !== 'cancelado'
+  // Fabricación esperando envasado: cuánto ya se envasó del tanque.
+  const envasadoPct =
+    fila.entidad === 'fabricacion' && fila.estado === 'para_envasar' && fila.litros && fila.litros_restantes !== null
+      ? Math.round(((fila.litros - fila.litros_restantes) / fila.litros) * 100)
+      : null
 
-  const tocar = (a: Accion) => {
-    if (CONFIRMAR.includes(a) && confirmando !== a) {
-      setConfirmando(a)
-      return
-    }
-    setConfirmando(null)
-    onAccion(a)
-  }
+  // Lo que abre otro diálogo cierra antes el detalle: dos modales a la vez pelean por Escape y el foco.
+  const yDespues = (f?: () => void) => (f ? () => (setDetalle(false), f()) : undefined)
 
-  return (
-    <motion.article layout layoutId={`${fila.entidad}-${fila.id}`} className="tarjeta-flujo"
-      aria-label={tituloTarea(fila)}
-      style={{ '--producto': fila.color ?? undefined } as CSSProperties}
-    >
-      <div className="tf-cabecera">
-        {fila.tanque_codigo && <Tanque estado={estado} color={fila.color ?? undefined} tipo={fila.producto_tipo} nivel={nivel} ancho={28} />}
-        <div className="tf-titulo">
-          <span className="tf-nombre">{tituloTarea(fila)}</span>
-          <span className="tf-meta">
-            {fila.tanque_codigo && <span className="mono">{fila.tanque_codigo}</span>}
-            {fila.lote && <span className="mono">Lote {fila.lote}</span>}
+  const cuerpo = (
+    <>
+      <span className="tf-cabecera">
+        {fila.tanque_codigo && <Tanque estado={estadoMini(fila)} color={fila.color ?? undefined} tipo={fila.producto_tipo} nivel={nivelMini(fila)} ancho={22} />}
+        <span className="tf-titulo">
+          <span className="tf-nombre" title={titulo}>
+            {titulo}
           </span>
-        </div>
-      </div>
-      <div className="tf-pie">
-        <Chip estado={fila.entidad === 'fraccionado' && fila.estado === 'activo' ? 'fraccionado' : fila.estado} />
-        {operarias.length > 0 && <span className="tf-operarias">{operarias.join(' · ')}</span>}
+          <span className="tf-meta">
+            <Chip estado={fila.entidad === 'fraccionado' && fila.estado === 'activo' ? 'fraccionado' : fila.estado} />
+            {fila.tanque_codigo && <span className="mono">{fila.tanque_codigo}</span>}
+          </span>
+        </span>
         <Cronometro tarea={fila} cargadoEn={cargadoEn} />
-      </div>
+      </span>
+      {operarias.length > 0 && (
+        <span className="tf-operarias" title={operarias.join(' · ')}>
+          {operarias.join(' · ')}
+        </span>
+      )}
       {fila.corriendo && proyeccionMin ? (
         <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
+      ) : envasadoPct !== null ? (
+        <Barra pct={envasadoPct} etiqueta={`Envasado: ${envasadoPct} % del tanque`} />
       ) : null}
-      {!soloLectura && (
-        <div className="tf-acciones">
-          <button ref={disparador} type="button" className="boton-mini discreto" onClick={() => setVerOperarias(true)}>
-            Operarias
-          </button>
-          {enControl && (
-            <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={() => setControlando(true)}>
-              Controlar
-            </button>
-          )}
-          {lista && (
-            <button type="button" className="boton-mini principal" disabled={!habilitado} onClick={onCargarEnvasado}>
-              Cargar envasado
-            </button>
-          )}
-          {onEditar && fila.entidad === 'envasado' && fila.estado !== 'finalizado' && fila.estado !== 'cancelado' && (
-            <button type="button" className="boton-mini discreto" disabled={!habilitado} onClick={onEditar}>
-              Editar
-            </button>
-          )}
-          {acciones.map((a) => (
-            <button
-              key={a}
-              type="button"
-              className={`boton-mini${confirmando === a ? ' confirmar' : ''}${lista && a === 'finalizar' ? ' discreto' : ''}`}
-              disabled={!habilitado}
-              onClick={() => tocar(a)}
-            >
-              {confirmando === a ? confirmacionPanel(fila.entidad, fila.estado, a) : etiquetaPanel(fila.entidad, fila.estado, a)}
-            </button>
-          ))}
-        </div>
+    </>
+  )
+
+  return (
+    <motion.article
+      layout
+      layoutId={`${fila.entidad}-${fila.id}`}
+      className="tarjeta-flujo"
+      aria-label={titulo}
+      style={{ '--producto': fila.color ?? undefined } as CSSProperties}
+    >
+      {soloLectura ? (
+        <div className="tf-cuerpo">{cuerpo}</div>
+      ) : (
+        <button
+          ref={disparador}
+          type="button"
+          className="tf-cuerpo tf-abrir"
+          aria-haspopup="dialog"
+          aria-label={`Ver detalle de ${titulo}`}
+          onClick={() => setDetalle(true)}
+        >
+          {cuerpo}
+        </button>
+      )}
+      {detalle && (
+        <DetalleFlujo
+          fila={fila}
+          envasados={envasados}
+          nombres={nombres}
+          habilitado={habilitado}
+          cargadoEn={cargadoEn}
+          volverA={disparador}
+          onAccion={onAccion}
+          onControlar={enControl ? yDespues(() => setControlando(true)) : undefined}
+          onCargarEnvasado={yDespues(onCargarEnvasado)}
+          onEditar={editable ? yDespues(onEditar) : undefined}
+          onCerrar={() => setDetalle(false)}
+        />
       )}
       {controlando && (
         <DialogoControl
@@ -164,11 +155,6 @@ export function TarjetaFlujo({
           producto={fila.producto ?? undefined}
           onCerrar={cerrarControl}
         />
-      )}
-      {verOperarias && (
-        <Modal titulo={`Operarias · ${tituloTarea(fila)}`} etiqueta="Operarias de la orden" volverA={disparador} onCerrar={() => setVerOperarias(false)}>
-          <OperariasOrden entidad={fila.entidad} id={fila.id} />
-        </Modal>
       )}
     </motion.article>
   )

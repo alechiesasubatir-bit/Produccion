@@ -21,6 +21,15 @@ export function Flujo() {
   const grupos = useMemo(() => agruparFlujo(flujo.datos), [flujo.datos])
   const kpis = useMemo(() => kpisFlujo(flujo.datos), [flujo.datos])
   const cargadoEn = useMemo(() => Date.now(), [flujo.datos])
+  // Envasados de cada fabricación, para el detalle de la tarjeta.
+  const envasadosDe = useMemo(() => {
+    const m = new Map<string, FilaFlujo[]>()
+    for (const f of flujo.datos) {
+      if (f.entidad !== 'envasado' || !f.fabricacion_id) continue
+      m.set(f.fabricacion_id, [...(m.get(f.fabricacion_id) ?? []), f])
+    }
+    return m
+  }, [flujo.datos])
 
   const [estandares, setEstandares] = useState<Estandar[]>([])
   useEffect(() => {
@@ -74,6 +83,7 @@ export function Flujo() {
       nombres={nombres}
       habilitado={flujo.conectado}
       cargadoEn={cargadoEn}
+      envasados={f.entidad === 'fabricacion' ? envasadosDe.get(f.id) : undefined}
       proyeccionMin={proyeccion(f)}
       onAccion={(a) => void accionar(f, a)}
       onCargarEnvasado={() => setEnvasarFab(f.id)}

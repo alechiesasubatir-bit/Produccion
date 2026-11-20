@@ -221,13 +221,11 @@
   gap: 8px;
 }
 
-/* tarjetas del flujo (motion anima su transform: acá solo color, borde y sombra) */
+/* tarjetas del flujo (motion anima su transform: acá solo color, borde y sombra).
+   Compactas: quién, avance y tiempo; el resto en el detalle que abre la tarjeta. */
 .tarjeta-flujo {
   --producto: var(--linea-2);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 11px 12px 11px 14px;
+  position: relative;
   border: 1px solid var(--linea);
   border-left: 3px solid var(--producto);
   border-radius: var(--radio-chico);
@@ -243,62 +241,163 @@
   box-shadow: 0 1px 0 var(--linea-2), 0 14px 28px -18px rgb(21 24 30 / 0.4);
 }
 
+.tf-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 7px 9px 7px 10px;
+}
+
+.tf-abrir {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tf-abrir:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
 .tf-cabecera {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
 .tf-titulo {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
 .tf-nombre {
+  overflow: hidden;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.3;
   letter-spacing: -0.005em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .tf-meta {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   color: var(--apagado);
-  font-size: 11.5px;
+  font-size: 11px;
+}
+
+.tf-meta .chip {
+  padding: 0 5px;
+  font-size: 9.5px;
+  gap: 4px;
 }
 
 .mono {
   font-family: var(--mono);
 }
 
-.tf-pie {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  font-size: 12px;
+.tf-operarias {
+  overflow: hidden;
+  font-size: 11.5px;
   color: var(--tinta-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.tf-pie .cronometro {
-  margin-left: auto;
+.tf-cabecera .cronometro {
+  align-self: flex-start;
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tinta);
+  color: #f3f1ea;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.tf-cuerpo .avance {
+  display: block;
+  height: 4px;
+}
+
+/* detalle de una tarjeta del flujo */
+.modal-flujo {
+  width: min(640px, 100%);
+}
+
+.modal-flujo .modal-cabecera h2 {
+  font-size: 22px;
+}
+
+.modal-flujo .detalle-tanque-grande {
+  margin-bottom: 18px;
+}
+
+.modal-flujo .detalle-seccion {
+  margin-bottom: 16px;
+}
+
+.df-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.df-estado .cronometro,
+.df-envasados .cronometro {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--tinta);
   color: #f3f1ea;
   font-size: 12px;
-  letter-spacing: 0.04em;
 }
 
-.tf-acciones {
+.df-aviso {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.df-envasados {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.df-envasados li {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 9px;
-  border-top: 1px dashed var(--linea);
+  align-items: center;
+  gap: 4px 10px;
+  padding: 7px 0;
+  border-bottom: 1px dotted var(--linea-2);
+  font-size: 13px;
+}
+
+.df-env-nombre {
+  font-weight: 600;
+}
+
+.df-env-quien {
+  color: var(--tinta-2);
+}
+
+.df-envasados .cronometro {
+  margin-left: auto;
 }
 
 .boton-mini {
@@ -1766,7 +1865,7 @@ th[aria-sort='descending'] .th-orden::after {
   gap: 0.8vh;
 }
 
-.monitor .tarjeta-flujo {
+.monitor .tf-cuerpo {
   gap: 0.6vh;
   padding: 0.9vh 0.7vw 0.9vh 0.8vw;
 }
@@ -1776,11 +1875,11 @@ th[aria-sort='descending'] .th-orden::after {
 }
 
 .monitor .tf-meta,
-.monitor .tf-pie {
+.monitor .tf-operarias {
   font-size: 0.85em;
 }
 
-.monitor .tf-pie .cronometro {
+.monitor .tf-cabecera .cronometro {
   font-size: 1em;
 }
 
@@ -3009,3 +3108,150 @@ th[aria-sort='descending'] .th-orden::after {
 .pg-orden .campo-error {
   margin: 0;
 }
+
+/* Sí / No (etiquetado): radios en fila, cada uno junto a su texto. Sin esto heredaban el estilo de
+   los campos de texto de `.campo` (ancho 100 %, padding y borde) y el tilde quedaba lejos de su opción. */
+.campo-opciones {
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.campo-opciones legend {
+  float: left; /* el legend no entra en el flex si no flota */
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tinta-2);
+}
+
+.campo-opciones label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.campo-opciones input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--senal);
+  cursor: pointer;
+}
+
+/* ---------- KPIs · Productividad mes a mes ---------- */
+.prod-nota {
+  max-width: 80ch;
+  margin: -4px 0 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tinta-2);
+}
+
+.prod-grupo {
+  margin-bottom: 22px;
+}
+
+.prod-grupo h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.prod-unidad {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--apagado);
+}
+
+.tabla-prod {
+  table-layout: fixed;
+  min-width: 880px;
+  white-space: nowrap;
+}
+
+.tabla-prod thead th:first-child {
+  width: 180px;
+}
+
+.tabla-prod thead th:not(:first-child) {
+  text-align: right;
+}
+
+.tabla-prod th[scope='row'] {
+  overflow: hidden;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--linea);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  text-overflow: ellipsis;
+  color: var(--tinta);
+}
+
+.tabla-prod tbody tr:nth-child(even) th {
+  background: rgb(232 228 216 / 0.28);
+}
+
+.tabla-prod td {
+  text-align: right;
+}
+
+.tabla-prod td > * + * {
+  margin-left: 8px;
+}
+
+.tabla-prod tfoot th,
+.tabla-prod tfoot td {
+  border-top: 2px solid var(--linea-2);
+  border-bottom: 0;
+  background: var(--papel-2);
+  color: var(--tinta-2);
+}
+
+.prod-valor {
+  font-weight: 600;
+}
+
+.prod-poca {
+  font-weight: 400;
+  color: var(--apagado);
+}
+
+.prod-nada {
+  color: var(--apagado);
+}
+
+.prod-cambio {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.prod-sube { color: #166534; }
+.prod-baja { color: #991b1b; }
+.prod-igual { color: var(--apagado); font-weight: 500; }
+.prod-dudoso { color: var(--apagado); font-weight: 400; }

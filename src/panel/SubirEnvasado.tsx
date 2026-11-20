@@ -479,7 +479,7 @@ export function SubirEnvasado({
                 </p>
               )}
 
-              <fieldset className="campo">
+              <fieldset className="campo campo-opciones">
                 <legend>Etiquetado</legend>
                 <label>
                   <input

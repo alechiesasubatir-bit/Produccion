@@ -2,18 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { aCSV, descargarCSV, type ColumnaCSV } from '../../domain/csv'
 import { hoyMontevideo, rangoDe, type FilaHistorial, type Rango } from '../../domain/historial'
 import { porProducto, rankingOperarias, resumenOperaciones, tiemposVsEstandar, type Estandar } from '../../domain/kpis'
+import { mesesHasta, nombreMes, productividadMensual, rangoDeMeses, type GrupoProductividad } from '../../domain/productividad'
 import { mensajeError } from '../../lib/errores'
 import { cargarEstandares, cargarHistorial } from '../historial/datosHistorial'
 import { SelectorRango } from '../historial/SelectorRango'
 import { Contador } from '../KpisFlujo'
+import { Productividad } from './Productividad'
 
-type Pestana = 'operaciones' | 'productos' | 'ranking' | 'tiempos'
+type Pestana = 'operaciones' | 'productos' | 'ranking' | 'tiempos' | 'productividad'
+
+/** Cuántos meses compara la pestaña Productividad (terminando en el mes del rango elegido). */
+const MESES_PRODUCTIVIDAD = 6
 
 const PESTANAS: { id: Pestana; texto: string }[] = [
   { id: 'operaciones', texto: 'Operaciones' },
   { id: 'productos', texto: 'Productos' },
   { id: 'ranking', texto: 'Ranking' },
   { id: 'tiempos', texto: 'Tiempos vs. estándar' },
+  { id: 'productividad', texto: 'Productividad' },
 ]
 
 const MEDALLAS = ['🥇', '🥈', '🥉']
@@ -81,6 +87,23 @@ const COL_TIEMPOS: Col<Tiempo>[] = [
     csv: (f) => f.desvioPct,
   },
 ]
+// CSV de Productividad: una fila por operaria y producción, con la tasa de cada mes.
+function csvProductividad(grupos: GrupoProductividad[], meses: string[]): string {
+  type Fila = { g: GrupoProductividad; f: GrupoProductividad['filas'][number] }
+  const filas: Fila[] = grupos.flatMap((g) => g.filas.map((f) => ({ g, f })))
+  return aCSV<Fila>(
+    [
+      { titulo: 'Producción', valor: ({ g }) => g.titulo },
+      { titulo: 'Unidad', valor: ({ g }) => g.unidad },
+      { titulo: 'Operaria', valor: ({ f }) => f.nombre },
+      ...meses.map((m, i) => ({ titulo: nombreMes(m), valor: ({ f }: Fila) => f.meses[i]?.porHora ?? null })),
+      { titulo: `Equipo ${nombreMes(meses[meses.length - 1])}`, valor: ({ g }) => g.equipo[meses.length - 1]?.porHora ?? null },
+      { titulo: 'vs. equipo %', valor: ({ f }) => f.vsEquipoPct },
+    ],
+    filas,
+  )
+}
+
 const COL_OPERACIONES: Col<Operacion>[] = [
   { titulo: 'Concepto', celda: (f) => f.concepto, csv: (f) => f.concepto },
   { titulo: 'Valor', celda: (f) => num(f.valor), csv: (f) => f.valor },
@@ -109,6 +132,23 @@ export function Kpis() {
     }
   }, [rango])
 
+  // Productividad: su propia carga, de varios meses hasta el mes del rango, solo si se abre la pestaña.
+  const meses = useMemo(() => mesesHasta(rango.hasta, MESES_PRODUCTIVIDAD), [rango.hasta])
+  const [filasMeses, setFilasMeses] = useState<{ meses: string[]; filas: FilaHistorial[] } | null>(null)
+  useEffect(() => {
+    if (pestana !== 'productividad') return
+    let vigente = true
+    cargarHistorial(rangoDeMeses(meses)).then(
+      (f) => vigente && setFilasMeses({ meses, filas: f }),
+      (e: unknown) => vigente && setError(mensajeError(e).texto),
+    )
+    return () => {
+      vigente = false
+    }
+  }, [pestana, meses])
+  const cargandoMeses = filasMeses?.meses !== meses
+  const productividad = useMemo(() => (filasMeses ? productividadMensual(filasMeses.filas, filasMeses.meses) : []), [filasMeses])
+
   const resumen = useMemo(() => resumenOperaciones(filas), [filas])
   const ranking = useMemo(() => rankingOperarias(filas), [filas])
   const productos = useMemo(() => porProducto(filas), [filas])
@@ -127,7 +167,9 @@ export function Kpis() {
     const nombre = `prodcontrol-kpis-${pestana}-${rango.desde}_${rango.hasta}.csv`
     const a = <T,>(cols: Col<T>[], f: T[]) => aCSV(cols.map((c) => ({ titulo: c.titulo, valor: c.csv })), f)
     const contenido =
-      pestana === 'ranking'
+      pestana === 'productividad'
+        ? csvProductividad(productividad, filasMeses?.meses ?? meses)
+        : pestana === 'ranking'
         ? a(COL_RANKING.slice(1), ranking)
         : pestana === 'productos'
           ? a(COL_PRODUCTOS, productos)
@@ -184,6 +226,7 @@ export function Kpis() {
       {pestana === 'productos' && <Tabla columnas={COL_PRODUCTOS} filas={productos} clave={(f) => `${f.producto}|${f.presentacion}`} />}
       {pestana === 'ranking' && <Tabla columnas={COL_RANKING} filas={ranking} clave={(f) => f.nombre} />}
       {pestana === 'tiempos' && <Tabla columnas={COL_TIEMPOS} filas={tiempos} clave={(f) => f.producto} />}
+      {pestana === 'productividad' && <Productividad grupos={productividad} meses={filasMeses?.meses ?? meses} cargando={cargandoMeses} />}
     </div>
   )
 }

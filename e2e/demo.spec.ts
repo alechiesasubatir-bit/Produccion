@@ -27,7 +27,10 @@ test('demo pública: sin usuario, en vivo, se puede tocar y no sale a la red', a
   const cola = page.getByRole('region', { name: 'Cola' })
   const tarjeta = cola.getByRole('article').first()
   const nombre = (await tarjeta.getAttribute('aria-label'))!
-  await tarjeta.getByRole('button', { name: 'Iniciar' }).click()
+  // la tarjeta es compacta: las acciones están en el detalle que abre al tocarla
+  await tarjeta.getByRole('button', { name: /^Ver detalle de / }).click()
+  await page.getByRole('dialog', { name: /^Detalle de / }).getByRole('button', { name: 'Iniciar' }).click()
+  await page.keyboard.press('Escape')
   await expect(page.getByRole('region', { name: 'Fabricando' }).getByRole('article', { name: nombre })).toBeVisible()
 
   await page.getByRole('link', { name: 'Tanques' }).click()

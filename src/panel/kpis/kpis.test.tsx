@@ -8,9 +8,26 @@ const m = vi.hoisted(() => ({ descargar: vi.fn() }))
 const env = (over = {}) =>
   filaH({ entidad: 'envasado', estado: 'finalizado', presentacion: '5L', litros_equiv: 5, cantidad: 100, litros: 500, ...over })
 
+const tramo = (empleado_id: string, nombre: string, desde: string, cantidad: number, minutos: number) => ({
+  empleado_id,
+  nombre,
+  desde,
+  hasta: desde,
+  cantidad,
+  unidad: 'L' as const,
+  cantidad_corregida: null,
+  minutos,
+})
+
 vi.mock('../historial/datosHistorial', () => ({
-  cargarHistorial: () =>
+  cargarHistorial: (r: { desde: string; hasta: string }) =>
     Promise.resolve([
+      ...(r.desde === '2026-05-01'
+        ? [
+            filaH({ participaciones: [tramo('A', 'Ana', '2026-09-10T12:00:00Z', 600, 60), tramo('B', 'Bea', '2026-09-10T12:00:00Z', 600, 60)] }),
+            filaH({ participaciones: [tramo('A', 'Ana', '2026-10-10T12:00:00Z', 900, 60), tramo('B', 'Bea', '2026-10-10T12:00:00Z', 300, 60)] }),
+          ]
+        : []),
       env({ operaria_1: 'E1', operaria_1_nombre: 'Laura Paz', cantidad: 50 }),
       env({ operaria_1: 'E2', operaria_1_nombre: 'Rosa Díaz', cantidad: 200 }),
       filaH({ producto: 'Lavandina', litros: 1000, min_efectivos: 103 }),
@@ -52,6 +69,31 @@ describe('KPIs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tiempos vs. estándar' }))
     const celda = within(screen.getByRole('row', { name: /Lavandina/ })).getByText('35 %')
     expect(celda).toHaveClass('desvio-alto')
+  })
+
+  it('Productividad: 6 meses hasta el del rango, por operaria en la misma producción, con flecha y vs. equipo', async () => {
+    await montar()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Productividad' })))
+    const grupo = screen.getByRole('region', { name: 'Fabricación · Lavandina' })
+    const cabeceras = within(grupo).getAllByRole('columnheader').map((c) => c.textContent)
+    expect(cabeceras).toEqual(['Operaria', 'may 26', 'jun 26', 'jul 26', 'ago 26', 'sep 26', 'oct 26', 'vs. equipo'])
+    const ana = within(grupo).getByRole('row', { name: /^Ana/ })
+    expect(ana).toHaveTextContent('900')
+    // +50 % contra septiembre y +50 % contra el equipo de octubre
+    const subas = within(ana).getAllByText(/\+50 %/)
+    expect(subas).toHaveLength(2)
+    for (const e of subas) expect(e).toHaveClass('prod-sube')
+    const bea = within(grupo).getByRole('row', { name: /^Bea/ })
+    expect(within(bea).getAllByText(/-50 %/)[0]).toHaveClass('prod-baja')
+    expect(within(grupo).getByRole('row', { name: /^Equipo/ })).toHaveTextContent('600')
+
+    fireEvent.change(screen.getByLabelText('Buscar operaria o producto'), { target: { value: 'bea' } })
+    expect(within(screen.getByRole('region', { name: 'Fabricación · Lavandina' })).queryByRole('row', { name: /^Ana/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+    const [nombre, csv] = m.descargar.mock.calls.at(-1)!
+    expect(nombre).toBe('prodcontrol-kpis-productividad-2026-10-01_2026-10-31.csv')
+    expect(csv).toContain('Fabricación · Lavandina;L/h;Ana;;;;;600;900;600;50')
   })
 
   it('exporta la pestaña Productos', async () => {

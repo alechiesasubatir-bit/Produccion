@@ -384,7 +384,7 @@ export function NuevaOrden({
                     {advertencia}
                   </p>
                 )}
-                <fieldset className="campo">
+                <fieldset className="campo campo-opciones">
                   <legend>Etiquetado</legend>
                   <label>
                     <input
@@ -499,7 +499,7 @@ export function NuevaOrden({
                 <Campo id="o-flote" etiqueta="Lote">
                   <input id="o-flote" value={frac.lote} onChange={(e) => setFrac({ ...frac, lote: e.target.value })} />
                 </Campo>
-                <fieldset className="campo">
+                <fieldset className="campo campo-opciones">
                   <legend>Etiquetado</legend>
                   <label>
                     <input
