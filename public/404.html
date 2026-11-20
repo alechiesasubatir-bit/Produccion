@@ -6,10 +6,12 @@
     <script>
       // GitHub Pages sirve este archivo para cualquier ruta desconocida (/Produccion/planta?tanque=T-01).
       // Guardamos la ruta pedida y volvemos a la raíz de la SPA; index.html la restaura.
+      // La raíz va con ?v= para no tomar un index.html viejo de la caché (GitHub lo cachea 10 min): sin eso,
+      // después de un deploy el aviso de actualización recargaba una y otra vez la versión anterior.
       try {
         sessionStorage.setItem('prodcontrol_ruta', location.pathname + location.search + location.hash)
       } catch (e) {}
-      location.replace('/Produccion/')
+      location.replace('/Produccion/?v=' + Date.now())
     </script>
   </head>
   <body></body>
