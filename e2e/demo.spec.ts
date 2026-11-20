@@ -37,7 +37,8 @@ test('demo pública: sin usuario, en vivo, se puede tocar y no sale a la red', a
   await expect(page.getByRole('button', { name: 'Tanque T-16' })).toBeVisible()
 
   await page.getByRole('link', { name: 'Monitor' }).click()
-  await expect(page.getByRole('list', { name: 'Tanques' }).getByRole('listitem')).toHaveCount(16)
+  await expect(page.getByRole('region', { name: 'Fabricando' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Tanques' })).toHaveCount(0)
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.waitForTimeout(800)
   await page.screenshot({ path: 'test-results/demo-monitor-1920.png' })

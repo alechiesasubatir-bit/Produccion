@@ -76,10 +76,10 @@ describe('Monitor (TV)', () => {
   })
 
   it('con muchas tarjetas en una columna muestra las primeras y cuántas más hay', () => {
-    m.flujo = Array.from({ length: 9 }, () => fila({ estado: 'cola', corriendo: false, inicio: null, min_efectivos: null }))
+    m.flujo = Array.from({ length: 11 }, () => fila({ estado: 'cola', corriendo: false, inicio: null, min_efectivos: null }))
     montar()
     const cola = screen.getByRole('region', { name: 'Cola' })
-    expect(within(cola).getAllByRole('article')).toHaveLength(6)
+    expect(within(cola).getAllByRole('article')).toHaveLength(8)
     expect(within(cola).getByText('+3 más')).toBeInTheDocument()
   })
 
@@ -97,18 +97,8 @@ describe('Monitor (TV)', () => {
     expect(within(fabricando).getByText('En control')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Controlar' })).not.toBeInTheDocument()
     expect(m.canales.v_flujo).toContain('controles')
-    expect(screen.getByRole('list', { name: 'Tanques' }).querySelector('.estado-en_control')).not.toBeNull()
-  })
-
-  it('abajo, la tira de tanques con su nivel', () => {
-    m.flujo = []
-    m.tanques = [tanque({}), tanque({ tanque_id: 't2', codigo: 'T-02', estado: 'libre', producto: null, color: null, litros: null, litros_restantes: null })]
-    montar()
-    const tira = screen.getByRole('list', { name: 'Tanques' })
-    expect(within(tira).getByText('T-01')).toBeInTheDocument()
-    expect(within(tira).getByText('T-02')).toBeInTheDocument()
-    expect(within(tira).getByText('Lavandina')).toBeInTheDocument()
-    expect(within(tira).getByText('Libre')).toBeInTheDocument()
+    // sin la tira de tanques abajo: las columnas usan todo el alto
+    expect(screen.queryByRole('list', { name: 'Tanques' })).not.toBeInTheDocument()
   })
 
   it('tiene los contadores, la hora y se puede salir o pasar a pantalla completa', async () => {

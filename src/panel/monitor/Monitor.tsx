@@ -1,19 +1,16 @@
 import { LayoutGroup, MotionConfig } from 'motion/react'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { agruparFlujo, COLUMNAS, kpisFlujo } from '../../domain/flujo'
-import { nivelTanque } from '../../domain/tanque'
 import { ahoraPlanta, horaMontevideo } from '../../lib/hora'
 import { useRealtime } from '../../lib/useRealtime'
-import { useTanques } from '../../pages/ParedTanques'
-import { Tanque } from '../../ui/Tanque'
 import { cargarFlujo, cargarOperarias } from '../datosFlujo'
 import { usePausaGeneral } from '../datosPausaGeneral'
 import { FranjaPausa } from '../PausaGeneral'
 import { KpisFlujo } from '../KpisFlujo'
 import { TarjetaFlujo } from '../TarjetaFlujo'
 
-const VISIBLES = 6 // tarjetas por columna; el resto se cuenta
+const VISIBLES = 8 // tarjetas por columna (sin la tira de tanques entran 8 en una TV 16:9); el resto se cuenta
 
 function useHora() {
   const [ahora, setAhora] = useState(ahoraPlanta)
@@ -26,11 +23,10 @@ function useHora() {
 
 const sinAccion = () => {}
 
-// Vista para la TV de la planta: el flujo en grande, sin botones, con la tira de tanques abajo.
+// Vista para la TV de la planta: el flujo en grande, sin botones; las columnas usan todo el alto.
 export function Monitor({ salir }: { salir: string }) {
   const flujo = useRealtime('v_flujo', cargarFlujo, ['fabricaciones', 'envasados', 'fraccionados', 'participaciones', 'controles'])
   const operarias = useRealtime('v_operarias', cargarOperarias, ['operarias'])
-  const tanques = useTanques()
   const nombres = useMemo(() => new Map(operarias.datos.map((o) => [o.empleado_id, o.nombre])), [operarias.datos])
   const grupos = useMemo(() => agruparFlujo(flujo.datos), [flujo.datos])
   const kpis = useMemo(() => kpisFlujo(flujo.datos), [flujo.datos])
@@ -100,32 +96,6 @@ export function Monitor({ salir }: { salir: string }) {
             })}
           </div>
         </LayoutGroup>
-
-        <ul className="monitor-tanques" aria-label="Tanques">
-          {tanques.datos.map((t) => {
-            const libre = t.estado === 'libre'
-            const pct = t.litros && t.litros_restantes !== null ? Math.round((t.litros_restantes / t.capacidad_l) * 100) : null
-            return (
-              <li
-                key={t.tanque_id}
-                className={`monitor-tanque estado-${t.estado}`}
-                style={{ '--producto': t.color ?? undefined } as CSSProperties}
-              >
-                <Tanque
-                  estado={t.estado}
-                  color={t.color ?? undefined}
-                  tipo={t.producto_tipo}
-                  ancho={30}
-                  nivel={nivelTanque({ estado: t.estado, capacidad: t.capacidad_l, litros: t.litros, litrosRestantes: t.litros_restantes })}
-                  etiqueta={`Tanque ${t.codigo}: ${t.producto ?? 'libre'}`}
-                />
-                <span className="mt-codigo">{t.codigo}</span>
-                <span className="mt-producto">{libre ? 'Libre' : t.producto}</span>
-                {!libre && pct !== null && <span className="mt-pct">{pct}%</span>}
-              </li>
-            )
-          })}
-        </ul>
       </div>
     </MotionConfig>
   )

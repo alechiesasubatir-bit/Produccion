@@ -1695,6 +1695,11 @@ th[aria-sort='descending'] .th-orden::after {
   font-size: 12px;
 }
 
+/* con la franja de pausa general, las columnas quedan en la tercera fila */
+.monitor:has(> .franja-pausa) {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 /* ---------- Monitor (TV): ocupa toda la pantalla y escala con el ancho ---------- */
 
 .monitor {
@@ -1702,7 +1707,7 @@ th[aria-sort='descending'] .th-orden::after {
   inset: 0;
   z-index: 40;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 1.4vh;
   padding: 1.6vh 1.4vw 1.4vh;
   font-size: clamp(13px, 0.9vw, 24px);
@@ -1887,66 +1892,6 @@ th[aria-sort='descending'] .th-orden::after {
   font-family: var(--mono);
   font-size: 0.85em;
   text-align: center;
-}
-
-.monitor-tanques {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 0.5vw;
-  margin: 0;
-  padding: 1vh 0 0;
-  border-top: 1px solid var(--linea-2);
-  list-style: none;
-}
-
-.monitor-tanque {
-  --producto: var(--linea-2);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  column-gap: 0.4vw;
-  align-items: center;
-  padding: 0.6vh 0.4vw;
-  border: 1px solid var(--linea);
-  border-top: 3px solid var(--producto);
-  border-radius: var(--radio-chico);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--producto) 12%, var(--tarjeta)), var(--tarjeta) 70%);
-  min-width: 0;
-}
-
-.monitor-tanque .tanque {
-  grid-row: 1 / 4;
-  width: 1.6vw;
-  height: 3.2vw;
-}
-
-.mt-codigo {
-  font-family: var(--mono);
-  font-size: 0.9em;
-  font-weight: 600;
-}
-
-.mt-producto {
-  overflow: hidden;
-  color: var(--tinta-2);
-  font-size: 0.7em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mt-pct {
-  font-family: var(--mono);
-  font-size: 0.75em;
-  color: color-mix(in srgb, var(--producto) 60%, var(--tinta));
-}
-
-.monitor-tanque.estado-libre {
-  opacity: 0.55;
-}
-
-.monitor-tanque:is(.estado-fabricando, .estado-envasando) {
-  animation: respirar 3.2s ease-in-out infinite;
 }
 
 /* ---------- Modal en pantallas bajas: más compacto y con los botones siempre a la vista ---------- */
@@ -2702,11 +2647,6 @@ th[aria-sort='descending'] .th-orden::after {
 }
 
 /* ---------- Control para liberación ---------- */
-
-.monitor-tanque.estado-en_control {
-  box-shadow: 0 0 0 2px #c5cdf1;
-  background: #e6e9fb;
-}
 
 .controles-orden {
   display: grid;
