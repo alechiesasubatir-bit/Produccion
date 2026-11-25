@@ -22,7 +22,7 @@ const PESTANAS: Pestana[] = [
   { a: '', texto: 'Flujo', end: true, enDemo: true },
   { a: '/tanques', texto: 'Tanques', end: false, enDemo: true },
   { a: '/historial', texto: 'Historial', end: false, enDemo: false },
-  { a: '/kpis', texto: 'KPIs', end: false, enDemo: false },
+  { a: '/kpis', texto: 'KPIs', end: false, enDemo: true },
   { a: '/alertas', texto: 'Alertas', end: false, enDemo: false },
   { a: '/config', texto: 'Configuración', end: false, enDemo: false },
   { a: '/monitor', texto: 'Monitor', end: false, enDemo: true },
@@ -93,10 +93,10 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
           <Route path="tanques" element={<Tanques />} />
           <Route path="monitor" element={<Monitor salir={base} />} />
           <Route path="tablet" element={<VistaTablet demo={demo} />} />
+          <Route path="kpis" element={<Kpis />} />
           {!demo && (
             <>
               <Route path="historial" element={<Historial />} />
-              <Route path="kpis" element={<Kpis />} />
               <Route path="alertas" element={<Alertas todas={alertas.todas} recargar={alertas.recargar} />} />
               <Route path="config" element={<Configuracion />} />
             </>

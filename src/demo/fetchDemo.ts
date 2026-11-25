@@ -9,7 +9,7 @@ const responder = (cuerpo: unknown, status = 200) =>
 
 const IGNORAR = new Set(['select', 'order', 'limit', 'offset', 'columns', 'on_conflict'])
 
-// Filtros PostgREST que usa la app: eq, neq, in, is.
+// Filtros PostgREST que usa la app: eq, neq, in, is, y los de rango gt, gte, lt, lte.
 function filtrar(filas: Fila[], params: URLSearchParams): Fila[] {
   let r = filas
   for (const [col, expr] of params) {
@@ -21,7 +21,20 @@ function filtrar(filas: Fila[], params: URLSearchParams): Fila[] {
     if (op === 'eq') r = r.filter((f) => texto(f) === valor)
     else if (op === 'neq') r = r.filter((f) => texto(f) !== valor)
     else if (op === 'is') r = r.filter((f) => texto(f) === valor)
-    else if (op === 'in') {
+    else if (op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte') {
+      // Números como números; fechas YYYY-MM-DD e ISO se comparan bien como texto.
+      const cmp = (f: Fila) => {
+        const x = f[col]
+        if (x === null || x === undefined) return null
+        const t = String(x)
+        return typeof x === 'number' ? x - Number(valor) : t < valor ? -1 : t > valor ? 1 : 0
+      }
+      const ok = { gt: (c: number) => c > 0, gte: (c: number) => c >= 0, lt: (c: number) => c < 0, lte: (c: number) => c <= 0 }[op]
+      r = r.filter((f) => {
+        const c = cmp(f)
+        return c !== null && ok(c)
+      })
+    } else if (op === 'in') {
       const lista = new Set(valor.replace(/^\(|\)$/g, '').split(',').map((v) => v.replace(/^"|"$/g, '')))
       r = r.filter((f) => lista.has(texto(f)))
     }

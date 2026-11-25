@@ -1,6 +1,8 @@
 // Simulador de planta para la DEMO: una "base de datos" en memoria que avanza sola por minutos
 // simulados. Devuelve las mismas vistas que Supabase (v_flujo, v_tanque_estado, …) para que la app
 // real las muestre sin cambios. Las transiciones son las del dominio (accionesPosibles).
+import { azarCon } from './azar'
+import { generarHistorico } from './historico'
 import { accionesPosibles, type Accion, type Entidad } from '../domain/acciones'
 import type { CodigoError } from '../lib/errores'
 import {
@@ -191,18 +193,6 @@ export type Simulador = {
   arranqueGeneral(ordenes: Fila[] | null): { ok: true; reanudadas: number } | Rechazo
 }
 
-// PRNG determinista (mulberry32): la misma semilla da la misma película.
-function azarCon(semilla: number) {
-  let a = semilla >>> 0
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
 const ABIERTA_FAB = new Set(['cola', 'fabricando', 'pausada', 'en_control', 'para_envasar'])
 const TAREA_FAB = new Set(['cola', 'fabricando', 'pausada', 'en_control'])
 const CORRIENDO = new Set(['fabricando', 'activo'])
@@ -213,11 +203,20 @@ const ORDEN_ENTIDAD: Record<Entidad, number> = { envasado: 1, fabricacion: 2, fr
 // HH:MM de Montevideo, como to_char(… at time zone 'America/Montevideo', 'HH24:MI').
 const HORA_MVD = new Intl.DateTimeFormat('es-UY', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Montevideo' })
 
-export function crearSimulador(opts: { inicio: number; semilla?: number; calentar?: number; autonomo?: boolean }): Simulador {
-  const azar = azarCon(opts.semilla ?? Date.now())
+// `mesesHistorico`: además del día simulado, tareas terminadas de los meses anteriores (solo en v_historial, para KPIs).
+export function crearSimulador(opts: {
+  inicio: number
+  semilla?: number
+  calentar?: number
+  autonomo?: boolean
+  mesesHistorico?: number
+}): Simulador {
+  const semilla = opts.semilla ?? Date.now()
+  const azar = azarCon(semilla)
   const autonomo = opts.autonomo ?? true
   const calentar = opts.calentar ?? 180
   let t = opts.inicio - calentar * MIN
+  const historico = opts.mesesHistorico ? generarHistorico({ hasta: t, semilla, meses: opts.mesesHistorico }) : []
   let sec = 0
   let numLote = 2200
   const fabs: Fab[] = []
@@ -1266,7 +1265,7 @@ export function crearSimulador(opts: { inicio: number; semilla?: number; calenta
         min_efectivos: x.inicio === null ? null : x.efectivos,
       }
     }
-    const filas: Fila[] = []
+    const filas: Fila[] = historico.map((h) => ({ ...h }))
     for (const f of fabs) {
       const p = producto(f.producto_id)
       filas.push({

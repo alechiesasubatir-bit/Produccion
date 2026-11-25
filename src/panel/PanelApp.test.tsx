@@ -89,10 +89,10 @@ describe('PanelApp', () => {
     expect(screen.getByRole('link', { name: 'Tablet' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('en la demo: solo Flujo, Tanques, Monitor y Tablet, con los controles de la demo y sin usuario', () => {
+  it('en la demo: solo Flujo, Tanques, KPIs, Monitor y Tablet, con los controles de la demo y sin usuario', () => {
     montar('/demo/tanques')
     expect(screen.getByText('vista tanques')).toBeInTheDocument()
-    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Flujo', 'Tanques', 'Monitor', 'Tablet'])
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Flujo', 'Tanques', 'KPIs', 'Monitor', 'Tablet'])
     expect(screen.getByRole('link', { name: 'Tanques' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText('controles de la demo')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument()

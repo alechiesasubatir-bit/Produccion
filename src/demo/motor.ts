@@ -18,7 +18,7 @@ export type Motor = {
 }
 
 export function crearMotor(opts: { semilla?: number } = {}): Motor {
-  const nuevo = () => crearSimulador({ inicio: Date.now(), semilla: opts.semilla ?? Date.now() })
+  const nuevo = () => crearSimulador({ inicio: Date.now(), semilla: opts.semilla ?? Date.now(), mesesHistorico: 6 })
   let sim = nuevo()
   let velocidad = 60
   let acumulado = 0 // minutos simulados pendientes (a velocidades bajas se juntan segundos)

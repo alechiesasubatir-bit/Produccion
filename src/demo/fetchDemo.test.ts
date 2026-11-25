@@ -38,6 +38,16 @@ describe('fetch de la demo (contrato PostgREST sobre el simulador)', () => {
     expect(ninguno.data).toEqual([])
   })
 
+  it('aplica filtros de rango gte, lte, gt y lt (el rango de fechas de Historial y KPIs)', async () => {
+    const { db } = cliente()
+    const dias = await db.from('tanques').select('codigo').gte('orden', 3).lte('orden', 5).order('orden')
+    expect(dias.data?.map((t) => t.codigo)).toEqual(['T-03', 'T-04', 'T-05'])
+    const abiertos = await db.from('tanques').select('codigo').gt('orden', 3).lt('orden', 5)
+    expect(abiertos.data?.map((t) => t.codigo)).toEqual(['T-04'])
+    const fuera = await db.from('v_historial').select('*').gte('dia', '2020-01-01').lte('dia', '2020-01-31')
+    expect(fuera.data).toEqual([])
+  })
+
   it('una nueva orden aparece en el flujo; el tanque ocupado da el error de la base', async () => {
     const onCambio = vi.fn()
     const { db } = cliente(onCambio)
