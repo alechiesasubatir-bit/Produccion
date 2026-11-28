@@ -1,0 +1,65 @@
+/* Pestaña DEMO y barra de la demo */
+
+/* ---------- pestaña DEMO y barra de la demo ---------- */
+
+.pestana-demo {
+  gap: 6px;
+  color: var(--senal);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.pestana-demo::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--senal);
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+.barra-demo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-sello {
+  padding: 4px 8px;
+  white-space: nowrap;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, var(--senal) 0 10px, var(--marca-oscuro) 10px 20px);
+  color: var(--boton-tinta);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.demo-hora {
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: var(--tinta);
+  color: var(--papel);
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-velocidad {
+  margin: 0;
+}
+
+.demo-velocidad .segmento {
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* con la franja de pausa general, las columnas quedan en la tercera fila */
+.monitor:has(> .franja-pausa) {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}

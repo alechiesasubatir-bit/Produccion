@@ -14,6 +14,7 @@ import { Confirmacion } from './Confirmacion'
 import { MisTareas } from './MisTareas'
 import { QuienTrabaja, type OperariaFila } from './QuienTrabaja'
 import { useInactividad } from './useInactividad'
+import { PulsoVivo } from '../ui/PulsoVivo'
 import './planta.css'
 
 const INACTIVIDAD_MS = 30_000
@@ -135,6 +136,7 @@ export function PlantaApp({ embebida = false }: { embebida?: boolean } = {}) {
         </span>
         <div className="planta-barra-der">
           {activa && <AnilloInactividad restante={restante} totalSeg={INACTIVIDAD_MS / 1000} />}
+          <PulsoVivo />
           <Reloj />
         </div>
       </header>

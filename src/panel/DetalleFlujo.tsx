@@ -3,7 +3,9 @@ import { accionesPosibles, type Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { confirmacionPanel, etiquetaPanel, tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
+import { etapasDe } from '../domain/etapas'
 import { Chip } from '../ui/Chip'
+import { Etapas } from '../ui/Etapas'
 import { Tanque } from '../ui/Tanque'
 import { ControlesOrden } from './ControlesOrden'
 import { Modal } from './Modal'
@@ -51,6 +53,7 @@ export function DetalleFlujo({
   const esFab = fila.entidad === 'fabricacion'
   const lista = esFab && fila.estado === 'para_envasar' && !!onCargarEnvasado
   const titulo = tituloTarea(fila)
+  const etapasFila = etapasDe(fila.entidad, fila.estado)
 
   const tocar = (a: Accion) => {
     if (CONFIRMAR.includes(a) && confirmando !== a) {
@@ -81,6 +84,7 @@ export function DetalleFlujo({
           <dd className="df-estado">
             <Chip estado={chipDe(fila)} />
             <Cronometro tarea={fila} cargadoEn={cargadoEn} />
+            {etapasFila && <Etapas etapas={etapasFila} />}
           </dd>
           {fila.tanque_codigo && (
             <>

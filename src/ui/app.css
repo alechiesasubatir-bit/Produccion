@@ -22,10 +22,10 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   min-height: 60px;
-  padding: 0 28px;
-  border-bottom: 1px solid var(--slate-900);
+  padding: 0 24px;
+  border-bottom: 1px solid var(--barra-linea);
   background: var(--barra);
   color: var(--barra-tinta);
 }
@@ -109,7 +109,7 @@
   border: 1px solid var(--linea);
   border-radius: var(--radio);
   box-shadow: var(--sombra);
-  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.25s var(--ease);
   animation: aparecer 0.5s var(--ease) both;
 }
 
@@ -178,9 +178,9 @@
   z-index: 4;
   margin: -32px -28px 24px;
   padding: 10px 28px;
-  background: repeating-linear-gradient(-45deg, #fbe7b0 0 12px, #f8dd95 12px 24px);
-  color: #6b3a07;
-  border-bottom: 1px solid #e9c66b;
+  background: repeating-linear-gradient(-45deg, var(--banda-raya-1) 0 12px, var(--banda-raya-2) 12px 24px);
+  color: var(--banda-tinta);
+  border-bottom: 1px solid var(--banda-linea);
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 500;
@@ -203,65 +203,8 @@
 
 .aviso-error {
   margin: 0;
-  color: #8f1d0f;
+  color: var(--error-tinta);
   font-size: 13px;
-}
-
-/* ---------- botones ---------- */
-
-.boton {
-  appearance: none;
-  border: 1px solid var(--tinta);
-  background: var(--tinta);
-  color: #fff;
-  font: inherit;
-  font-weight: 500;
-  padding: 9px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 1px 0 rgb(15 23 42 / 0.2);
-  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
-}
-
-.boton:hover {
-  background: var(--slate-800);
-  box-shadow: inset 0 -2px 0 var(--senal), 0 1px 0 rgb(15 23 42 / 0.2);
-}
-
-/* el botón principal lleva el naranja de Subatir */
-.boton:not(.boton-sec) {
-  border-color: var(--marca-oscuro);
-  background: var(--marca-oscuro);
-}
-
-.boton:not(.boton-sec):hover {
-  background: var(--marca-hover);
-  box-shadow: 0 1px 0 rgb(15 23 42 / 0.2);
-}
-
-.boton:focus-visible,
-.tarjeta-login input:focus-visible {
-  outline: 2px solid var(--foco);
-  outline-offset: 2px;
-}
-
-.boton:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.boton-sec {
-  background: var(--tarjeta);
-  color: var(--tinta);
-  border-color: var(--linea-2);
-  padding: 6px 12px;
-  box-shadow: 0 1px 0 var(--linea);
-}
-
-.boton-sec:hover {
-  background: var(--papel-2);
-  border-color: var(--tinta-2);
-  box-shadow: 0 1px 0 var(--linea);
 }
 
 /* ---------- pantallas centradas: carga, login, sin acceso ---------- */
@@ -299,7 +242,7 @@
   background: var(--tarjeta);
   border: 1px solid var(--tinta);
   border-radius: 4px;
-  box-shadow: 6px 6px 0 var(--tinta);
+  box-shadow: var(--sombra-alta);
   animation: aparecer 0.6s var(--ease) both;
 }
 
@@ -362,88 +305,13 @@
   padding: 10px 12px;
   border: 1px solid var(--linea-2);
   border-radius: 6px;
-  background: #fff;
+  background: var(--tarjeta);
   color: var(--tinta);
 }
 
 .tarjeta-login .boton {
   margin-top: 4px;
   padding: 11px 16px;
-}
-
-/* ---------- vida: color y movimiento ---------- */
-
-/* espectro de estados bajo el encabezado, en movimiento lento */
-.encabezado::after,
-.planta-barra::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--apagado), #16a34a, #0d9488, #0284c7, #d97706, #7c3aed, var(--senal), var(--apagado));
-  background-size: 200% 100%;
-  animation: espectro 14s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes espectro {
-  to { background-position: -200% 0; }
-}
-
-/* tanques ocupados: fondo teñido por el producto; en uso: respiran con su color */
-.pared-celda:not(:has(.tanque[data-estado='libre'])) {
-  background:
-    linear-gradient(to bottom, color-mix(in srgb, var(--producto) 13%, var(--tarjeta)), var(--tarjeta) 62%);
-}
-
-.pared-celda:has(.tanque:is([data-estado='fabricando'], [data-estado='envasando'])) {
-  animation: aparecer 0.5s var(--ease) both, respirar 3.2s 0.8s ease-in-out infinite;
-}
-
-.pared-celda:has(.tanque:is([data-estado='pausada'], [data-estado='env_pausado']))::after {
-  content: 'pausa';
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--senal);
-  color: #fff;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  animation: latido 1.6s ease-in-out infinite;
-}
-
-.pared-celda:hover {
-  transform: translateY(-3px);
-}
-
-.pared-celda {
-  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), transform 0.25s var(--ease);
-}
-
-/* botón principal: destello que cruza al pasar el mouse */
-.boton:not(.boton-sec) {
-  position: relative;
-  overflow: hidden;
-}
-
-.boton:not(.boton-sec)::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%);
-  transform: translateX(-120%);
-  transition: transform 0.7s var(--ease);
-  pointer-events: none;
-}
-
-.boton:not(.boton-sec):hover::after {
-  transform: translateX(120%);
 }
 
 /* ---------- aviso de versión nueva publicada ---------- */
@@ -463,7 +331,7 @@
   border: 1px solid var(--tinta);
   border-radius: var(--radio);
   background: var(--tarjeta);
-  box-shadow: 6px 6px 0 var(--tinta);
+  box-shadow: var(--sombra-alta);
   font-size: 14px;
   animation: aparecer 0.4s var(--ease) both;
 }
@@ -483,30 +351,24 @@
 
 /* tanque en control: índigo, igual que el chip */
 .pared-celda:has(.tanque[data-estado='en_control']) {
-  box-shadow: 0 0 0 2px #c5cdf1;
+  box-shadow: 0 0 0 2px var(--indigo-200);
 }
 
 .tanque[data-estado='en_control'] .vidrio {
-  stroke: #2b3a8f;
+  stroke: var(--etapa-control-tinta);
 }
 
-/* ---------- barra superior oscura (pizarra industrial) ----------
-   Dentro de la barra los tokens de texto y línea se invierten, así lo que ya usa --tinta o --linea
-   (anillo de inactividad, separadores) se ve sobre el fondo oscuro sin reglas propias. */
+/* ---------- barra superior blanca (base B) ----------
+   Fondo blanco con una línea abajo; la pestaña activa se subraya en naranja (reglas base de .pestana). */
 .encabezado,
 .planta-barra {
-  --tinta: var(--barra-tinta);
-  --tinta-2: var(--barra-tinta-2);
-  --apagado: var(--slate-400);
-  --linea: var(--barra-2);
-  --linea-2: var(--slate-600);
   background: var(--barra);
   color: var(--barra-tinta);
-  border-bottom: 1px solid var(--slate-900);
+  border-bottom: 1px solid var(--barra-linea);
   backdrop-filter: none;
 }
 
-/* sin la franja de colores animada: la barra lisa ya separa */
+/* sin la franja de colores animada: la línea ya separa */
 .encabezado::after,
 .planta-barra::after {
   content: none;
@@ -516,50 +378,8 @@
   color: var(--barra-tinta-2);
 }
 
-.encabezado .pestana:hover,
-.encabezado .pestana[aria-current='page'] {
-  color: #fff;
-}
-
-.encabezado .pestana:hover::after {
-  background: var(--slate-500);
-}
-
 .encabezado .pestana[aria-current='page']::after {
   background: var(--marca);
-}
-
-.encabezado .pestana:focus-visible {
-  outline-color: #93c5fd;
-}
-
-.encabezado .boton-sec {
-  background: transparent;
-  color: var(--barra-tinta);
-  border-color: var(--slate-600);
-  box-shadow: none;
-}
-
-.encabezado .boton-sec:hover {
-  background: var(--barra-2);
-  border-color: var(--slate-400);
-}
-
-.encabezado .boton-pausa-general {
-  border-color: var(--slate-600);
-  background: var(--barra-2);
-  color: #fff;
-  box-shadow: inset 0 -3px 0 var(--marca);
-}
-
-.encabezado .boton-pausa-general:hover {
-  background: var(--slate-600);
-}
-
-.encabezado .boton-pausa-general.es-arranque {
-  border-color: var(--arranque-oscuro);
-  background: var(--arranque);
-  box-shadow: inset 0 -3px 0 var(--arranque-oscuro);
 }
 
 .encabezado .demo-hora,
@@ -570,10 +390,10 @@
 
 .encabezado .segmentos {
   background: var(--barra-2);
-  border-color: var(--slate-600);
+  border-color: var(--linea);
 }
 
 .encabezado .segmento[aria-pressed='true'] {
   background: var(--marca-oscuro);
-  color: #fff;
+  color: var(--boton-tinta);
 }

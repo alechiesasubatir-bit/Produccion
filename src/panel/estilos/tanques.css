@@ -1,0 +1,536 @@
+/* Tanques: pared de fichas, carrusel y detalle */
+
+/* ---------- Tanques ---------- */
+
+.pared-boton {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pared-boton:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
+.panel .pared-celda:hover {
+  border-color: var(--linea-2);
+  box-shadow: 0 1px 0 var(--linea-2), 0 16px 30px -20px rgb(15 23 42 / 0.45);
+}
+
+.pared-celda.elegida,
+.panel .pared-celda.elegida:hover {
+  border-color: var(--tinta);
+  box-shadow: var(--sombra-levantada);
+}
+
+.detalle-tanque {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--tinta);
+  border-radius: 6px;
+  background: var(--tarjeta);
+  box-shadow: var(--sombra-alta);
+  animation: deslizar 0.45s var(--ease) both;
+}
+
+@keyframes deslizar {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.detalle-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--tinta);
+}
+
+.detalle-cabecera h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.detalle-tanque-grande {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+}
+
+.detalle-datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 14px;
+  margin: 0;
+  font-size: 14px;
+  flex: 1;
+}
+
+.detalle-datos dt,
+.detalle-datos dd {
+  padding: 7px 0;
+  border-bottom: 1px dotted var(--linea-2);
+}
+
+.detalle-datos dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--apagado);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.detalle-datos dd {
+  margin: 0;
+}
+
+.detalle-seccion h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--tinta-2);
+}
+
+.detalle-seccion h3::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--linea);
+}
+
+.detalle-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.detalle-etiqueta {
+  min-width: 84px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.recorrido {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.detalle-lote {
+  margin: 0 auto 0 14px;
+  font-size: 13px;
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla-mp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabla-mp th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--linea-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tinta-2);
+}
+
+.tabla-mp td {
+  padding: 4px 8px;
+  border-bottom: 1px dashed var(--linea);
+}
+
+.tabla-mp th:nth-child(3),
+.tabla-mp td:nth-child(3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-lote-panel {
+  width: 9em;
+  padding: 3px 6px;
+  border: 1px solid var(--linea-2);
+  border-radius: var(--radio-chico);
+  font: inherit;
+}
+
+.mp-guardado {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--tinta-2);
+}
+
+.mp-error-panel {
+  display: block;
+  font-size: 11px;
+  color: var(--error-tinta);
+}
+
+.fila-mp td {
+  background: var(--papel-2);
+  padding: 10px 14px;
+}
+
+.qr-tanque {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+}
+
+.qr {
+  width: 168px;
+  height: 168px;
+}
+
+.qr svg {
+  width: 100%;
+  height: 100%;
+}
+
+.qr-tanque figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qr-url {
+  font-size: 11px;
+  color: var(--apagado);
+  word-break: break-all;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .qr-tanque,
+  .qr-tanque * {
+    visibility: visible;
+  }
+  .qr-tanque {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .qr {
+    width: 8cm;
+    height: 8cm;
+  }
+  .no-imprimir {
+    display: none;
+  }
+}
+
+/* ---------- Tanques: pared de fichas + carrusel 3D a la derecha ---------- */
+
+.tanques {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    'titulo titulo'
+    'pared carrusel';
+  column-gap: 24px;
+  align-items: start;
+}
+
+.tanques > .titulo-panel { grid-area: titulo; }
+
+.tanques-pared { grid-area: pared; min-width: 0; }
+
+.tanques > .carrusel { grid-area: carrusel; }
+
+.tanques > .detalle-tanque { grid-area: detalle; }
+
+/* con el panel del tanque abierto: en una laptop el carrusel pasa arriba de la pared */
+.tanques.con-detalle {
+  grid-template-columns: minmax(0, 1fr) 500px;
+  grid-template-areas:
+    'titulo detalle'
+    'carrusel detalle'
+    'pared detalle';
+  grid-template-rows: auto auto 1fr;
+}
+
+.tanques.con-detalle > .carrusel {
+  position: static;
+  margin-bottom: 18px;
+}
+
+@media (min-width: 1600px) {
+  .tanques.con-detalle {
+    grid-template-columns: minmax(0, 1fr) 320px 500px;
+    grid-template-areas:
+      'titulo titulo detalle'
+      'pared carrusel detalle';
+    grid-template-rows: auto 1fr;
+  }
+
+  .tanques.con-detalle > .carrusel {
+    position: sticky;
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .tanques,
+  .tanques.con-detalle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'titulo' 'carrusel' 'detalle' 'pared';
+    grid-template-rows: none;
+  }
+
+  .tanques > .carrusel {
+    position: static;
+    margin-bottom: 18px;
+  }
+}
+
+/* fichas más chicas en la pared del panel */
+.tanques .pared {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.tanques .pared-celda {
+  gap: 4px;
+  padding: 12px 8px 9px;
+}
+
+.tanques .pared-codigo {
+  margin-top: 4px;
+  padding-top: 6px;
+  font-size: 13.5px;
+}
+
+.tanques .pared-capacidad {
+  font-size: 10px;
+}
+
+.tanques .pared-producto {
+  font-size: 11.5px;
+}
+
+.tanques .pared-celda .chip {
+  transform: scale(0.9);
+}
+
+/* el carrusel */
+.carrusel {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 14px 16px;
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  isolation: isolate;
+}
+
+.carrusel-escenario {
+  position: relative;
+  height: 220px;
+  perspective: 760px;
+  perspective-origin: 50% 15%;
+  overflow: hidden;
+  border-radius: var(--radio-chico);
+  background:
+    radial-gradient(70% 60% at 50% 88%, rgb(15 23 42 / 0.1), transparent 70%),
+    linear-gradient(to bottom, var(--papel), var(--tarjeta));
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.carrusel-escenario:active {
+  cursor: grabbing;
+}
+
+.carrusel-escenario:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 3px;
+}
+
+.carrusel-anillo {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.carrusel-item {
+  --producto: var(--linea-2);
+  appearance: none;
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  width: 92px;
+  margin-left: -46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 8px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--producto) 14%, var(--tarjeta)), var(--tarjeta) 65%);
+  box-shadow: 0 14px 22px -16px rgb(15 23 42 / 0.55);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  backface-visibility: hidden;
+}
+
+.carrusel-item::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--producto);
+}
+
+.carrusel-item.al-frente {
+  border-color: var(--tinta);
+  box-shadow: var(--sombra-levantada);
+}
+
+.carrusel-item.elegida::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--senal);
+}
+
+.carrusel-codigo {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.carrusel-mando {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.carrusel-flecha {
+  appearance: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--linea-2);
+  border-radius: 50%;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.carrusel-flecha:hover {
+  border-color: var(--tinta);
+  background: var(--papel);
+}
+
+.carrusel-flecha:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.carrusel-frente {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.carrusel-frente strong {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.carrusel-frente span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.carrusel-frente .carrusel-litros {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.carrusel-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.carrusel-cuenta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.carrusel-usar {
+  width: 100%;
+}

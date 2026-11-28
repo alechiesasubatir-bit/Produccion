@@ -23,14 +23,53 @@
   --azul-50: #e6f2fa;
   --verde-600: #059669;
   --rojo-600: #dc2626;
+  /* base B: fondo gris frío y gris apagado que llega a AA sobre él (#64748b no llega sobre #f4f5f7) */
+  --gris-fondo: #f4f5f7;
+  --gris-fondo-2: #eceef2;
+  --gris-apagado: #566476;
+  /* etapas: fondo claro y tinta oscura del mismo tono (AA) */
+  --azul-100: #dbeafe;
+  --azul-800: #1d4ed8;
+  --indigo-100: #e0e7ff;
+  --indigo-800: #3730a3;
+  --ambar-100: #fef3c7;
+  --ambar-800: #92400e;
+  --rojo-100: #fee2e2;
+  --rojo-700: #b91c1c;
+  --verde-100: #dcfce7;
+  --verde-700: #047857;
+  --blanco: #fff;
+  --negro: #000;
+  --ambar-600: #d97706;
+  --azul-200: #bcdcef;
+  --verde-arranque-600: #15803d;
+  --verde-arranque-700: #166534;
+  --verde-arranque-50: #e8f5ec;
+  --verde-linea: #86c39b;
+  --verde-suave: #eef7f0;
+  --indigo-200: #c5cdf1;
+  --rojo-200: #f5c3b8;
+  --rojo-500: #ef4444;
+  --marco-tablet: #1c1c1e;
+  /* banda «sin conexión»: rayas ámbar */
+  --banda-raya-1: #fbe7b0;
+  --banda-raya-2: #f8dd95;
+  --banda-tinta: #6b3a07;
+  --banda-linea: #e9c66b;
+  /* espectro: adornos multicolores (franja del monitor, anillo de la tablet, para envasar) */
+  --espectro-verde: #16a34a;
+  --espectro-teal: #0d9488;
+  --espectro-celeste: #0284c7;
+  --espectro-violeta: #7c3aed;
+  --espectro-ambar: #f59e0b;
 
   /* 2 · semánticos (los nombres de siempre, valores nuevos) */
-  --papel: var(--slate-50);
-  --papel-2: var(--slate-100);
-  --tarjeta: #fff;
+  --papel: var(--gris-fondo);
+  --papel-2: var(--gris-fondo-2);
+  --tarjeta: var(--blanco);
   --tinta: var(--slate-900);
   --tinta-2: var(--slate-600);
-  --apagado: var(--slate-500);
+  --apagado: var(--gris-apagado);
   --linea: var(--slate-200);
   --linea-2: var(--slate-300);
   --vacio: var(--slate-300);
@@ -39,11 +78,43 @@
   --ok: var(--verde-600);
   --mal: var(--rojo-600);
 
-  /* barra superior oscura */
-  --barra: var(--slate-800);
-  --barra-2: var(--slate-700);
-  --barra-tinta: var(--slate-50);
-  --barra-tinta-2: var(--slate-300);
+  /* barra superior blanca con línea inferior (base B) */
+  --barra: var(--blanco);
+  --barra-2: var(--papel);
+  --barra-linea: var(--linea);
+  --barra-tinta: var(--tinta);
+  --barra-tinta-2: var(--tinta-2);
+
+  /* etapas: chips, barra de etapas y tanques usan la misma fuente */
+  --etapa-cola-fondo: var(--slate-100);
+  --etapa-cola-tinta: var(--slate-600);
+  --etapa-fabricando-fondo: var(--azul-100);
+  --etapa-fabricando-tinta: var(--azul-800);
+  --etapa-control-fondo: var(--indigo-100);
+  --etapa-control-tinta: var(--indigo-800);
+  --etapa-envasando-fondo: var(--naranja-50);
+  --etapa-envasando-tinta: var(--naranja-700);
+  --etapa-fraccionado-fondo: var(--ambar-100);
+  --etapa-fraccionado-tinta: var(--ambar-800);
+  --etapa-pausado-fondo: var(--rojo-100);
+  --etapa-pausado-tinta: var(--rojo-700);
+  --etapa-terminada-fondo: var(--verde-100);
+  --etapa-terminada-tinta: var(--verde-700);
+  --etapa-libre-linea: var(--linea-2);
+
+  /* mensajes: aviso (ámbar), error (rojo), ok (verde) */
+  --aviso-linea: var(--ambar-600);
+  --aviso-fondo: var(--ambar-100);
+  --aviso-tinta: var(--ambar-800);
+  --error-fondo: var(--rojo-100);
+  --error-tinta: var(--rojo-700);
+  --ok-fondo: var(--verde-100);
+  --ok-tinta: var(--verde-700);
+
+  /* arranque después de una pausa general (verde) */
+  --arranque: var(--verde-arranque-600);
+  --arranque-oscuro: var(--verde-arranque-700);
+  --arranque-suave: var(--verde-arranque-50);
 
   /* color de marca (el naranja del logo de Subatir): el claro para marcas y detalles, el oscuro para
      botones con letra blanca (el claro no llega a 4,5:1) */
@@ -60,8 +131,16 @@
   --radio-chico: 6px;
   --sombra: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 0 rgb(15 23 42 / 0.03);
   --sombra-alta: 0 24px 48px -20px rgb(15 23 42 / 0.35);
+  --sombra-levantada: 0 14px 28px -14px rgb(15 23 42 / 0.35);
   --boton-fondo: var(--marca-oscuro);
-  --boton-tinta: #fff;
+  --boton-tinta: var(--blanco);
+
+  /* cifras: Fira Code liviana, tabular */
+  --cifra-xl: 30px;
+  --cifra-l: 22px;
+  --cifra-m: 16px;
+  --cifra-peso: 300;
+  --cifra-tracking: -0.02em;
 
   --titulo: 'Fira Sans', system-ui, sans-serif;
   --sans: 'Fira Sans', system-ui, sans-serif;
@@ -95,186 +174,4 @@ body {
 ::selection {
   background: var(--senal);
   color: #fff;
-}
-
-/* ---------- animaciones compartidas ---------- */
-@keyframes ola {
-  to {
-    transform: translateX(-60px);
-  }
-}
-
-@keyframes burbuja {
-  0% {
-    transform: translateY(0) scale(.6);
-    opacity: 0;
-  }
-  15% {
-    opacity: .85;
-  }
-  100% {
-    transform: translateY(-90px) scale(1.1);
-    opacity: 0;
-  }
-}
-
-@keyframes polvo-cae {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(var(--caida, 60px));
-    opacity: 0;
-  }
-}
-
-@keyframes pulso {
-  50% {
-    opacity: .25;
-    transform: scale(.6);
-  }
-}
-
-/* entrada escalonada (una sola vez, al montar) */
-@keyframes aparecer {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-@keyframes trazar {
-  from {
-    transform: scaleX(0);
-  }
-}
-
-/* ---------- chips de estado: etiquetas de muestra ---------- */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  line-height: 1.4;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 8px 2px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-
-.chip i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.chip.en-curso i {
-  animation: pulso 1.4s ease-in-out infinite;
-}
-
-.chip-fabricando { background: #e3f6e8; color: #14532d; border-color: #bfe5ca; }
-.chip-envasando { background: #e2f1fa; color: #0c4a6e; border-color: #bcdcef; }
-.chip-fraccionado { background: #fbf0d6; color: #7c3d0c; border-color: #efd9a3; }
-.chip-pausado { background: #fde6e1; color: #8f1d0f; border-color: #f5c3b8; }
-.chip-control { background: #e6e9fb; color: #2b3a8f; border-color: #c5cdf1; }
-.chip-cola { background: var(--slate-100); color: var(--slate-600); border-color: var(--slate-200); }
-.chip-terminada { background: #ece8f7; color: #4c2a8a; border-color: #d4cbef; }
-.chip-libre { background: transparent; color: var(--apagado); border: 1px dashed var(--linea-2); }
-
-/* ---------- vida: color y movimiento compartidos ---------- */
-
-/* el líquido sube al aparecer el tanque (después queda el nivel real del estilo en línea) */
-@keyframes llenar {
-  from {
-    transform: translateY(114px);
-  }
-}
-
-.tanque .liquido {
-  animation: llenar 1.4s 0.2s var(--ease) backwards;
-}
-
-/* brillo que recorre el vidrio de los tanques en uso */
-.tanque:is([data-estado='fabricando'], [data-estado='envasando']) .vidrio {
-  animation: destello 4s ease-in-out infinite;
-}
-
-@keyframes destello {
-  0%, 100% { stroke-opacity: 1; }
-  50% { stroke-opacity: 0.55; }
-}
-
-/* chips en curso: un barrido de luz */
-.chip.en-curso {
-  background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.75) 50%, transparent 70%);
-  background-size: 250% 100%;
-  background-repeat: no-repeat;
-  animation: barrido 2.8s ease-in-out infinite;
-}
-
-@keyframes barrido {
-  from { background-position: 150% 0; }
-  to { background-position: -50% 0; }
-}
-
-@keyframes respirar {
-  0%, 100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--producto) 0%, transparent), var(--sombra);
-  }
-  50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--producto) 22%, transparent), 0 10px 30px -12px color-mix(in srgb, var(--producto) 55%, transparent);
-  }
-}
-
-@keyframes latido {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.7); }
-}
-
-@keyframes onda {
-  from {
-    transform: scale(0.4);
-    opacity: 0.7;
-  }
-  to {
-    transform: scale(2.6);
-    opacity: 0;
-  }
-}
-
-/* ---------- movimiento reducido: sin olas, burbujas, entradas ni transiciones ---------- */
-@media (prefers-reduced-motion: reduce) {
-  .ola,
-  .burbuja,
-  .liquido,
-  .grano,
-  .polvo,
-  .chip i {
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .burbuja {
-    opacity: 0;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }

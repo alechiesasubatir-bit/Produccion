@@ -1,0 +1,465 @@
+/* KPIs, proyecciones y Productividad mes a mes */
+
+/* ---------- KPIs y proyecciones ---------- */
+
+.kpis-grandes {
+  margin: 4px 0 20px;
+}
+
+.kpis-grandes .kpi-valor {
+  font-size: 40px;
+}
+
+.kpis-grandes .kpi {
+  min-width: 150px;
+  padding: 14px 20px 16px;
+}
+
+.kpis-vista .segmentos {
+  margin-bottom: 14px;
+}
+
+.desvio-ok { color: var(--ok-tinta); font-weight: 600; }
+
+.desvio-medio { color: var(--aviso-tinta); font-weight: 600; }
+
+.desvio-alto { color: var(--error-tinta); font-weight: 600; }
+
+.proyeccion {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+.avance {
+  height: 5px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, var(--papel-2) 0 9px, var(--linea) 9px 10px);
+  overflow: hidden;
+}
+
+.avance i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--producto, var(--ok));
+  transition: width 0.6s var(--ease);
+  background-image: repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.35) 0 6px, transparent 6px 12px);
+  background-size: 17px 17px;
+  animation: avanzar 0.9s linear infinite;
+}
+
+.avance.pasado i {
+  background: var(--senal);
+}
+
+/* ---------- KPIs · Productividad mes a mes ---------- */
+.prod-nota {
+  max-width: 80ch;
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tinta-2);
+}
+
+.prod-nota summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.prod-nota p {
+  margin: 6px 0 0;
+}
+
+/* resumen: cuatro datos que se leen de un vistazo */
+.prod-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.prod-dato {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+
+.prod-dato-titulo {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--apagado);
+}
+
+.prod-dato-valor {
+  font-family: var(--mono);
+  font-size: var(--cifra-xl);
+  font-weight: var(--cifra-peso);
+  letter-spacing: var(--cifra-tracking);
+  line-height: 1.15;
+  color: var(--tinta);
+}
+
+.prod-dato-nombre {
+  overflow: hidden;
+  font-family: var(--titulo);
+  font-size: 20px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prod-dato-par {
+  display: flex;
+  gap: 18px;
+}
+
+.prod-marca {
+  margin-right: 4px;
+  font-size: 0.6em;
+  font-style: normal;
+  vertical-align: 0.25em;
+}
+
+.prod-marca-sube { color: var(--ok); }
+
+.prod-marca-baja { color: var(--mal); }
+
+.prod-dato-pie {
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+/* cada operaria contra el equipo: barras divergentes desde el 0 */
+.prod-ranking {
+  margin: 0 0 18px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+}
+
+.prod-ranking h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.prod-sub {
+  margin: 2px 0 12px;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.prod-barras {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prod-barra-fila,
+.prod-barras-eje {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+}
+
+.prod-barra-fila {
+  min-height: 26px;
+  border-radius: 4px;
+}
+
+.prod-barra-fila:hover {
+  background: var(--papel-2);
+}
+
+.prod-barra-nombre {
+  overflow: hidden;
+  padding-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prod-barra-pista {
+  position: relative;
+  height: 12px;
+}
+
+/* línea del equipo (0) */
+.prod-barra-pista::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: 50%;
+  width: 1px;
+  background: var(--linea-2);
+}
+
+.prod-barra {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+}
+
+.prod-barra-mas {
+  border-radius: 0 4px 4px 0;
+  background: var(--ok);
+}
+
+.prod-barra-menos {
+  border-radius: 4px 0 0 4px;
+  background: var(--mal);
+}
+
+.prod-barra-valor {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.prod-barras-eje {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.prod-barras-escala {
+  display: flex;
+  justify-content: space-between;
+}
+
+.prod-dato-valor small {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+.prod-grupo-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+}
+
+.prod-grupo-cabeza h3 {
+  margin: 0;
+}
+
+.prod-grupo-equipo {
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.prod-grupo-equipo b {
+  font-family: var(--mono);
+  color: var(--tinta);
+}
+
+.prod-grupo-equipo .prod-cambio {
+  margin-left: 8px;
+}
+
+/* tendencia mes a mes */
+.tabla-prod .prod-col-tendencia {
+  width: 116px;
+  text-align: center;
+}
+
+.prod-tendencia {
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.prod-tendencia-linea {
+  fill: none;
+  stroke: var(--azul);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.prod-tendencia-equipo {
+  fill: none;
+  stroke: var(--slate-400);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+}
+
+.prod-tendencia-punto {
+  fill: var(--azul);
+}
+
+.prod-tendencia-fin {
+  fill: var(--azul);
+  stroke: var(--tarjeta);
+  stroke-width: 2;
+}
+
+tfoot .prod-tendencia-linea,
+tfoot .prod-tendencia-punto,
+tfoot .prod-tendencia-fin {
+  stroke: var(--slate-500);
+}
+
+tfoot .prod-tendencia-punto,
+tfoot .prod-tendencia-fin {
+  fill: var(--slate-500);
+}
+
+/* vs. equipo: barra de la operaria y marca del equipo */
+.tabla-prod .prod-col-equipo {
+  width: 150px;
+}
+
+.prod-bala {
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--papel-2);
+  vertical-align: middle;
+}
+
+.prod-bala-barra {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--azul);
+}
+
+.prod-bala-poca {
+  background: var(--slate-300);
+}
+
+.prod-bala-equipo {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--tinta);
+}
+
+@media (max-width: 1100px) {
+  .prod-resumen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.prod-grupo {
+  margin-bottom: 22px;
+}
+
+.prod-grupo h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.prod-unidad {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--apagado);
+}
+
+.tabla-prod {
+  table-layout: fixed;
+  min-width: 880px;
+  white-space: nowrap;
+}
+
+.tabla-prod thead th:first-child {
+  width: 180px;
+}
+
+.tabla-prod thead th:not(:first-child) {
+  text-align: right;
+}
+
+.tabla-prod th[scope='row'] {
+  overflow: hidden;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--linea);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  text-overflow: ellipsis;
+  color: var(--tinta);
+}
+
+.tabla-prod tbody tr:nth-child(even) th {
+  background: rgb(241 245 249 / 0.7);
+}
+
+.tabla-prod td {
+  text-align: right;
+}
+
+.tabla-prod td > * + * {
+  margin-left: 8px;
+}
+
+.tabla-prod tfoot th,
+.tabla-prod tfoot td {
+  border-top: 2px solid var(--linea-2);
+  border-bottom: 0;
+  background: var(--papel-2);
+  color: var(--tinta-2);
+}
+
+.prod-valor {
+  font-weight: 600;
+}
+
+.prod-poca {
+  font-weight: 400;
+  color: var(--apagado);
+}
+
+.prod-nada {
+  color: var(--apagado);
+}
+
+.prod-cambio {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.prod-sube { color: var(--ok-tinta); }
+
+.prod-baja { color: var(--error-tinta); }
+
+.prod-igual { color: var(--apagado); font-weight: 500; }
+
+.prod-dudoso { color: var(--apagado); font-weight: 400; }

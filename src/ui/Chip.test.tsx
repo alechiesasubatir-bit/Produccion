@@ -21,7 +21,34 @@ test.each([
   expect(chip.classList.contains('en-curso')).toBe(enCurso)
 })
 
+test('no salta en la primera carga, aunque haya muchos chips', () => {
+  const { container } = render(
+    <>
+      {Array.from({ length: 20 }, (_, i) => (
+        <Chip key={i} estado={i % 2 ? 'fabricando' : 'activo'} />
+      ))}
+    </>,
+  )
+  expect(container.querySelectorAll('.chip')).toHaveLength(20)
+  expect(container.querySelectorAll('.chip.salto')).toHaveLength(0)
+})
+
+test('salta cuando el estado cambia en vivo', () => {
+  const { container, rerender } = render(<Chip estado="fabricando" />)
+  expect(container.querySelector('.chip')!.classList.contains('salto')).toBe(false)
+  rerender(<Chip estado="en_control" />)
+  expect(screen.getByText('En control')).toBeInTheDocument()
+  expect(container.querySelector('.chip')!.classList.contains('salto')).toBe(true)
+})
+
 test('estado desconocido muestra el texto humanizado', () => {
   render(<Chip estado="para_envasar" />)
   expect(screen.getByText('Para envasar')).toBeInTheDocument()
+})
+
+test('con clave salta aunque se vuelva a montar en otra columna', () => {
+  const a = render(<Chip estado="cola" clave="fabricacion-chip-1" />)
+  a.unmount()
+  const { container } = render(<Chip estado="fabricando" clave="fabricacion-chip-1" />)
+  expect(container.querySelector('.chip')!.classList.contains('salto')).toBe(true)
 })

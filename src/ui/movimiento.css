@@ -1,0 +1,368 @@
+/* Movimiento de ProdControl: todas las animaciones en un solo lugar (las de siempre y las de la base B).
+   Todo queda quieto con «movimiento reducido» (bloque del final). */
+
+/* ---------- animaciones compartidas ---------- */
+@keyframes ola {
+  to {
+    transform: translateX(-60px);
+  }
+}
+
+@keyframes burbuja {
+  0% {
+    transform: translateY(0) scale(.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: .85;
+  }
+  100% {
+    transform: translateY(-90px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes polvo-cae {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--caida, 60px));
+    opacity: 0;
+  }
+}
+
+@keyframes pulso {
+  50% {
+    opacity: .25;
+    transform: scale(.6);
+  }
+}
+
+/* entrada escalonada (una sola vez, al montar) */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes trazar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- vida: color y movimiento compartidos ---------- */
+
+/* el líquido sube al aparecer el tanque (después queda el nivel real del estilo en línea) */
+@keyframes llenar {
+  from {
+    transform: translateY(114px);
+  }
+}
+
+.tanque .liquido {
+  animation: llenar 1.4s 0.2s var(--ease) backwards;
+}
+
+/* brillo que recorre el vidrio de los tanques en uso */
+.tanque:is([data-estado='fabricando'], [data-estado='envasando']) .vidrio {
+  animation: destello 4s ease-in-out infinite;
+}
+
+@keyframes destello {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.55; }
+}
+
+/* chips en curso: un barrido de luz */
+.chip.en-curso {
+  background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.75) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: barrido 2.8s ease-in-out infinite;
+}
+
+@keyframes barrido {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@keyframes respirar {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--producto) 0%, transparent), var(--sombra);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--producto) 22%, transparent), 0 10px 30px -12px color-mix(in srgb, var(--producto) 55%, transparent);
+  }
+}
+
+@keyframes latido {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+@keyframes onda {
+  from {
+    transform: scale(0.4);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* ---------- vida: color y movimiento ---------- */
+
+/* tanques ocupados: fondo teñido por el producto; en uso: respiran con su color */
+.pared-celda:not(:has(.tanque[data-estado='libre'])) {
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--producto) 13%, var(--tarjeta)), var(--tarjeta) 62%);
+}
+
+.pared-celda:has(.tanque:is([data-estado='fabricando'], [data-estado='envasando'])) {
+  animation: aparecer 0.5s var(--ease) both, respirar 3.2s 0.8s ease-in-out infinite;
+}
+
+.pared-celda:has(.tanque:is([data-estado='pausada'], [data-estado='env_pausado']))::after {
+  content: 'pausa';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--senal);
+  color: var(--boton-tinta);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+.pared-celda:hover {
+  transform: translateY(-3px);
+}
+
+/* botón principal: destello que cruza al pasar el mouse */
+.boton:not(.boton-sec) {
+  position: relative;
+  overflow: hidden;
+}
+
+.boton:not(.boton-sec)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+  pointer-events: none;
+}
+
+.boton:not(.boton-sec):hover::after {
+  transform: translateX(120%);
+}
+
+/* ---------- base B: movimiento nuevo ---------- */
+
+/* etapa actual en marcha: una luz naranja recorre el segmento en curso */
+.etapas i.actual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: var(--marca);
+  animation: avanza 1.6s ease-in-out infinite;
+}
+
+/* en pausa la etapa queda marcada pero sin la luz que corre */
+.etapas.pausada i.actual::after {
+  content: none;
+}
+
+@keyframes avanza {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(240%); }
+}
+
+/* pulso «en vivo»: una onda sale del punto (apagado sin conexión) */
+.pulso-vivo {
+  position: relative;
+}
+
+.pulso-vivo:not(.apagado)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: onda 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+/* cambio de estado: un pequeño salto, una sola vez */
+.salto {
+  animation: salto 0.45s var(--ease);
+}
+
+/* un chip en curso conserva su barrido mientras salta */
+.chip.en-curso.salto {
+  animation: salto 0.45s var(--ease), barrido 2.8s ease-in-out infinite;
+}
+
+@keyframes salto {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* tarjetas que se levantan al pasar el mouse */
+.levanta {
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.levanta:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--sombra-levantada);
+}
+
+/* ---------- panel: vida de flujo, KPIs, alertas, modal y tablas ---------- */
+
+/* contadores con el color de su estado y una barra que se dibuja */
+.kpi {
+  --kpi: var(--apagado);
+  position: relative;
+}
+
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 26px;
+  height: 3px;
+  background: var(--kpi);
+  transform-origin: left;
+  animation: trazar 0.7s 0.3s var(--ease) both;
+}
+
+.kpis .kpi:nth-child(1) { --kpi: var(--apagado); }
+
+.kpis .kpi:nth-child(2) { --kpi: var(--etapa-fabricando-tinta); }
+
+.kpis .kpi:nth-child(3) { --kpi: var(--etapa-envasando-tinta); }
+
+.kpis .kpi:nth-child(4) { --kpi: var(--senal); }
+
+.kpis .kpi:nth-child(5) { --kpi: var(--espectro-teal); }
+
+.kpis .kpi:nth-child(6) { --kpi: var(--espectro-violeta); }
+
+.kpis .kpi:nth-child(7) { --kpi: var(--slate-600); }
+
+.kpis-grandes .kpi:nth-child(1) { --kpi: var(--etapa-fabricando-tinta); }
+
+.kpis-grandes .kpi:nth-child(2) { --kpi: var(--aviso-linea); }
+
+.kpis-grandes .kpi:nth-child(3) { --kpi: var(--espectro-violeta); }
+
+.kpis-grandes .kpi:nth-child(4) { --kpi: var(--espectro-verde); }
+
+.tarjeta-flujo:has(.chip.en-curso) {
+  background: linear-gradient(to right, color-mix(in srgb, var(--producto) 8%, var(--tarjeta)), var(--tarjeta) 55%);
+  animation: respirar 3.2s ease-in-out infinite;
+}
+
+/* cronómetro corriendo: punto rojo de "grabando" */
+.tarjeta-flujo:has(.chip.en-curso) .cronometro::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--rojo-500);
+  vertical-align: 1px;
+  animation: latido 1.2s ease-in-out infinite;
+}
+
+@keyframes avanzar {
+  to { background-position: 17px 0; }
+}
+
+.globo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--senal);
+  animation: onda 1.8s ease-out infinite;
+}
+
+@keyframes alarma {
+  50% { box-shadow: -4px 0 18px -6px var(--senal), var(--sombra); }
+}
+
+@keyframes fundir {
+  from { opacity: 0; }
+}
+
+@keyframes emerger {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+
+/* tablas: la fila bajo el mouse se marca con la señal */
+.tabla tbody tr {
+  transition: box-shadow 0.15s var(--ease);
+}
+
+.tabla tbody tr:hover {
+  box-shadow: inset 3px 0 0 var(--senal);
+}
+
+/* ---------- movimiento reducido: sin olas, burbujas, entradas ni transiciones ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ola,
+  .burbuja,
+  .liquido,
+  .grano,
+  .polvo,
+  .chip i,
+  .etapas i.actual::after,
+  .pulso-vivo::after,
+  .salto,
+  .levanta,
+  .tarjeta-flujo {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .burbuja {
+    opacity: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

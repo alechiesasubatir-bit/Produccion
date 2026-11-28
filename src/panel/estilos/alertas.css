@@ -1,0 +1,87 @@
+/* Alertas */
+
+/* ---------- Alertas ---------- */
+
+.globo {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--senal);
+  color: var(--boton-tinta);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px var(--tarjeta);
+  position: relative;
+}
+
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lista-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.lista-alertas h2 {
+  margin: 0 0 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--apagado);
+}
+
+.alerta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--linea);
+  border-left: 4px solid var(--aviso-linea);
+  border-radius: var(--radio-chico);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  animation: aparecer 0.45s var(--ease) both;
+}
+
+.alerta-exceso_9h {
+  border-left-color: var(--senal);
+  animation: aparecer 0.45s var(--ease) both, alarma 2s 0.5s ease-in-out infinite;
+}
+
+.alerta-desvio_estandar { border-left-color: var(--marca); }
+
+.alerta-sin_control { border-left-color: var(--etapa-control-tinta); }
+
+.alerta-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alerta-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lista-alertas.atenuada .alerta {
+  border-left-color: var(--linea-2);
+  opacity: 0.7;
+}

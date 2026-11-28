@@ -1,0 +1,125 @@
+/* Panel: pestañas, título y vista de la tablet */
+
+/* Panel de la encargada (1440×900). */
+
+.panel .marca {
+  align-self: stretch;
+  gap: 20px;
+}
+
+.pestanas {
+  align-self: stretch;
+  display: flex;
+  gap: 2px;
+}
+
+.pestana {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  color: var(--tinta-2);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s var(--ease);
+}
+
+.pestana::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 3px;
+  background: var(--senal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease);
+}
+
+.pestana:hover {
+  color: var(--tinta);
+}
+
+.pestana:hover::after {
+  transform: scaleX(0.35);
+  background: var(--linea-2);
+}
+
+.pestana[aria-current='page'] {
+  color: var(--marca-oscuro);
+  font-weight: 600;
+}
+
+.pestana[aria-current='page']::after {
+  transform: scaleX(1);
+  background: var(--marca);
+}
+
+.pestana:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: -6px;
+  border-radius: 6px;
+}
+
+.titulo-panel {
+  position: relative;
+  margin: 0 0 24px;
+  font-family: var(--titulo);
+  font-weight: 800;
+  font-size: 42px;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  animation: aparecer 0.5s var(--ease) both;
+}
+
+/* subrayado de señal debajo del título */
+.titulo-panel::after {
+  content: '';
+  display: block;
+  width: 56px;
+  height: 4px;
+  margin-top: 10px;
+  background: var(--marca);
+  transform-origin: left;
+  animation: trazar 0.6s 0.15s var(--ease) both;
+  border-radius: 2px;
+}
+
+/* Pestaña Tablet: la app de planta dentro de un marco con la proporción de la tablet (1180×820). */
+.vista-tablet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.vista-tablet-aviso {
+  margin: 0;
+  max-width: 1180px;
+  color: var(--tinta-2);
+  font-size: 14px;
+  text-align: center;
+}
+
+.marco-tablet {
+  width: min(1180px, 100%);
+  height: 820px;
+  max-height: calc(100vh - 180px);
+  min-height: 560px;
+  overflow: auto;
+  border: 14px solid var(--marco-tablet);
+  border-radius: 28px;
+  background: var(--papel);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.18);
+}
+
+.marco-tablet .planta {
+  min-height: 100%;
+}
+
+.marco-tablet .planta-barra {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}

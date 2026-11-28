@@ -14,7 +14,7 @@
   gap: 16px;
   min-height: 64px;
   padding: 10px 28px;
-  border-bottom: 1px solid var(--slate-900);
+  border-bottom: 1px solid var(--barra-linea);
   background: var(--barra);
   user-select: none;
 }
@@ -99,14 +99,18 @@
 }
 
 .quien-boton:nth-child(2) { animation-delay: 40ms; }
+
 .quien-boton:nth-child(3) { animation-delay: 80ms; }
+
 .quien-boton:nth-child(4) { animation-delay: 120ms; }
+
 .quien-boton:nth-child(5) { animation-delay: 160ms; }
+
 .quien-boton:nth-child(n + 6) { animation-delay: 200ms; }
 
 .quien-boton:active {
   border-color: var(--tinta);
-  box-shadow: 3px 3px 0 var(--tinta);
+  box-shadow: var(--sombra-levantada);
 }
 
 .quien-boton:focus-visible,
@@ -124,7 +128,7 @@
   place-items: center;
   border-radius: 50%;
   object-fit: cover;
-  color: #fff;
+  color: var(--boton-tinta);
   font-family: var(--titulo);
   font-weight: 700;
   font-size: 26px;
@@ -142,7 +146,8 @@
 }
 
 .punto-trabajando {
-  background: #16a34a;
+  background: var(--espectro-verde);
+  animation: latido 1.6s ease-in-out infinite;
 }
 
 .punto-pausada {
@@ -176,8 +181,8 @@
   padding: 14px 18px;
   border-left: 4px solid var(--senal);
   border-radius: var(--radio-chico);
-  background: #fdeee9;
-  color: #8f1d0f;
+  background: var(--error-fondo);
+  color: var(--error-tinta);
   font-size: 16px;
   font-weight: 500;
 }
@@ -260,6 +265,8 @@
 .tarea-acciones {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .accion {
@@ -270,13 +277,13 @@
   border: 1px solid var(--tinta);
   border-radius: var(--radio);
   background: var(--tinta);
-  color: #fff;
+  color: var(--boton-tinta);
   font: inherit;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.005em;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 3px 0 #000;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 3px 0 var(--negro);
   transition: box-shadow 0.08s var(--ease), background-color 0.08s;
 }
 
@@ -296,9 +303,9 @@
 }
 
 .accion-finalizar {
-  background: #15803d;
-  border-color: #14532d;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 3px 0 #14532d;
+  background: var(--arranque);
+  border-color: var(--ok-tinta);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 3px 0 var(--ok-tinta);
 }
 
 .accion:disabled {
@@ -308,17 +315,12 @@
 
 /* ---------- Checklist de materias primas ---------- */
 
-.tarea-acciones {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .bloqueo-finalizar {
   flex-basis: 100%;
   text-align: right;
   font-size: 14px;
   font-weight: 500;
-  color: #8f1d0f;
+  color: var(--error-tinta);
 }
 
 .tarea-checklist {
@@ -371,8 +373,8 @@
 }
 
 .mp-completa {
-  border-color: #86c39b;
-  background: #eef7f0;
+  border-color: var(--verde-linea);
+  background: var(--verde-suave);
 }
 
 .mp-codigo,
@@ -415,7 +417,7 @@
 .mp-pesado input {
   width: 32px;
   height: 32px;
-  accent-color: #15803d;
+  accent-color: var(--arranque);
 }
 
 .mp-lote:focus-visible,
@@ -433,7 +435,7 @@
 .mp-marca {
   font-size: 22px;
   font-weight: 700;
-  color: #15803d;
+  color: var(--arranque);
 }
 
 .mp-fila .mp-error {
@@ -442,7 +444,7 @@
 }
 
 .mp-error {
-  color: #8f1d0f;
+  color: var(--error-tinta);
   font-size: 14px;
   font-weight: 500;
 }
@@ -485,6 +487,7 @@
 
 .confirmacion-check {
   position: relative;
+  animation: emerger-check 0.5s var(--ease) both;
 }
 
 .confirmacion-check path {
@@ -504,6 +507,7 @@
   font-size: 34px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  animation: aparecer 0.5s 0.25s var(--ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -529,7 +533,7 @@
   border: 1px solid var(--tinta);
   border-radius: 6px;
   background: var(--tarjeta);
-  box-shadow: 5px 5px 0 var(--tinta);
+  box-shadow: var(--sombra-levantada);
 }
 
 /* ---------- vida: color y movimiento ---------- */
@@ -550,7 +554,7 @@
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  background: conic-gradient(var(--senal), #f59e0b, #16a34a, #0284c7, #7c3aed, var(--senal));
+  background: conic-gradient(var(--senal), var(--espectro-ambar), var(--espectro-verde), var(--espectro-celeste), var(--espectro-violeta), var(--senal));
   opacity: 0;
   transition: opacity 0.2s var(--ease);
   animation: girar 3s linear infinite;
@@ -570,11 +574,6 @@
 .quien-boton:active .quien-avatar::before,
 .quien-boton:focus-visible .quien-avatar::before {
   opacity: 1;
-}
-
-/* operaria trabajando: su punto late */
-.punto-trabajando {
-  animation: latido 1.6s ease-in-out infinite;
 }
 
 /* confirmación: ondas que se expanden detrás del check */
@@ -597,16 +596,8 @@
   animation-delay: 0.45s;
 }
 
-.confirmacion-check {
-  animation: emerger-check 0.5s var(--ease) both;
-}
-
 @keyframes emerger-check {
   from { transform: scale(0.4) rotate(-20deg); opacity: 0; }
-}
-
-.confirmacion-texto {
-  animation: aparecer 0.5s 0.25s var(--ease) both;
 }
 
 /* Declarar cantidad: campos y botones grandes para tablet. */
@@ -686,7 +677,7 @@
 .tarea-con {
   font-size: 14px;
   font-weight: 500;
-  color: var(--muted, #475569);
+  color: var(--tinta-2);
 }
 
 .tarea-vencimiento,
@@ -697,10 +688,12 @@
   gap: 0.5rem;
   font-size: 0.95rem;
 }
+
 .mp-autor {
   font-size: 0.85rem;
-  color: var(--texto-suave, #64748b);
+  color: var(--apagado);
 }
 
 .tarea-intento { font-weight: 600; }
-.tarea-rechazo { color: var(--error, #b91c1c); font-weight: 600; }
+
+.tarea-rechazo { color: var(--error, var(--error-tinta)); font-weight: 600; }

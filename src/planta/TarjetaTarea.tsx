@@ -3,8 +3,11 @@ import { accionesPosibles, type Accion } from '../domain/acciones'
 import { nivelTanque, type EstadoTanque } from '../domain/tanque'
 import { esUltima, etiquetaAccion, formatoCronometro, segundosTranscurridos, tituloTarea, type Tarea } from '../domain/tareas'
 import { setVencimiento } from '../lib/acciones'
+import { etapasDe } from '../domain/etapas'
 import { Chip } from '../ui/Chip'
+import { Etapas } from '../ui/Etapas'
 import { Tanque } from '../ui/Tanque'
+import { useSalto } from '../ui/useSalto'
 
 // Estado de tanque equivalente para el mini-tanque de la tarjeta.
 function estadoMiniTanque(t: Tarea): EstadoTanque {
@@ -128,9 +131,13 @@ export function TarjetaTarea({
   const idUltima = useId()
   const estado = estadoMiniTanque(tarea)
   const idBloqueo = useId()
+  const clave = `${tarea.entidad}-${tarea.id}`
+  const tarjeta = useSalto<HTMLElement>(tarea.estado, clave)
+  const etapas = etapasDe(tarea.entidad, tarea.estado)
 
   return (
     <article
+      ref={tarjeta}
       className="tarjeta-tarea"
       aria-label={tituloTarea(tarea)}
       style={{ '--producto': tarea.color ?? undefined } as CSSProperties}
@@ -149,12 +156,13 @@ export function TarjetaTarea({
         <span className="tarea-titulo">{tituloTarea(tarea)}</span>
         <span className="tarea-meta">
           {tarea.tanque_codigo && <span className="tarea-tanque">{tarea.tanque_codigo}</span>}
-          <Chip estado={tarea.entidad === 'fraccionado' && tarea.estado === 'activo' ? 'fraccionado' : tarea.estado} />
+          <Chip estado={tarea.entidad === 'fraccionado' && tarea.estado === 'activo' ? 'fraccionado' : tarea.estado} clave={clave} />
           {tarea.lote && <span className="tarea-lote">Lote {tarea.lote}</span>}
           {tarea.lote_doc && tarea.lote_doc !== tarea.lote && <span className="tarea-lote">Lote doc. {tarea.lote_doc}</span>}
           {enControl && tarea.control_intento !== null && <span className="tarea-intento">Intento {tarea.control_intento}</span>}
           {otras.length > 0 && <span className="tarea-con">Con: {otras.join(' · ')}</span>}
         </span>
+        {etapas && <Etapas etapas={etapas} />}
       </div>
       {tarea.control_rechazo && <span className="tarea-rechazo">Rechazado: {tarea.control_rechazo}</span>}
       {!enControl && <Cronometro tarea={tarea} cargadoEn={cargadoEn} />}

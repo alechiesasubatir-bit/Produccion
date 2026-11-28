@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './ui/tokens.css'
+import './ui/componentes.css'
+import './ui/movimiento.css'
 import App from './App.tsx'
 
 // El código cargó: se rearma la recarga automática de index.html para el próximo deploy y se quita

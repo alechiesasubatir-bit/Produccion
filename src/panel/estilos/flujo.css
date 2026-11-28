@@ -1,0 +1,766 @@
+/* Flujo: kanban, tarjetas, terminadas hoy y hoy en planta */
+
+/* ---------- Flujo ---------- */
+
+.flujo-barra {
+  display: flex;
+  align-items: flex-end;
+  gap: 36px;
+  margin-bottom: 24px;
+}
+
+.flujo-barra .titulo-panel {
+  margin: 0;
+}
+
+.flujo-barra .boton {
+  margin-left: auto;
+}
+
+.aviso-panel {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--rojo-200);
+  border-left: 4px solid var(--senal);
+  border-radius: var(--radio-chico);
+  background: var(--error-fondo);
+  color: var(--error-tinta);
+  font-weight: 500;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-right: 30px; /* lugar para la lengüeta de Terminadas hoy */
+  gap: 14px;
+  align-items: start;
+}
+
+.kanban-col {
+  --columna: var(--apagado);
+  min-height: 62vh;
+  padding: 0 8px 10px;
+  border: 1px solid var(--linea);
+  border-top: 2px solid var(--tinta);
+  border-radius: 2px 2px var(--radio) var(--radio);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--columna) 9%, var(--tarjeta)), var(--papel-2) 220px);
+  animation: aparecer 0.5s var(--ease) both;
+}
+
+.kanban-col:nth-child(1) { --columna: var(--apagado); }
+
+.kanban-col:nth-child(2) { --columna: var(--etapa-fabricando-tinta); animation-delay: 50ms; }
+
+.kanban-col:nth-child(3) { --columna: var(--espectro-teal); animation-delay: 100ms; }
+
+.kanban-col:nth-child(4) { --columna: var(--etapa-envasando-tinta); animation-delay: 150ms; }
+
+.kanban-col:nth-child(5) { --columna: var(--etapa-fraccionado-tinta); animation-delay: 200ms; }
+
+.kanban-col:nth-child(6) { --columna: var(--etapa-terminada-tinta); animation-delay: 250ms; }
+
+.kanban-col h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -8px 10px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--linea);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--tinta);
+}
+
+.kanban-col h2::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--columna);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--columna) 22%, transparent);
+}
+
+.kanban-contador {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--papel-2);
+  color: var(--tinta-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.kanban-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* tarjetas del flujo (motion anima su transform: acá solo color, borde y sombra).
+   Compactas: quién, avance y tiempo; el resto en el detalle que abre la tarjeta. */
+.tarjeta-flujo {
+  --producto: var(--linea-2);
+  position: relative;
+  border: 1px solid var(--linea);
+  border-left: 3px solid var(--producto);
+  border-radius: var(--radio-chico);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), translate 0.25s var(--ease);
+}
+
+/* se levanta al pasar el mouse (translate, no transform: motion usa transform para el layout) */
+.tarjeta-flujo:hover {
+  translate: 0 -3px;
+  border-top-color: var(--linea-2);
+  border-right-color: var(--linea-2);
+  border-bottom-color: var(--linea-2);
+  box-shadow: 0 1px 0 var(--linea-2), 0 14px 30px -14px color-mix(in srgb, var(--producto) 60%, transparent);
+}
+
+.tf-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 7px 9px 7px 10px;
+}
+
+.tf-abrir {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tf-abrir:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.tf-cabecera {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tf-titulo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tf-nombre {
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 12.5px;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tf-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--apagado);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tf-meta .chip {
+  padding: 0 5px;
+  font-size: 9.5px;
+  gap: 4px;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.tf-operarias {
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--tinta-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tf-cabecera .cronometro {
+  align-self: flex-start;
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tinta);
+  color: var(--papel);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.tf-cuerpo .avance {
+  display: block;
+  height: 4px;
+}
+
+/* detalle de una tarjeta del flujo */
+.modal-flujo {
+  width: min(640px, 100%);
+}
+
+.modal-flujo .modal-cabecera h2 {
+  font-size: 22px;
+}
+
+.modal-flujo .detalle-tanque-grande {
+  margin-bottom: 18px;
+}
+
+.modal-flujo .detalle-seccion {
+  margin-bottom: 16px;
+}
+
+.df-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.df-estado .cronometro,
+.df-envasados .cronometro {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--tinta);
+  color: var(--papel);
+  font-size: 12px;
+}
+
+.df-aviso {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.df-envasados {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.df-envasados li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 7px 0;
+  border-bottom: 1px dotted var(--linea-2);
+  font-size: 13px;
+}
+
+.df-env-nombre {
+  font-weight: 600;
+}
+
+.df-env-quien {
+  color: var(--tinta-2);
+}
+
+.df-envasados .cronometro {
+  margin-left: auto;
+}
+
+.boton-mini {
+  appearance: none;
+  padding: 4px 10px;
+  border: 1px solid var(--linea-2);
+  border-radius: 5px;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.boton-mini:hover:not(:disabled) {
+  border-color: var(--tinta-2);
+  background: var(--papel);
+}
+
+.boton-mini.confirmar {
+  border-color: var(--senal);
+  background: var(--error-fondo);
+  color: var(--error-tinta);
+}
+
+.boton-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.boton-mini:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* ---------- Flujo: "Terminadas hoy" como lengüeta que se despliega desde la derecha ---------- */
+
+.terminadas {
+  position: fixed;
+  top: 84px;
+  right: 0;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  transform: translateX(340px);
+  transition: transform 0.35s var(--ease);
+  pointer-events: none;
+}
+
+.terminadas.abierta {
+  transform: none;
+}
+
+.terminadas-lengueta {
+  appearance: none;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 100px;
+  padding: 14px 8px 12px;
+  border: 1px solid var(--linea-2);
+  border-right: 0;
+  border-left: 3px solid var(--etapa-terminada-tinta);
+  border-radius: var(--radio) 0 0 var(--radio);
+  background: var(--tarjeta);
+  box-shadow: -6px 8px 20px -14px rgb(15 23 42 / 0.45);
+  color: var(--tinta);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease);
+}
+
+.terminadas-lengueta:hover {
+  background: color-mix(in srgb, var(--etapa-terminada-tinta) 8%, var(--tarjeta));
+}
+
+.terminadas-lengueta:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.terminadas-texto {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.terminadas-lengueta .kanban-contador {
+  margin-left: 0;
+}
+
+.terminadas-panel.kanban-col {
+  --columna: var(--etapa-terminada-tinta);
+  pointer-events: auto;
+  width: 340px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 0;
+  border-radius: 2px 0 0 var(--radio);
+  background: var(--tarjeta);
+  box-shadow: -12px 0 30px -18px rgb(15 23 42 / 0.5);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminadas {
+    transition: none;
+  }
+}
+
+/* ---------- Flujo: hoy en planta (debajo del kanban) ---------- */
+
+.hoy-planta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin: 22px 30px 0 0; /* el mismo margen que deja la lengüeta de Terminadas hoy */
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .hoy-planta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.hoy-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--tarjeta);
+  box-shadow: var(--sombra);
+  min-width: 0;
+}
+
+.hoy-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hoy-cabeza h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hoy-contador {
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--papel-2);
+  color: var(--tinta-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.hoy-segmentos {
+  margin: 0;
+  padding: 2px;
+}
+
+.hoy-segmentos .segmento {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
+.hoy-vacio {
+  margin: 0;
+  padding: 18px 0;
+  font-size: 13px;
+}
+
+.hoy-total {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.hoy-total b {
+  font-family: var(--mono);
+  font-size: 22px;
+  color: var(--tinta);
+}
+
+/* columnas por hora: una sola serie, la hora actual marcada */
+.hoy-grafico {
+  position: relative;
+  padding-top: 16px;
+}
+
+.hoy-eje-max {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--apagado);
+}
+
+.hoy-barras {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px dashed var(--linea);
+}
+
+.hoy-hora {
+  display: grid;
+  gap: 4px;
+}
+
+.hoy-columna {
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  border-bottom: 1px solid var(--linea-2);
+}
+
+.hoy-columna i {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--azul);
+  transition: height 0.4s var(--ease);
+}
+
+.hoy-hora:hover .hoy-columna {
+  background: var(--papel-2);
+}
+
+.hoy-hora.ahora .hoy-columna {
+  background: color-mix(in srgb, var(--marca) 8%, transparent);
+  box-shadow: inset 0 -2px 0 var(--marca);
+}
+
+.hoy-hora-texto {
+  height: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--apagado);
+  text-align: center;
+}
+
+.hoy-hora.ahora .hoy-hora-texto {
+  color: var(--marca-oscuro);
+  font-weight: 600;
+}
+
+/* terminadas hoy */
+.hoy-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hoy-tabla th {
+  padding: 0 6px 6px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--linea);
+  color: var(--apagado);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.hoy-tabla td {
+  padding: 6px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.hoy-tabla tr:last-child td {
+  border-bottom: 0;
+}
+
+.hoy-tabla th:nth-child(n + 3),
+.hoy-tabla td:nth-child(n + 3) {
+  text-align: right;
+}
+
+.hoy-num {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.hoy-produccion {
+  max-width: 0; /* recorta con puntos en vez de ensanchar la tabla */
+  width: 100%;
+}
+
+.hoy-produccion > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hoy-produccion i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.hoy-produccion span span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hoy-mas {
+  margin: 0;
+  font-size: 12px;
+  color: var(--apagado);
+}
+
+/* trabajando ahora */
+.hoy-operarias {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hoy-operarias li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 4px;
+  border-radius: 6px;
+}
+
+.hoy-operarias li:hover {
+  background: var(--papel-2);
+}
+
+.hoy-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--etapa-fabricando-fondo);
+  color: var(--etapa-fabricando-tinta);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hoy-avatar-envasado {
+  background: var(--etapa-envasando-fondo);
+  color: var(--etapa-envasando-tinta);
+}
+
+.hoy-avatar-fraccionado {
+  background: var(--etapa-fraccionado-fondo);
+  color: var(--etapa-fraccionado-tinta);
+}
+
+.hoy-operaria {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.hoy-operaria b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoy-operaria span {
+  overflow: hidden;
+  color: var(--tinta-2);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hoy-desde {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--apagado);
+  white-space: nowrap;
+}
+
+/* tanques: una barra apilada por estado */
+.hoy-tanques {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--linea);
+}
+
+.hoy-tanques h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoy-tanques h4 span {
+  margin-left: 4px;
+  font-family: var(--mono);
+  color: var(--apagado);
+}
+
+.hoy-tanques-barra {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+}
+
+.hoy-tanques-barra i {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.hoy-tanques-barra i:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.hoy-tanques-barra i:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.hoy-tanques-barra i:only-child {
+  border-radius: 4px;
+}
+
+.hoy-tq-trabajando { background: var(--espectro-verde); }
+
+.hoy-tq-esperando { background: var(--espectro-celeste); }
+
+.hoy-tq-pausados { background: var(--aviso-linea); }
+
+.hoy-tq-libres { background: var(--slate-300); }
+
+.hoy-tanques-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--tinta-2);
+}
+
+.hoy-tanques-leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hoy-tanques-leyenda i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.hoy-tanques-leyenda b {
+  font-family: var(--mono);
+  color: var(--tinta);
+}

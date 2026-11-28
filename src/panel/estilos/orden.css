@@ -1,0 +1,159 @@
+/* Operarias por orden y control para liberación */
+
+/* ---------- Operarias por orden ---------- */
+
+.operarias-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.operarias-tabla th,
+.operarias-tabla td {
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.operarias-motivo {
+  display: block;
+  color: var(--tinta-2);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.operarias-falta {
+  color: var(--aviso-tinta);
+  font-weight: 600;
+}
+
+.operarias-edicion {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.operarias-edicion input {
+  width: 5rem;
+}
+
+.operarias-total {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.operarias-total.aviso {
+  color: var(--aviso-tinta);
+  background: var(--aviso-fondo);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+/* Operarias del detalle del tanque: plegadas para que el panel entre en pantalla. */
+.detalle-operarias > summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 0;
+}
+
+/* ---------- Control para liberación ---------- */
+
+.controles-orden {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.control-intento p {
+  margin: 0;
+}
+
+.control-cabecera {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.control-resultado.aprobado {
+  color: var(--ok-tinta);
+  font-weight: 600;
+}
+
+.control-resultado.rechazado {
+  color: var(--error-tinta);
+  font-weight: 600;
+}
+
+.control-valores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.control-firma {
+  color: var(--apagado);
+  font-size: 0.85em;
+}
+
+/* Operarias y Control, una al lado de la otra: el panel tiene que entrar en pantalla. */
+.detalle-plegables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: flex-start;
+}
+
+.detalle-plegables > details {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.detalle-plegables > details[open] {
+  flex-basis: 100%;
+}
+
+.formula-stock {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 0 12px;
+  border-left: 2px solid var(--tinta-2);
+}
+
+.formula details {
+  font-size: 14px;
+}
+
+/* envasados del documento que todavía esperan fabricación */
+.esperando {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px dashed var(--linea-2);
+  border-radius: 10px;
+}
+
+.esperando h2,
+.esperando h3 {
+  margin: 0 0 8px;
+}
+
+.esperando ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.esperando-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.esperando-nombre {
+  font-weight: 600;
+}

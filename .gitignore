@@ -29,3 +29,6 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+
+# Capturas antes/después (e2e/capturas.spec.ts)
+capturas/

@@ -4,8 +4,11 @@ import type { Accion } from '../domain/acciones'
 import type { FilaFlujo } from '../domain/flujo'
 import { tituloTarea } from '../domain/tareas'
 import { Cronometro } from '../planta/TarjetaTarea'
+import { etapasDe } from '../domain/etapas'
 import { Chip } from '../ui/Chip'
+import { Etapas } from '../ui/Etapas'
 import { Tanque } from '../ui/Tanque'
+import { useSalto } from '../ui/useSalto'
 import { DetalleFlujo } from './DetalleFlujo'
 import { DialogoControl } from './DialogoControl'
 import { estadoMini, nivelMini, nombresOperarias } from './flujoMini'
@@ -69,8 +72,12 @@ export function TarjetaFlujo({
   const [controlando, setControlando] = useState(false)
   const cerrarControl = useCallback(() => setControlando(false), [])
   const disparador = useRef<HTMLButtonElement>(null)
+  // salto cuando la orden cambia de estado en vivo
+  const clave = `${fila.entidad}-${fila.id}`
+  const tarjeta = useSalto<HTMLElement>(fila.estado, clave)
   const operarias = nombresOperarias(fila, nombres)
   const titulo = tituloTarea(fila)
+  const etapas = etapasDe(fila.entidad, fila.estado)
   const enControl = fila.entidad === 'fabricacion' && fila.estado === 'en_control'
   const editable = !!onEditar && fila.entidad === 'envasado' && fila.estado !== 'finalizado' && fila.estado !== 'cancelado'
   // Fabricación esperando envasado: cuánto ya se envasó del tanque.
@@ -91,7 +98,7 @@ export function TarjetaFlujo({
             {titulo}
           </span>
           <span className="tf-meta">
-            <Chip estado={fila.entidad === 'fraccionado' && fila.estado === 'activo' ? 'fraccionado' : fila.estado} />
+            <Chip estado={fila.entidad === 'fraccionado' && fila.estado === 'activo' ? 'fraccionado' : fila.estado} clave={clave} />
             {fila.tanque_codigo && <span className="mono">{fila.tanque_codigo}</span>}
           </span>
         </span>
@@ -102,6 +109,7 @@ export function TarjetaFlujo({
           {operarias.join(' · ')}
         </span>
       )}
+      {etapas && <Etapas etapas={etapas} />}
       {fila.corriendo && proyeccionMin ? (
         <AvanceEstimado efectivos={fila.min_efectivos ?? 0} cargadoEn={cargadoEn} estimado={proyeccionMin} />
       ) : envasadoPct !== null ? (
@@ -112,6 +120,7 @@ export function TarjetaFlujo({
 
   return (
     <motion.article
+      ref={tarjeta}
       layout
       layoutId={`${fila.entidad}-${fila.id}`}
       className="tarjeta-flujo"

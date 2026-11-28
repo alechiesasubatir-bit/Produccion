@@ -1,0 +1,117 @@
+/* Configuración: catálogo, operarias y usuarios */
+
+/* ---------- Configuración ---------- */
+
+.editor-barra {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.tabla tr.inactiva td {
+  color: var(--apagado);
+}
+
+.tabla tr.inactiva td:not(.celda-acciones) {
+  text-decoration: line-through;
+  text-decoration-color: var(--linea-2);
+}
+
+.celda-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.fila-edicion td,
+.tabla tbody tr.fila-edicion td {
+  background: var(--marca-suave);
+}
+
+.campo-color {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.campo-color input[type='color'] {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--linea-2);
+  border-radius: 8px;
+  background: var(--tarjeta);
+}
+
+.muestra-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.muestra-color i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.vista-previa {
+  display: inline-flex;
+  margin-right: 6px;
+}
+
+.alta-operaria {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: var(--tarjeta);
+}
+
+.candidatas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alta-nombre {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--titulo);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.apagado {
+  color: var(--apagado);
+}
+
+.rol-usuario {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rol-usuario select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--linea-2);
+  border-radius: 8px;
+}
+
+.ayuda {
+  margin: 0 0 14px;
+  color: var(--tinta-2);
+  font-size: 14px;
+  max-width: 70ch;
+}

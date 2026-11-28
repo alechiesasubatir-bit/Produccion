@@ -1,0 +1,192 @@
+/* Panel del tanque y detalle de la orden (datos, tabla de materias primas) */
+
+/* ---------- Panel del tanque: entra entero en una laptop (solo pantalla; la impresión del QR no cambia) ---------- */
+
+@media screen {
+  /* arriba el tanque y sus datos con el QR a la derecha; abajo, a todo el ancho, acciones, MP y recorrido */
+  .detalle-tanque {
+    top: 76px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-auto-flow: row dense;
+    align-content: start;
+    column-gap: 20px;
+    row-gap: 12px;
+    max-height: calc(100vh - 92px);
+    padding: 16px 20px 18px;
+  }
+
+  .detalle-tanque > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .detalle-tanque > .detalle-tanque-grande {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .detalle-tanque > .detalle-seccion:has(.qr-tanque) {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  .detalle-tanque > .detalle-seccion:has(.qr-tanque) h3 {
+    display: none;
+  }
+
+  .detalle-cabecera {
+    padding-bottom: 8px;
+  }
+
+  .detalle-cabecera h2 {
+    font-size: 26px;
+  }
+
+  .detalle-tanque-grande {
+    gap: 20px;
+  }
+
+  .detalle-tanque-grande .tanque {
+    width: 64px;
+    height: 128px;
+  }
+
+  .detalle-datos dt,
+  .detalle-datos dd {
+    padding: 4px 0;
+  }
+
+  .detalle-seccion h3 {
+    margin-bottom: 6px;
+  }
+
+  .detalle-acciones {
+    margin-bottom: 4px;
+  }
+
+  .recorrido {
+    max-height: 104px;
+    overflow: auto;
+    line-height: 1.6;
+  }
+
+  .qr-tanque {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--linea);
+    border-radius: var(--radio);
+    background: var(--tarjeta);
+  }
+
+  .qr-tanque .qr {
+    width: 112px;
+    height: 112px;
+  }
+
+  .qr-tanque figcaption {
+    align-items: center;
+    font-size: 12px;
+    color: var(--tinta-2);
+  }
+
+  /* la dirección completa solo sale impresa: en pantalla ocupaba media columna */
+  .qr-tanque .qr-url {
+    display: none;
+  }
+
+  .qr-tanque .boton {
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+}
+
+@media screen and (max-height: 640px) {
+  .recorrido {
+    max-height: 72px;
+  }
+
+  .qr-tanque .qr {
+    width: 104px;
+    height: 104px;
+  }
+}
+
+.detalle-tanque {
+  border-color: var(--linea);
+  box-shadow: var(--sombra-alta);
+}
+
+.detalle-cabecera {
+  border-bottom-color: var(--marca);
+}
+
+.detalle-cabecera h2 {
+  font-family: var(--titulo);
+  font-weight: 800;
+}
+
+.detalle-datos dt {
+  color: var(--azul);
+}
+
+.detalle-seccion h3 {
+  color: var(--marca-oscuro);
+}
+
+.detalle-seccion h3::after {
+  background: var(--marca-linea);
+}
+
+.tabla-mp-caja {
+  margin-top: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-chico);
+  background: var(--tarjeta);
+}
+
+.tabla-mp th {
+  background: var(--azul-suave);
+  color: var(--azul);
+  border-bottom-color: var(--azul-200);
+  white-space: nowrap;
+}
+
+.tabla-mp tbody tr:nth-child(even) td {
+  background: var(--papel);
+}
+
+.tabla-mp td:first-child {
+  font-weight: 600;
+  color: var(--marca-oscuro);
+}
+
+.tabla-mp td {
+  vertical-align: top;
+}
+
+.mp-pista {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--marca);
+  border-radius: 0 var(--radio-chico) var(--radio-chico) 0;
+  background: var(--marca-suave);
+  color: var(--marca-hover);
+  font-size: 13px;
+}
+
+.tabla-mp .mp-lote-panel {
+  width: 6.5em;
+}
+
+.tabla-mp input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--marca-oscuro);
+  cursor: pointer;
+}

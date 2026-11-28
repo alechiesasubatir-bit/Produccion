@@ -1,0 +1,15 @@
+/* Estilos del panel, por área. El orden importa: cada área queda donde estaba su última regla. */
+@import './base.css';
+@import './config.css';
+@import './historial.css';
+@import './alertas.css';
+@import './pdf.css';
+@import './demo.css';
+@import './monitor.css';
+@import './modal.css';
+@import './tanques.css';
+@import './panel-tanque.css';
+@import './orden.css';
+@import './pausa.css';
+@import './kpis.css';
+@import './flujo.css';

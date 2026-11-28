@@ -14,7 +14,8 @@ import { Monitor } from './monitor/Monitor'
 import { BotonPausaGeneral, FranjaPausa } from './PausaGeneral'
 import { Tanques } from './Tanques'
 import { VistaTablet } from './VistaTablet'
-import './panel.css'
+import { PulsoVivo } from '../ui/PulsoVivo'
+import './estilos/index.css'
 
 type Pestana = { a: string; texto: string; end: boolean; enDemo: boolean }
 
@@ -73,6 +74,7 @@ export function PanelApp({ base = '/panel', demo = false }: { base?: string; dem
               </button>
             </div>
           )}
+          <PulsoVivo forzarVivo={demo} />
           <BotonPausaGeneral pausa={pausa} onCambio={recargarPausa} />
         </div>
       </header>
